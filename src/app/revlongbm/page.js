@@ -167,16 +167,36 @@ function Stats() {
 
 function Reports() {
   const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
   const load = useCallback(() => { fetch('/api/admin/reports').then((r) => r.json()).then((d) => setRows(d.reports || [])); }, []);
   useEffect(() => { load(); }, [load]);
   const act = async (uid, action) => {
     await fetch('/api/admin/post-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid, action }) });
     load();
   };
+  const deleteReport = async ({ reportId, postId, count = 1 }) => {
+    const message = reportId
+      ? 'Delete this report permanently? This cannot be undone.'
+      : `Delete all ${count} reports for this post permanently? This cannot be undone.`;
+    if (!confirm(message)) return;
+    setError('');
+    const response = await fetch('/api/admin/reports', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportId ? { report_id: reportId } : { post_id: postId }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.error || 'Could not delete report');
+      return;
+    }
+    load();
+  };
   if (!rows) return <p style={{ color: MUTED }}>Loading…</p>;
   if (rows.length === 0) return <p style={{ color: MUTED }}>No reports. 🎉</p>;
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      {error && <div style={{ ...cardStyle, color: RED }}>{error}</div>}
       {rows.map((r) => (
         <div key={r.uid} style={{ ...cardStyle, opacity: r.deleted ? 0.55 : 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -194,7 +214,16 @@ function Reports() {
               {r.deleted
                 ? <button onClick={() => act(r.uid, 'restore')} style={miniBtn(GREEN)}>Restore</button>
                 : <button onClick={() => act(r.uid, 'soft_delete')} style={miniBtn(RED)}>Remove post</button>}
+              <button onClick={() => deleteReport({ postId: r.post_id, count: r.count })} style={miniBtn('#7f1d1d')}>Delete all reports</button>
             </div>
+          </div>
+          <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 14, paddingTop: 8, display: 'grid', gap: 7 }}>
+            {(r.entries || []).map((entry) => (
+              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '7px 0' }}>
+                <div style={{ color: SUBTLE, fontSize: 12 }}><strong style={{ color: TEXT }}>{entry.reason}</strong> · {new Date(entry.created_at).toLocaleString('en-GB')}</div>
+                <button onClick={() => deleteReport({ reportId: entry.id })} style={miniBtn(RED)}>Delete report</button>
+              </div>
+            ))}
           </div>
         </div>
       ))}
