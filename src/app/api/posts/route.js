@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
+import { claimPublishToken, recordPublishTokenPost, releasePublishToken } from '@/lib/publishToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,6 +125,15 @@ export async function POST(request) {
     );
   }
 
+  // One emailed link creates one post.
+  const claim = await claimPublishToken(publish_token, publishClaim.exp);
+  if (claim.used) {
+    return NextResponse.json({ error: 'This publish link has already been used. Request a new link for another post.' }, { status: 409 });
+  }
+  if (claim.error) {
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+  }
+
   const expires_at = expiryFor(duration);
 
   // Generate a unique uid (retry on rare collision)
@@ -162,9 +172,12 @@ export async function POST(request) {
     .single();
 
   if (error) {
+    await releasePublishToken(publish_token).catch(() => {});
     console.error('[posts:POST]', error);
     return NextResponse.json({ error: 'failed to create post' }, { status: 500 });
   }
+
+  await recordPublishTokenPost(publish_token, data.uid).catch(() => {});
 
   // Notify followers of this poster (fire and forget).
   notifyFollowers(poster_email.trim().toLowerCase(), data).catch((e) =>

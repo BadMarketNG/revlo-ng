@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
+import { isPublishTokenUsed } from '@/lib/publishToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,9 +61,17 @@ export async function POST(request) {
 // GET /api/magic-link?token=...  -> verify a token (used by the create form).
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const payload = verifyToken(searchParams.get('token'));
+  const token = searchParams.get('token');
+  const payload = verifyToken(token);
   if (!payload || payload.action !== 'publish') {
     return NextResponse.json({ valid: false }, { status: 400 });
   }
+  let used;
+  try {
+    used = await isPublishTokenUsed(token);
+  } catch {
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+  }
+  if (used) return NextResponse.json({ valid: false, used: true }, { status: 410 });
   return NextResponse.json({ valid: true, email: payload.email });
 }
