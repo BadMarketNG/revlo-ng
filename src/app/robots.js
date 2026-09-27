@@ -1,4 +1,4 @@
-const APP_URL = process.env.APP_URL || 'https://revlo.ng';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 export default function robots() {
   return {
@@ -9,6 +9,6 @@ export default function robots() {
         disallow: ['/api/', '/revlongbm'],
       },
     ],
-    sitemap: `${APP_URL}/sitemap.xml`,
+    sitemap: `${publicOrigin()}/sitemap.xml`,
   };
 }

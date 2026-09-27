@@ -4,6 +4,7 @@ import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ export async function POST(request) {
       console.error('[delete]', error.message);
       return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
     }
-    const base = process.env.APP_URL || 'https://revlong.vercel.app';
+    const base = publicOrigin();
     await sendEmail({
       to: requester,
       subject: `Confirm deletion of your Revlo.ng post`,

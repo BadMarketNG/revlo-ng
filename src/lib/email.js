@@ -16,7 +16,13 @@ export async function sendEmail({ to, subject, html, headers }) {
     return { skipped: true };
   }
   try {
+    // Resend reports API failures (unverified sender, bad key, quota) in
+    // `error` rather than throwing, so check it explicitly.
     const res = await resend.emails.send({ from: FROM, to, subject, html, headers });
+    if (res?.error) {
+      console.error('[email:error]', res.error.name, res.error.message);
+      return { ok: false, error: res.error.message };
+    }
     return { ok: true, id: res?.data?.id };
   } catch (err) {
     console.error('[email:error]', err);

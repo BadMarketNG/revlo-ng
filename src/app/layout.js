@@ -1,7 +1,7 @@
-const APP_URL = process.env.APP_URL || 'https://revlo.ng';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 export const metadata = {
-  metadataBase: new URL(APP_URL),
+  metadataBase: new URL(publicOrigin()),
   title: 'Revlo.ng',
   description: 'Accountless, time-based publishing for Nigeria.',
   robots: { index: true, follow: true },

@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { serializeJsonForHtml } from '@/lib/security';
+import { publicOrigin } from '@/lib/publicOrigin';
 
-const APP_URL = process.env.APP_URL || 'https://revlo.ng';
+const APP_URL = publicOrigin();
 
 async function getPost(uid) {
   const { data } = await supabaseAdmin

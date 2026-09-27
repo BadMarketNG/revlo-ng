@@ -9,6 +9,7 @@ import {
   discardPendingPublicAction,
   requireRateLimit,
 } from '@/lib/security';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export async function POST(request) {
   } catch {
     return NextResponse.json({ error: 'contact verification is temporarily unavailable' }, { status: 503 });
   }
-  const base = process.env.APP_URL || 'https://revlo.ng';
+  const base = publicOrigin();
   const confirmUrl = `${base}/api/contact?token=${encodeURIComponent(pending.token)}`;
   const result = await sendEmail({
     to: sender,

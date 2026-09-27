@@ -322,19 +322,81 @@ function AllPosts() {
 
 function Emails() {
   const [data, setData] = useState(null);
-  const load = useCallback(() => { fetch('/api/admin/emails').then((r) => r.json()).then(setData); }, []);
+  const [error, setError] = useState('');
+  const load = useCallback(() => {
+    setError('');
+    fetch('/api/admin/emails', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Could not load email activity');
+        return body;
+      })
+      .then(setData)
+      .catch((loadError) => setError(loadError.message));
+  }, []);
   useEffect(() => { load(); }, [load]);
   const unsub = async (poster_email, follower_email) => {
     await fetch('/api/admin/emails', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster_email, follower_email }) });
     load();
   };
+  if (error) return <div style={{ ...cardStyle, color: RED }}>{error} <button onClick={load} style={miniBtn(GREEN)}>Retry</button></div>;
   if (!data) return <p style={{ color: MUTED }}>Loading…</p>;
+  const links = [...(data.publishLinks || []), ...(data.historicalPosts || [])]
+    .sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0));
+  const sentCount = links.filter((row) => row.delivery_status === 'sent').length;
+  const openedCount = links.filter((row) => row.opened_at).length;
+  const createdCount = links.filter((row) => row.redeemed_at || row.post_uid).length;
+  const fmt = (value) => value
+    ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    : '—';
+  const statusFor = (row) => {
+    if (row.post_uid || row.redeemed_at) return { label: 'Post created', color: GREEN, background: '#eaf7ef' };
+    if (row.opened_at) return { label: 'Link opened', color: BLUE, background: '#eff6ff' };
+    if (row.delivery_status === 'failed') return { label: 'Delivery failed', color: RED, background: '#fef2f2' };
+    if (row.delivery_status === 'pending') return { label: 'Sending', color: AMBER, background: '#fff7ed' };
+    return { label: 'Link sent', color: SUBTLE, background: '#f2f4f7' };
+  };
   return (
     <div>
-      <h3 style={{ color: TEXT, fontSize: 15 }}>Poster emails ({data.posters.length})</h3>
-      <div style={{ ...cardStyle, marginBottom: 24, fontSize: 14, columns: 2, color: SUBTLE }}>
-        {data.posters.map((e) => <div key={e} style={{ padding: '2px 0' }}>{e}</div>)}
-        {data.posters.length === 0 && <span style={{ color: MUTED }}>None yet.</span>}
+      <div style={{ marginBottom: 22 }}>
+        <h2 style={{ color: TEXT, fontSize: 22, margin: '0 0 5px' }}>Publish-link activity</h2>
+        <p style={{ color: MUTED, fontSize: 14, margin: 0 }}>Every magic link sent to a prospective poster, and whether it was opened or used to create a post.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {[
+          ['Magic links sent', sentCount],
+          ['Links opened', openedCount],
+          ['Posts created', createdCount],
+          ['Unique recipients', new Set(links.map((row) => row.email)).size],
+        ].map(([label, value]) => (
+          <div key={label} style={{ ...cardStyle, padding: '16px 18px' }}>
+            <div style={{ color: MUTED, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px' }}>{label}</div>
+            <div style={{ color: TEXT, fontSize: 28, fontWeight: 800, marginTop: 5 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gap: 9, marginBottom: 30 }}>
+        {links.map((row) => {
+          const status = statusFor(row);
+          return (
+            <div key={row.id} style={{ ...cardStyle, padding: '14px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 1.25fr) minmax(145px, .8fr) minmax(135px, .65fr)', gap: 14, alignItems: 'center' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: TEXT, fontSize: 14, fontWeight: 750, overflowWrap: 'anywhere' }}>{row.email}</div>
+                <div style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
+                  {row.delivery_status === 'historical' ? 'Historical post — link-send tracking began later' : `Requested ${fmt(row.requested_at)}`}
+                </div>
+              </div>
+              <div>
+                <span style={{ display: 'inline-flex', color: status.color, background: status.background, borderRadius: 999, padding: '5px 9px', fontSize: 12, fontWeight: 750 }}>{status.label}</span>
+                {row.opened_at && !row.redeemed_at && <div style={{ color: MUTED, fontSize: 11, marginTop: 5 }}>{fmt(row.opened_at)}</div>}
+              </div>
+              <div style={{ color: SUBTLE, fontSize: 12, textAlign: 'right' }}>
+                {row.post_uid ? <><strong style={{ color: TEXT }}>{row.post_uid}</strong><div style={{ marginTop: 3 }}>{row.post_title || 'Post created'}{row.deleted_at ? ' · Deleted' : ''}</div></> : `Sent ${fmt(row.sent_at)}`}
+              </div>
+            </div>
+          );
+        })}
+        {links.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No publish links have been recorded yet.</div>}
       </div>
       <h3 style={{ color: TEXT, fontSize: 15 }}>Follow subscriptions ({data.follows.length})</h3>
       <div style={{ display: 'grid', gap: 8 }}>

@@ -1,10 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 export const dynamic = 'force-dynamic';
 
-const APP_URL = process.env.APP_URL || 'https://revlo.ng';
-
 export default async function sitemap() {
+  const APP_URL = publicOrigin();
   const staticEntries = [
     { url: `${APP_URL}/`, changeFrequency: 'always', priority: 1 },
   ];

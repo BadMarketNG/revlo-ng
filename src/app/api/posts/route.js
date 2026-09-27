@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail } from '@/lib/util';
+import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
+import { claimPublishToken, recordPublishTokenPost, releasePublishToken } from '@/lib/publishToken';
+import { publicOrigin } from '@/lib/publicOrigin';
+import { markMagicLinkRedeemed } from '@/lib/magicLinkAudit';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +70,7 @@ export async function POST(request) {
     contact_visibility = 'public',
     followable = true,
     duration,
+    publish_token,
   } = body || {};
 
   // Validation
@@ -93,6 +97,11 @@ export async function POST(request) {
   }
 
   const cleanEmail = normaliseEmail(poster_email);
+  // Publishing requires the emailed magic link, issued for this exact address.
+  const publishClaim = verifyToken(publish_token);
+  if (!publishClaim || publishClaim.action !== 'publish' || publishClaim.email !== cleanEmail) {
+    return NextResponse.json({ error: 'Open the publish link we emailed you to continue.' }, { status: 401 });
+  }
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
   const ipLimited = await requireRateLimit({ action: 'publish:ip:hour', key: sourceIp, limit: 10, windowSeconds: 3600 });
   if (ipLimited) return ipLimited;
@@ -116,6 +125,15 @@ export async function POST(request) {
       { error: 'Too many posts from this email recently. Try again later.' },
       { status: 429 }
     );
+  }
+
+  // One emailed link creates one post.
+  const claim = await claimPublishToken(publish_token, publishClaim.exp);
+  if (claim.used) {
+    return NextResponse.json({ error: 'This publish link has already been used. Request a new link for another post.' }, { status: 409 });
+  }
+  if (claim.error) {
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
   }
 
   const expires_at = expiryFor(duration);
@@ -156,9 +174,13 @@ export async function POST(request) {
     .single();
 
   if (error) {
+    await releasePublishToken(publish_token).catch(() => {});
     console.error('[posts:POST]', error);
     return NextResponse.json({ error: 'failed to create post' }, { status: 500 });
   }
+
+  await recordPublishTokenPost(publish_token, data.uid).catch(() => {});
+  await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
 
   // Notify followers of this poster (fire and forget).
   notifyFollowers(poster_email.trim().toLowerCase(), data).catch((e) =>
@@ -175,7 +197,7 @@ async function notifyFollowers(posterEmail, post) {
     .eq('poster_email', posterEmail);
   if (!followers || followers.length === 0) return;
 
-  const base = process.env.APP_URL || 'https://revlo.ng';
+  const base = publicOrigin();
   for (const f of followers) {
     const unsubUrl = `${base}/api/unfollow?email=${encodeURIComponent(f.follower_email)}&poster=${encodeURIComponent(posterEmail)}`;
     await sendEmail({
@@ -188,12 +210,12 @@ async function notifyFollowers(posterEmail, post) {
           <p style="margin:0;font-size:13px;color:#6b7280;">${escapeHtml(post.location)}</p>
         </div>
         <a href="${base}/p/${post.uid}"
-           style="display:inline-block;background:#6d28d9;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
+           style="display:inline-block;background:#1B5E20;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
           View Post
         </a>
         <p style="margin:0;font-size:12px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:16px;">
           You're receiving this because you follow this poster on Revlo.ng.<br>
-          <a href="${unsubUrl}" style="color:#6d28d9;">Unsubscribe</a>
+          <a href="${unsubUrl}" style="color:#1B5E20;">Unsubscribe</a>
         </p>
       `),
       headers: {

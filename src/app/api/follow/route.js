@@ -9,6 +9,7 @@ import {
   discardPendingPublicAction,
   requireRateLimit,
 } from '@/lib/security';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,7 @@ export async function POST(request) {
     .select('*', { count: 'exact', head: true })
     .eq('poster_email', post.poster_email);
 
-  const base = process.env.APP_URL || 'https://revlo.ng';
+  const base = publicOrigin();
   let pending;
   try {
     pending = await createPendingPublicAction({ action: 'follow', postUid: uid, email: follower, sourceIp });

@@ -5,7 +5,7 @@ import { isAdminRequest } from '@/lib/adminAuth';
 export const dynamic = 'force-dynamic';
 
 // GET /api/admin/emails
-// Returns all follow subscriptions and distinct poster emails. Admin only.
+// Returns publish-link delivery/use history and follow subscriptions. Admin only.
 export async function GET() {
   if (!await isAdminRequest()) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -17,16 +17,54 @@ export async function GET() {
     .order('created_at', { ascending: false })
     .limit(2000);
 
-  const { data: posters } = await supabaseAdmin
+  const { data: posts } = await supabaseAdmin
     .from('posts')
-    .select('poster_email')
-    .is('deleted_at', null);
+    .select('uid,poster_email,title,created_at,deleted_at')
+    .order('created_at', { ascending: false })
+    .limit(2000);
 
-  const posterSet = Array.from(new Set((posters || []).map((p) => p.poster_email))).sort();
+  const { data: magicLinks, error: magicLinksError } = await supabaseAdmin
+    .from('revlo_magic_link_events')
+    .select('id,email,delivery_status,requested_at,sent_at,opened_at,redeemed_at,expires_at,post_uid')
+    .order('requested_at', { ascending: false })
+    .limit(5000);
+
+  if (magicLinksError) {
+    console.error('[admin:emails]', magicLinksError.code || magicLinksError.message);
+    return NextResponse.json({ error: 'failed to load magic-link history' }, { status: 500 });
+  }
+
+  const trackedPostUids = new Set((magicLinks || []).map((row) => row.post_uid).filter(Boolean));
+  const historicalPosts = (posts || [])
+    .filter((post) => !trackedPostUids.has(post.uid))
+    .map((post) => ({
+      id: `historical-${post.uid}`,
+      email: post.poster_email,
+      delivery_status: 'historical',
+      requested_at: post.created_at,
+      sent_at: null,
+      opened_at: null,
+      redeemed_at: post.created_at,
+      expires_at: null,
+      post_uid: post.uid,
+      post_title: post.title,
+      deleted_at: post.deleted_at,
+    }));
+
+  const postByUid = new Map((posts || []).map((post) => [post.uid, post]));
+  const publishLinks = (magicLinks || []).map((row) => ({
+    ...row,
+    post_title: row.post_uid ? postByUid.get(row.post_uid)?.title || null : null,
+    deleted_at: row.post_uid ? postByUid.get(row.post_uid)?.deleted_at || null : null,
+  }));
+
+  const posterSet = Array.from(new Set((posts || []).map((p) => p.poster_email))).sort();
 
   return NextResponse.json({
     follows: follows || [],
     posters: posterSet,
+    publishLinks,
+    historicalPosts,
   });
 }
 

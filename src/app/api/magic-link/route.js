@@ -4,6 +4,9 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
+import { isPublishTokenUsed } from '@/lib/publishToken';
+import { publicOrigin } from '@/lib/publicOrigin';
+import { beginMagicLinkAudit, finishMagicLinkDelivery, markMagicLinkOpened } from '@/lib/magicLinkAudit';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,16 +36,26 @@ export async function POST(request) {
     console.error('[magic-link]', error.message);
     return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
   }
-  const base = process.env.APP_URL || 'https://revlo.ng';
+  const base = publicOrigin();
   const link = `${base}/?token=${encodeURIComponent(token)}`;
 
-  await sendEmail({
+  try {
+    await beginMagicLinkAudit({
+      token,
+      email: cleanEmail,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    });
+  } catch {
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+  }
+
+  const sent = await sendEmail({
     to: cleanEmail,
     subject: 'Your Revlo.ng publish link',
     html: wrapEmail(`
       <p style="margin:0 0 16px;">Here is your one-time publish link. It expires in <strong>30 minutes</strong>.</p>
       <a href="${link}"
-         style="display:inline-block;background:#6d28d9;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
+         style="display:inline-block;background:#1B5E20;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
         Continue Publishing
       </a>
       <p style="margin:0;font-size:13px;color:#6b7280;">
@@ -50,6 +63,10 @@ export async function POST(request) {
       </p>
     `),
   });
+  await finishMagicLinkDelivery(token, sent);
+  if (sent.ok === false) {
+    return NextResponse.json({ error: 'Could not send the email. Try again shortly.' }, { status: 502 });
+  }
 
   return NextResponse.json({ ok: true });
 }
@@ -57,9 +74,18 @@ export async function POST(request) {
 // GET /api/magic-link?token=...  -> verify a token (used by the create form).
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const payload = verifyToken(searchParams.get('token'));
+  const token = searchParams.get('token');
+  const payload = verifyToken(token);
   if (!payload || payload.action !== 'publish') {
     return NextResponse.json({ valid: false }, { status: 400 });
   }
+  let used;
+  try {
+    used = await isPublishTokenUsed(token);
+  } catch {
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+  }
+  if (used) return NextResponse.json({ valid: false, used: true }, { status: 410 });
+  await markMagicLinkOpened(token);
   return NextResponse.json({ valid: true, email: payload.email });
 }
