@@ -80,9 +80,7 @@ lab("02","Where & what"),
 (0,f.jsxs)("div",{style:{display:"flex",flexWrap:"wrap",gap:8},children:[pill("\u{1F4CD}",d.location,d.location,e=>set(q=>({...q,location:e.target.value})),Vs.map(x=>(0,f.jsx)("option",{children:x},x))),pill("\u{1F3F7}️",RVcL[d.category]||"General",d.category,e=>set(q=>({...q,category:e.target.value})),RVc.slice(1).map(x=>(0,f.jsx)("option",{value:x,children:RVcL[x]},x)))]}),
 lab("03","How long it stays up",`Live until ${until}`),
 (0,f.jsx)("div",{role:"radiogroup","aria-label":"Duration",style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,background:SOFT,border:`1px solid ${LINE}`,borderRadius:14,padding:4},children:DUR.map(([k,big,small])=>{let on=d.duration===k;return (0,f.jsxs)("button",{type:"button",role:"radio","aria-checked":on,onClick:()=>set(q=>({...q,duration:k})),style:{border:"none",borderRadius:10,padding:"10px 4px",cursor:"pointer",background:on?G:"transparent",color:on?"#fff":INK,boxShadow:on?"0 4px 12px rgba(27,94,32,.3)":"none",transition:"background .15s",fontFamily:"inherit"},children:[(0,f.jsx)("div",{style:{fontSize:16,fontWeight:850,letterSpacing:"-0.01em"},children:big}),(0,f.jsx)("div",{style:{fontSize:11,opacity:on?.85:.6,marginTop:2},children:small})]},k)})}),
-lab("04","Show, don’t tell","Optional"),
-(0,f.jsx)(d1,{clip:d.video,onRecorded:x=>set(q=>({...q,video:x})),onClear:()=>set(q=>({...q,video:null}))}),
-lab("05","Who can reach you"),
+lab("04","Who can reach you"),
 (0,f.jsxs)("div",{style:{borderBottom:`1px solid ${LINE}`},children:[sw(d.contact==="public",()=>set(q=>({...q,contact:q.contact==="public"?"private":"public"})),"Let people message you","Your email stays hidden — messages are relayed to you.","No message button on your post."),sw(!!d.followable,()=>set(q=>({...q,followable:!q.followable})),"Let people follow you","Followers get an email when you post again.","Nobody can subscribe to your future posts.")]}),
 (0,f.jsxs)("div",{style:{position:"sticky",bottom:-24,margin:"18px -24px -24px",padding:"18px 24px 20px",background:"linear-gradient(rgba(255,255,255,0),#fff 26%)",zIndex:2},children:[
 (0,f.jsx)("button",{type:"button",disabled:!ok,onClick:go,style:{width:"100%",border:"none",borderRadius:14,padding:"16px",fontSize:16,fontWeight:800,letterSpacing:"-0.01em",cursor:ok?"pointer":"not-allowed",background:ok?G:"#b7c2b6",color:"#fff",boxShadow:ok?"0 10px 24px rgba(27,94,32,.32)":"none",fontFamily:"inherit",transition:"background .18s"},children:b?"Publishing…":ok?`Publish · live for ${cur[4]}`:"Add a headline to publish"}),
@@ -144,4 +142,3 @@ react/cjs/react-jsx-runtime.production.js:
    * LICENSE file in the root directory of this source tree.
    *)
 */
-

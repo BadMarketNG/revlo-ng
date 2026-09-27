@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 const BUCKET = process.env.STORAGE_BUCKET || 'media';
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB image limit
 
 // POST /api/upload  (multipart form-data, field "file")
 // Returns { url } -- a public URL to the stored object.
@@ -19,7 +19,7 @@ export async function POST(request) {
   if (limited) return limited;
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > MAX_BYTES + 1024 * 1024) {
-    return NextResponse.json({ error: 'file too large (max 25MB)' }, { status: 413 });
+    return NextResponse.json({ error: 'image too large (max 10MB)' }, { status: 413 });
   }
   let form;
   try {
@@ -32,12 +32,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'file field required' }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'file too large (max 25MB)' }, { status: 413 });
+    return NextResponse.json({ error: 'image too large (max 10MB)' }, { status: 413 });
   }
   const bytes = Buffer.from(await file.arrayBuffer());
   const detected = detectUploadType(bytes);
-  if (!detected) {
-    return NextResponse.json({ error: 'unsupported or invalid file content' }, { status: 415 });
+  if (!detected || !detected.mime.startsWith('image/')) {
+    return NextResponse.json({ error: 'unsupported image; use JPEG, PNG, GIF, or WebP' }, { status: 415 });
   }
   const key = `${Date.now()}-${crypto.randomUUID()}.${detected.extension}`;
 

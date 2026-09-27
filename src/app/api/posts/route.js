@@ -64,8 +64,6 @@ export async function POST(request) {
     category = 'general',
     header_url = null,
     thumb_url = null,
-    media_type = 'images',
-    video_url = null,
     gallery = [],
     contact_visibility = 'public',
     followable = true,
@@ -94,6 +92,9 @@ export async function POST(request) {
   }
   if (!['public', 'private'].includes(contact_visibility)) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
+  }
+  if (body?.video_url || (body?.media_type && body.media_type !== 'images')) {
+    return NextResponse.json({ error: 'video posts are not supported' }, { status: 415 });
   }
 
   const cleanEmail = normaliseEmail(poster_email);
@@ -162,8 +163,8 @@ export async function POST(request) {
       category,
       header_url,
       thumb_url,
-      media_type,
-      video_url,
+      media_type: 'images',
+      video_url: null,
       gallery: Array.isArray(gallery) ? gallery : [],
       contact_visibility,
       followable: !!followable,
