@@ -42,7 +42,7 @@ export async function POST(request) {
     html: wrapEmail(`
       <p style="margin:0 0 16px;">Here is your one-time publish link. It expires in <strong>30 minutes</strong>.</p>
       <a href="${link}"
-         style="display:inline-block;background:#6d28d9;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
+         style="display:inline-block;background:#1B5E20;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
         Continue Publishing
       </a>
       <p style="margin:0;font-size:13px;color:#6b7280;">

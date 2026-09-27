@@ -194,12 +194,12 @@ async function notifyFollowers(posterEmail, post) {
           <p style="margin:0;font-size:13px;color:#6b7280;">${escapeHtml(post.location)}</p>
         </div>
         <a href="${base}/p/${post.uid}"
-           style="display:inline-block;background:#6d28d9;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
+           style="display:inline-block;background:#1B5E20;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
           View Post
         </a>
         <p style="margin:0;font-size:12px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:16px;">
           You're receiving this because you follow this poster on Revlo.ng.<br>
-          <a href="${unsubUrl}" style="color:#6d28d9;">Unsubscribe</a>
+          <a href="${unsubUrl}" style="color:#1B5E20;">Unsubscribe</a>
         </p>
       `),
       headers: {
