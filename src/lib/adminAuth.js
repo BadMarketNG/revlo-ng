@@ -3,61 +3,52 @@ import { cookies } from 'next/headers';
 
 const SECRET = process.env.TOKEN_SECRET || 'dev-secret-change-me';
 const COOKIE = 'revlo_admin';
-const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const TTL_MS = 60 * 60 * 1000;
 
-// Create a signed admin session token.
-export function makeAdminSession() {
-  const body = { admin: true, exp: Date.now() + TTL_MS };
+// Revlo administrator sessions can only be minted after the BadMarket
+// administrator panel has verified the person, their Revlo permission and MFA.
+export function makeAdminSession(identity) {
+  const body = {
+    admin: true,
+    source: 'badmarket-admin',
+    sub: identity.sub,
+    email: identity.email,
+    name: identity.name,
+    role: identity.role,
+    exp: Date.now() + TTL_MS,
+  };
   const json = Buffer.from(JSON.stringify(body)).toString('base64url');
   const sig = crypto.createHmac('sha256', SECRET).update(json).digest('hex');
   return `${json}.${sig}`;
 }
 
 export function verifyAdminToken(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const [json, sig] = token.split('.');
   const expected = crypto.createHmac('sha256', SECRET).update(json).digest('hex');
-  if (sig.length !== expected.length) return false;
+  if (sig.length !== expected.length) return null;
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   } catch {
-    return false;
+    return null;
   }
   let body;
   try {
     body = JSON.parse(Buffer.from(json, 'base64url').toString('utf8'));
   } catch {
-    return false;
+    return null;
   }
-  return body.admin === true && body.exp && Date.now() < body.exp;
+  return body.admin === true && body.source === 'badmarket-admin' && body.sub && body.exp && Date.now() < body.exp ? body : null;
 }
 
-// True if the current request carries a valid admin session cookie.
-export function isAdminRequest() {
+export function getAdminSession() {
   const token = cookies().get(COOKIE)?.value;
   return verifyAdminToken(token);
 }
 
-// Constant-time check of username + password.
-export function checkCredentials(user, password) {
-  const expectedUser = process.env.ADMIN_USER || '';
-  const expectedPass = process.env.ADMIN_PASSWORD || '';
-  if (!expectedUser || !expectedPass) return false;
-  const okUser = safeEqual(String(user), expectedUser);
-  const okPass = safeEqual(String(password), expectedPass);
-  // Evaluate both regardless to avoid early-exit timing leaks.
-  return okUser && okPass;
-}
-
-function safeEqual(input, expected) {
-  const a = Buffer.from(String(input));
-  const b = Buffer.from(String(expected));
-  if (a.length !== b.length) return false;
-  try {
-    return crypto.timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
+// True if the current request carries a valid panel-issued session cookie.
+export function isAdminRequest() {
+  return Boolean(getAdminSession());
 }
 
 export const ADMIN_COOKIE = COOKIE;

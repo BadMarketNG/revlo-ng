@@ -81,3 +81,9 @@ Vercel → Settings → Environment Variables. The `vercel.json` cron runs
 - RLS is ON for all tables, so the public anon key can't read or write directly.
 - The poster's email is never returned by any public endpoint.
 - Delete and magic links use signed, expiring tokens (HMAC-SHA256).
+
+## Administrator access
+
+Revlo is a separate service collaborating with BadMarket. It does not expose a standalone administrator username/password form. Administrators enter through the Revlo section of the BadMarket administrator panel, where their Main Admin-assigned Revlo permission and MFA session are checked before a signed, one-time handoff is issued.
+
+Deployment requires the same 32-byte-or-longer `REVLO_ADMIN_SSO_SECRET` in both projects, `BADMARKET_ADMIN_ORIGIN=https://badmarket.ng` in Revlo, and `REVLO_ORIGIN=https://revlo.ng` in BadMarket. Apply the Supabase migrations before enabling the handoff; the nonce table prevents a captured handoff from being reused.

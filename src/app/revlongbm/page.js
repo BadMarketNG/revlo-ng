@@ -16,13 +16,12 @@ const CAT_COLOR = { jobs: '#60a5fa', rentals: '#c084fc', for_sale: '#fb923c', pr
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(null); // null = checking
-  const [user, setUser] = useState('');
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState('');
   const [tab, setTab] = useState('stats');
   const [activeCount, setActiveCount] = useState(null);
 
   useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    if (['stats', 'reports', 'posts', 'emails', 'bm'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -34,20 +33,9 @@ export default function AdminPage() {
     fetch('/api/admin/stats').then((r) => r.json()).then((d) => setActiveCount(d.stats?.active ?? null)).catch(() => {});
   }, [authed, tab]);
 
-  const login = async () => {
-    setErr('');
-    const r = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: user, password: pw }),
-    });
-    if (r.ok) { setAuthed(true); setPw(''); setUser(''); }
-    else setErr('Incorrect username or password');
-  };
-
   const logout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
-    setAuthed(false);
+    window.location.replace('https://badmarket.ng/admin');
   };
 
   if (authed === null) {
@@ -59,26 +47,8 @@ export default function AdminPage() {
       <Shell>
         <h1 style={{ color: GREEN, marginTop: 0, letterSpacing: '-0.5px' }}>revlo<span style={{ color: '#fff' }}>.ng</span></h1>
         <p style={{ color: MUTED, fontSize: 13, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginTop: -8 }}>Admin Panel</p>
-        <p style={{ color: MUTED, fontSize: 14 }}>Enter your admin credentials to continue.</p>
-        <input
-          type="text"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && login()}
-          placeholder="Username"
-          autoComplete="off"
-          style={{ ...inp, marginBottom: 12 }}
-        />
-        <input
-          type="password"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && login()}
-          placeholder="Password"
-          style={inp}
-        />
-        {err && <p style={{ color: RED, fontSize: 14 }}>{err}</p>}
-        <button onClick={login} style={btn(GREEN)}>Log in</button>
+        <p style={{ color: MUTED, fontSize: 14 }}>This administrator session has ended. Return to the BadMarket administrator panel and open Revlo again.</p>
+        <a href="https://badmarket.ng/admin" style={{ ...btn(GREEN), display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>Return to administrator panel</a>
       </Shell>
     );
   }
