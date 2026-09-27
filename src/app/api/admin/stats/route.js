@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/admin/stats
 export async function GET() {
-  if (!isAdminRequest()) {
+  if (!await isAdminRequest()) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

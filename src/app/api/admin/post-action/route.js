@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // POST /api/admin/post-action
 // { uid, action: 'soft_delete' | 'restore' | 'change_duration', duration? }
 export async function POST(request) {
-  if (!isAdminRequest()) {
+  if (!await isAdminRequest()) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   let body;

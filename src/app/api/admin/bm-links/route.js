@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/admin/bm-links -> all BadMarket links with their post info
 export async function GET() {
-  if (!isAdminRequest()) {
+  if (!await isAdminRequest()) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

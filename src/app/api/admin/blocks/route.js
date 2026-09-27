@@ -6,13 +6,13 @@ import { isEmail } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
 
-function sessionOrResponse() {
-  const session = getAdminSession();
+async function sessionOrResponse() {
+  const session = await getAdminSession();
   return session || NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 }
 
 export async function GET() {
-  const session = sessionOrResponse();
+  const session = await sessionOrResponse();
   if (session instanceof NextResponse) return session;
   const { data, error } = await supabaseAdmin
     .from('revlo_access_blocks')
@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const session = sessionOrResponse();
+  const session = await sessionOrResponse();
   if (session instanceof NextResponse) return session;
   const body = await request.json().catch(() => null);
   const blockType = body?.block_type;
@@ -49,7 +49,7 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-  const session = sessionOrResponse();
+  const session = await sessionOrResponse();
   if (session instanceof NextResponse) return session;
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

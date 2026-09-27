@@ -35,9 +35,28 @@ export default function AdminPage() {
     fetch('/api/admin/stats').then((r) => r.json()).then((d) => setActiveCount(d.stats?.active ?? null)).catch(() => {});
   }, [authed, tab]);
 
+  useEffect(() => {
+    if (!authed) return;
+    let active = true;
+    const checkSession = () => fetch('/api/admin/session', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((data) => { if (active && !data.admin) setAuthed(false); })
+      .catch(() => {});
+    const timer = setInterval(checkSession, 15_000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') checkSession(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', checkSession);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', checkSession);
+    };
+  }, [authed]);
+
   const logout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
-    window.location.replace('https://badmarket.ng/admin');
+    window.location.replace('/app.html');
   };
 
   if (authed === null) {
@@ -49,8 +68,8 @@ export default function AdminPage() {
       <Shell>
         <h1 style={{ color: GREEN, marginTop: 0, letterSpacing: '-0.5px' }}>revlo<span style={{ color: TEXT }}>.ng</span></h1>
         <p style={{ color: MUTED, fontSize: 13, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginTop: -8 }}>Admin Panel</p>
-        <p style={{ color: MUTED, fontSize: 14 }}>This administrator session has ended. Return to the BadMarket administrator panel and open Revlo again.</p>
-        <a href="https://badmarket.ng/admin" style={{ ...btn(GREEN), display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>Return to administrator panel</a>
+        <p style={{ color: MUTED, fontSize: 14 }}>This administrator session has ended.</p>
+        <a href="/app.html" style={{ ...btn(GREEN), display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>Return to Revlo</a>
       </Shell>
     );
   }

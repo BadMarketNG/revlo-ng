@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const SECRET = process.env.TOKEN_SECRET || 'dev-secret-change-me';
 const COOKIE = 'revlo_admin';
@@ -15,6 +16,7 @@ export function makeAdminSession(identity) {
     email: identity.email,
     name: identity.name,
     role: identity.role,
+    iat: Date.now(),
     exp: Date.now() + TTL_MS,
   };
   const json = Buffer.from(JSON.stringify(body)).toString('base64url');
@@ -41,14 +43,22 @@ export function verifyAdminToken(token) {
   return body.admin === true && body.source === 'badmarket-admin' && body.sub && body.exp && Date.now() < body.exp ? body : null;
 }
 
-export function getAdminSession() {
+export async function getAdminSession() {
   const token = cookies().get(COOKIE)?.value;
-  return verifyAdminToken(token);
+  const session = verifyAdminToken(token);
+  if (!session?.iat) return null;
+  const { data } = await supabaseAdmin
+    .from('revlo_admin_session_revocations')
+    .select('revoked_after')
+    .eq('administrator_id', session.sub)
+    .maybeSingle();
+  if (data?.revoked_after && new Date(data.revoked_after).getTime() >= session.iat) return null;
+  return session;
 }
 
 // True if the current request carries a valid panel-issued session cookie.
-export function isAdminRequest() {
-  return Boolean(getAdminSession());
+export async function isAdminRequest() {
+  return Boolean(await getAdminSession());
 }
 
 export const ADMIN_COOKIE = COOKIE;

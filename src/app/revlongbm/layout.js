@@ -3,8 +3,8 @@ export const metadata = {
   robots: { index: false, follow: false, nocache: true },
 };
 
-export default function AdminLayout({ children }) {
-  if (!getAdminSession()) redirect(`${process.env.BADMARKET_ADMIN_ORIGIN || 'https://badmarket.ng'}/admin`);
+export default async function AdminLayout({ children }) {
+  if (!await getAdminSession()) redirect('/app.html');
   return children;
 }
 import { redirect } from 'next/navigation';

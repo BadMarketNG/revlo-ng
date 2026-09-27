@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/admin/reports
 // Returns reported posts, with the reasons and counts, joined to post info.
 export async function GET() {
-  if (!isAdminRequest()) {
+  if (!await isAdminRequest()) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

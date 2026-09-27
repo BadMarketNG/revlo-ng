@@ -15,7 +15,7 @@ Revlo has no standalone administrator username or password form. An administrato
 3. Have the **Revlo** section permission granted by a Main Admin. Main Admins have access automatically.
 4. Open the Revlo section in the BadMarket administrator sidebar and choose a subsection.
 
-BadMarket then issues a signed, one-use handoff that expires after 60 seconds. Revlo verifies the signature and records the one-use nonce before creating a one-hour Revlo administrator session. Reusing a handoff or opening the Revlo administrator URL directly without a valid session is rejected and returns the person to the BadMarket administrator panel.
+BadMarket then issues a signed, one-use handoff that expires after 60 seconds. Revlo verifies the signature and records the one-use nonce before creating a one-hour Revlo administrator session. Reusing a handoff or opening the Revlo administrator URL directly without a valid session is rejected and returns the person to the Revlo public site. The relationship is intentionally one-way: BadMarket can open Revlo administration, while Revlo does not display or create links back to BadMarket administration.
 
 ### Grant or revoke access
 
@@ -27,7 +27,7 @@ Main Admin procedure:
 4. Enable or disable the **Revlo** section permission.
 5. Save the account.
 
-Blocking the administrator account, resetting its MFA, or removing the Revlo permission prevents new Revlo handoffs. Existing Revlo sessions expire after one hour; use **Logout** in Revlo when access must end immediately on that browser.
+Blocking the administrator account, resetting its MFA, or removing the Revlo permission prevents new Revlo handoffs. Revlo sessions expire after one hour. Logging out or timing out of BadMarket also revokes the matching Revlo session server-to-server; an open Revlo tab rechecks on focus and every 15 seconds. **Logout** inside Revlo clears that browser's Revlo cookie immediately.
 
 ## Revlo navigation
 
@@ -71,10 +71,10 @@ The Revlo administrator surface uses a light background with Revlo green accents
 
 ## Operational recovery
 
-- If a Revlo subsection redirects back to BadMarket, confirm the administrator is active, MFA has been completed, and Revlo permission is enabled.
+- If a Revlo subsection returns to the Revlo public site, confirm the administrator is active, MFA has been completed, and Revlo permission is enabled, then open the subsection again from the authorised control panel.
 - If a handoff reports that it has already been used, open the subsection again from BadMarket to create a new one-use handoff.
 - If Revlo badges are unavailable, verify `REVLO_ORIGIN` and the shared `REVLO_ADMIN_SSO_SECRET` on both deployments.
-- If the administrator session is no longer required, use Revlo **Logout**. This clears only the Revlo session and returns to the BadMarket administrator panel.
+- If the administrator session is no longer required, use Revlo **Logout**. This clears only the Revlo session and returns to the Revlo public site.
 - To remove a false-positive block, open the appropriate Revlo block list, review its reason/source, and choose **Remove block**.
 
 ## Required deployment configuration

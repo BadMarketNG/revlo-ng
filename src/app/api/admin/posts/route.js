@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // Returns full post rows INCLUDING poster_email. Admin only.
 // By default returns non-deleted posts for the tab; ?all=1 returns everything.
 export async function GET(request) {
-  if (!isAdminRequest()) {
+  if (!await isAdminRequest()) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const { searchParams } = new URL(request.url);
