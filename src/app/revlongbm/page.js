@@ -323,6 +323,8 @@ function AllPosts() {
 function Emails() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [emailSearch, setEmailSearch] = useState('');
+  const [selectedEmail, setSelectedEmail] = useState(null);
   const load = useCallback(() => {
     setError('');
     fetch('/api/admin/emails', { cache: 'no-store' })
@@ -346,6 +348,16 @@ function Emails() {
   const sentCount = links.filter((row) => row.delivery_status === 'sent').length;
   const openedCount = links.filter((row) => row.opened_at).length;
   const createdCount = links.filter((row) => row.redeemed_at || row.post_uid).length;
+  const recipientMap = links.reduce((map, row) => {
+    const key = String(row.email || '').toLowerCase();
+    if (!map.has(key)) map.set(key, { email: row.email, rows: [] });
+    map.get(key).rows.push(row);
+    return map;
+  }, new Map());
+  const recipients = Array.from(recipientMap.values())
+    .sort((a, b) => new Date(b.rows[0]?.requested_at || 0) - new Date(a.rows[0]?.requested_at || 0));
+  const visibleRecipients = recipients.filter((recipient) => recipient.email.toLowerCase().includes(emailSearch.trim().toLowerCase()));
+  const selectedRecipient = selectedEmail ? recipientMap.get(selectedEmail.toLowerCase()) : null;
   const fmt = (value) => value
     ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
     : '—';
@@ -375,28 +387,51 @@ function Emails() {
           </div>
         ))}
       </div>
-      <div style={{ display: 'grid', gap: 9, marginBottom: 30 }}>
-        {links.map((row) => {
-          const status = statusFor(row);
-          return (
-            <div key={row.id} style={{ ...cardStyle, padding: '14px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 1.25fr) minmax(145px, .8fr) minmax(135px, .65fr)', gap: 14, alignItems: 'center' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ color: TEXT, fontSize: 14, fontWeight: 750, overflowWrap: 'anywhere' }}>{row.email}</div>
-                <div style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
-                  {row.delivery_status === 'historical' ? 'Historical post — link-send tracking began later' : `Requested ${fmt(row.requested_at)}`}
-                </div>
-              </div>
-              <div>
-                <span style={{ display: 'inline-flex', color: status.color, background: status.background, borderRadius: 999, padding: '5px 9px', fontSize: 12, fontWeight: 750 }}>{status.label}</span>
-                {row.opened_at && !row.redeemed_at && <div style={{ color: MUTED, fontSize: 11, marginTop: 5 }}>{fmt(row.opened_at)}</div>}
-              </div>
-              <div style={{ color: SUBTLE, fontSize: 12, textAlign: 'right' }}>
-                {row.post_uid ? <><strong style={{ color: TEXT }}>{row.post_uid}</strong><div style={{ marginTop: 3 }}>{row.post_title || 'Post created'}{row.deleted_at ? ' · Deleted' : ''}</div></> : `Sent ${fmt(row.sent_at)}`}
-              </div>
+      {selectedRecipient && (
+        <div style={{ ...cardStyle, marginBottom: 20, padding: 0, overflow: 'hidden', borderColor: '#9acbad' }}>
+          <div style={{ background: '#edf8f1', padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: MUTED, fontSize: 11, fontWeight: 800, letterSpacing: '.7px', textTransform: 'uppercase' }}>Individual recipient</div>
+              <div style={{ color: TEXT, fontSize: 18, fontWeight: 800, marginTop: 3, overflowWrap: 'anywhere' }}>{selectedRecipient.email}</div>
             </div>
-          );
-        })}
-        {links.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No publish links have been recorded yet.</div>}
+            <button onClick={() => setSelectedEmail(null)} style={miniBtn(SUBTLE)}>Close details</button>
+          </div>
+          <div style={{ padding: '5px 18px 16px' }}>
+            {selectedRecipient.rows.map((row) => {
+              const status = statusFor(row);
+              return (
+                <div key={row.id} style={{ borderBottom: `1px solid ${BORDER}`, padding: '13px 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12 }}>
+                  <div><div style={{ color: MUTED, fontSize: 11, fontWeight: 700 }}>EMAIL</div><div style={{ color: TEXT, fontSize: 13, marginTop: 4 }}>Your Revlo.ng publish link</div></div>
+                  <div><div style={{ color: MUTED, fontSize: 11, fontWeight: 700 }}>SENT</div><div style={{ color: TEXT, fontSize: 13, marginTop: 4 }}>{fmt(row.sent_at || row.requested_at)}</div></div>
+                  <div><div style={{ color: MUTED, fontSize: 11, fontWeight: 700 }}>OPENED</div><div style={{ color: TEXT, fontSize: 13, marginTop: 4 }}>{fmt(row.opened_at)}</div></div>
+                  <div><div style={{ color: MUTED, fontSize: 11, fontWeight: 700 }}>RESULT</div><div style={{ marginTop: 4 }}><span style={{ display: 'inline-flex', color: status.color, background: status.background, borderRadius: 999, padding: '4px 8px', fontSize: 11, fontWeight: 750 }}>{status.label}</span>{row.post_uid && <div style={{ color: SUBTLE, fontSize: 11, marginTop: 5 }}>{row.post_uid} · {row.post_title || 'Post created'}{row.deleted_at ? ' · Deleted' : ''}</div>}</div></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div style={{ marginBottom: 30 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 14, flexWrap: 'wrap', marginBottom: 10 }}>
+          <div><h3 style={{ color: TEXT, fontSize: 16, margin: 0 }}>Individual email recipients ({recipients.length})</h3><div style={{ color: MUTED, fontSize: 12, marginTop: 3 }}>Select an address to inspect every publish link and outcome.</div></div>
+          <input value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} placeholder="Search email address" aria-label="Search email recipients" style={{ ...inp, width: 280, maxWidth: '100%', padding: '9px 11px' }} />
+        </div>
+        <div style={{ display: 'grid', gap: 9 }}>
+          {visibleRecipients.map((recipient) => {
+            const latest = recipient.rows[0];
+            const status = statusFor(latest);
+            const recipientPosts = recipient.rows.filter((row) => row.post_uid || row.redeemed_at).length;
+            return (
+              <div key={recipient.email} style={{ ...cardStyle, padding: '14px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14, alignItems: 'center' }}>
+                <div style={{ minWidth: 0 }}><div style={{ color: TEXT, fontSize: 14, fontWeight: 750, overflowWrap: 'anywhere' }}>{recipient.email}</div><div style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>{recipient.rows.length} link{recipient.rows.length === 1 ? '' : 's'} · {recipientPosts} post{recipientPosts === 1 ? '' : 's'}</div></div>
+                <div><span style={{ display: 'inline-flex', color: status.color, background: status.background, borderRadius: 999, padding: '5px 9px', fontSize: 12, fontWeight: 750 }}>{status.label}</span><div style={{ color: MUTED, fontSize: 11, marginTop: 5 }}>{fmt(latest.requested_at)}</div></div>
+                <button onClick={() => setSelectedEmail(recipient.email)} style={miniBtn(GREEN)}>View details</button>
+              </div>
+            );
+          })}
+          {links.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No publish links have been recorded yet. New magic-link requests will appear here individually.</div>}
+          {links.length > 0 && visibleRecipients.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No email address matches “{emailSearch}”.</div>}
+        </div>
       </div>
       <h3 style={{ color: TEXT, fontSize: 15 }}>Follow subscriptions ({data.follows.length})</h3>
       <div style={{ display: 'grid', gap: 8 }}>
