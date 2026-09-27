@@ -36,7 +36,7 @@ export async function POST(request) {
   const base = process.env.APP_URL || 'https://revlo.ng';
   const link = `${base}/?token=${encodeURIComponent(token)}`;
 
-  await sendEmail({
+  const sent = await sendEmail({
     to: cleanEmail,
     subject: 'Your Revlo.ng publish link',
     html: wrapEmail(`
@@ -50,6 +50,9 @@ export async function POST(request) {
       </p>
     `),
   });
+  if (sent.ok === false) {
+    return NextResponse.json({ error: 'Could not send the email. Try again shortly.' }, { status: 502 });
+  }
 
   return NextResponse.json({ ok: true });
 }

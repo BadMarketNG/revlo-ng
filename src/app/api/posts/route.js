@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail } from '@/lib/util';
+import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
@@ -67,6 +67,7 @@ export async function POST(request) {
     contact_visibility = 'public',
     followable = true,
     duration,
+    publish_token,
   } = body || {};
 
   // Validation
@@ -93,6 +94,11 @@ export async function POST(request) {
   }
 
   const cleanEmail = normaliseEmail(poster_email);
+  // Publishing requires the emailed magic link, issued for this exact address.
+  const publishClaim = verifyToken(publish_token);
+  if (!publishClaim || publishClaim.action !== 'publish' || publishClaim.email !== cleanEmail) {
+    return NextResponse.json({ error: 'Open the publish link we emailed you to continue.' }, { status: 401 });
+  }
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
   const ipLimited = await requireRateLimit({ action: 'publish:ip:hour', key: sourceIp, limit: 10, windowSeconds: 3600 });
   if (ipLimited) return ipLimited;
