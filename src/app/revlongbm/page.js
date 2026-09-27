@@ -324,6 +324,8 @@ function Emails() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [emailSearch, setEmailSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateSort, setDateSort] = useState('newest');
   const [selectedEmail, setSelectedEmail] = useState(null);
   const load = useCallback(() => {
     setError('');
@@ -356,7 +358,6 @@ function Emails() {
   }, new Map());
   const recipients = Array.from(recipientMap.values())
     .sort((a, b) => new Date(b.rows[0]?.requested_at || 0) - new Date(a.rows[0]?.requested_at || 0));
-  const visibleRecipients = recipients.filter((recipient) => recipient.email.toLowerCase().includes(emailSearch.trim().toLowerCase()));
   const selectedRecipient = selectedEmail ? recipientMap.get(selectedEmail.toLowerCase()) : null;
   const fmt = (value) => value
     ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -367,6 +368,54 @@ function Emails() {
     if (row.delivery_status === 'failed') return { label: 'Delivery failed', color: RED, background: '#fef2f2' };
     if (row.delivery_status === 'pending') return { label: 'Sending', color: AMBER, background: '#fff7ed' };
     return { label: 'Link sent', color: SUBTLE, background: '#f2f4f7' };
+  };
+  const matchesStatus = (row) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'created') return !!(row.post_uid || row.redeemed_at);
+    if (statusFilter === 'opened') return !!row.opened_at && !(row.post_uid || row.redeemed_at);
+    if (statusFilter === 'failed') return row.delivery_status === 'failed';
+    return row.delivery_status === 'sent' && !row.opened_at && !(row.post_uid || row.redeemed_at);
+  };
+  const visibleRecipients = recipients
+    .filter((recipient) => recipient.email.toLowerCase().includes(emailSearch.trim().toLowerCase()) && recipient.rows.some(matchesStatus))
+    .sort((a, b) => {
+      const left = new Date(a.rows[0]?.requested_at || 0).getTime();
+      const right = new Date(b.rows[0]?.requested_at || 0).getTime();
+      return dateSort === 'oldest' ? left - right : right - left;
+    });
+  const exportEmails = () => {
+    const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = visibleRecipients
+      .flatMap((recipient) => recipient.rows.filter(matchesStatus).map((row) => ({ recipient, row })))
+      .sort((a, b) => {
+        const left = new Date(a.row.requested_at || 0).getTime();
+        const right = new Date(b.row.requested_at || 0).getTime();
+        return dateSort === 'oldest' ? left - right : right - left;
+      })
+      .map(({ recipient, row }) => [
+        recipient.email,
+        'Your Revlo.ng publish link',
+        row.delivery_status,
+        row.requested_at,
+        row.sent_at,
+        row.opened_at,
+        row.redeemed_at,
+        row.expires_at,
+        row.post_uid,
+        row.post_title,
+        row.deleted_at ? 'deleted' : row.post_uid ? 'active' : '',
+      ]);
+    const header = ['Email', 'Subject', 'Delivery status', 'Requested at', 'Sent at', 'Opened at', 'Post created at', 'Link expires at', 'Post reference', 'Post title', 'Post status'];
+    const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `revlo-email-activity-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   };
   return (
     <div>
@@ -414,7 +463,21 @@ function Emails() {
       <div style={{ marginBottom: 30 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 14, flexWrap: 'wrap', marginBottom: 10 }}>
           <div><h3 style={{ color: TEXT, fontSize: 16, margin: 0 }}>Individual email recipients ({recipients.length})</h3><div style={{ color: MUTED, fontSize: 12, marginTop: 3 }}>Select an address to inspect every publish link and outcome.</div></div>
-          <input value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} placeholder="Search email address" aria-label="Search email recipients" style={{ ...inp, width: 280, maxWidth: '100%', padding: '9px 11px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <input value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} placeholder="Search email address" aria-label="Search email recipients" style={{ ...inp, width: 250, maxWidth: '100%', padding: '9px 11px' }} />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter email activity by status" style={{ ...inp, width: 'auto', padding: '9px 11px' }}>
+              <option value="all">All statuses</option>
+              <option value="sent">Link sent</option>
+              <option value="opened">Link opened</option>
+              <option value="created">Post created</option>
+              <option value="failed">Delivery failed</option>
+            </select>
+            <select value={dateSort} onChange={(event) => setDateSort(event.target.value)} aria-label="Sort email recipients by date" style={{ ...inp, width: 'auto', padding: '9px 11px' }}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+            <button onClick={exportEmails} disabled={visibleRecipients.length === 0} style={{ ...miniBtn(GREEN), opacity: visibleRecipients.length === 0 ? .45 : 1, padding: '9px 12px' }}>Export CSV ({visibleRecipients.length})</button>
+          </div>
         </div>
         <div style={{ display: 'grid', gap: 9 }}>
           {visibleRecipients.map((recipient) => {
@@ -430,7 +493,7 @@ function Emails() {
             );
           })}
           {links.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No publish links have been recorded yet. New magic-link requests will appear here individually.</div>}
-          {links.length > 0 && visibleRecipients.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No email address matches “{emailSearch}”.</div>}
+          {links.length > 0 && visibleRecipients.length === 0 && <div style={{ ...cardStyle, color: MUTED }}>No recipients match the current search and status filter.</div>}
         </div>
       </div>
       <h3 style={{ color: TEXT, fontSize: 15 }}>Follow subscriptions ({data.follows.length})</h3>
