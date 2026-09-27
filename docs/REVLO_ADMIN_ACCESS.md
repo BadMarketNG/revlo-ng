@@ -65,7 +65,7 @@ IP addresses used for enforcement are moderation data. They are excluded from al
 
 ## Public appearance
 
-The Revlo public site offers **Light** and **Dark** page themes. Light is the default. The selection is stored locally in the visitor’s browser and does not require an account.
+The Revlo public site offers **Light** and **Dark** page themes. Light is the default. The selection is stored locally in the visitor’s browser and does not require an account. Visitors can also collapse the introductory controls to the compact logo row; that preference is remembered locally. The public logo is rendered with its white image background removed so it remains clean in either theme.
 
 The Revlo administrator surface uses a light background with Revlo green accents for consistent readability.
 
