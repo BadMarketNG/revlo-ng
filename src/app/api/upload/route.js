@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 const BUCKET = process.env.STORAGE_BUCKET || 'media';
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB image limit
+const MAX_BYTES = Math.floor(1.5 * 1024 * 1024); // 1.5 MB image limit
 
 // POST /api/upload  (multipart form-data, field "file")
 // Returns { url } -- a public URL to the stored object.
@@ -19,7 +19,7 @@ export async function POST(request) {
   if (limited) return limited;
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > MAX_BYTES + 1024 * 1024) {
-    return NextResponse.json({ error: 'image too large (max 10MB)' }, { status: 413 });
+    return NextResponse.json({ error: 'image too large (max 1.5MB)' }, { status: 413 });
   }
   let form;
   try {
@@ -32,7 +32,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'file field required' }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'image too large (max 10MB)' }, { status: 413 });
+    return NextResponse.json({ error: 'image too large (max 1.5MB)' }, { status: 413 });
   }
   const bytes = Buffer.from(await file.arrayBuffer());
   const detected = detectUploadType(bytes);
