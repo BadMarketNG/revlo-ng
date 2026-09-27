@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { serializeJsonForHtml } from '@/lib/security';
 
 const APP_URL = process.env.APP_URL || 'https://revlo.ng';
 
@@ -73,7 +74,7 @@ export default async function PostPage({ params }) {
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jsonLd) }}
       />
       {post.header_url && (
         // eslint-disable-next-line @next/next/no-img-element

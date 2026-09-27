@@ -3,12 +3,19 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import {
+  consumePendingPublicAction,
+  createPendingPublicAction,
+  discardPendingPublicAction,
+  requireRateLimit,
+} from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/follow { uid, follower_email }
 // Follows the poster behind a post (keyed on hidden poster_email).
 export async function POST(request) {
+  const sourceIp = requestIp(request);
   let body;
   try {
     body = await request.json();
@@ -20,7 +27,12 @@ export async function POST(request) {
   if (!uid) return NextResponse.json({ error: 'uid required' }, { status: 400 });
   if (!isEmail(follower_email))
     return NextResponse.json({ error: 'valid follower_email required' }, { status: 400 });
-  if (await findActiveBlock({ email: normaliseEmail(follower_email), ip: requestIp(request) })) return blockedResponse();
+  const follower = normaliseEmail(follower_email);
+  if (await findActiveBlock({ email: follower, ip: sourceIp })) return blockedResponse();
+  const ipLimited = await requireRateLimit({ action: 'follow:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
+  if (ipLimited) return ipLimited;
+  const emailLimited = await requireRateLimit({ action: 'follow:email:day', key: follower, limit: 5, windowSeconds: 86400 });
+  if (emailLimited) return emailLimited;
 
   const { data: post } = await supabaseAdmin
     .from('posts')
@@ -35,39 +47,66 @@ export async function POST(request) {
     return NextResponse.json({ error: 'following disabled for this poster' }, { status: 403 });
   }
 
-  const follower = follower_email.trim().toLowerCase();
   if (follower === post.poster_email) {
     return NextResponse.json({ error: 'cannot follow yourself' }, { status: 400 });
   }
 
-  // Insert (unique constraint prevents duplicates).
-  const { error } = await supabaseAdmin
-    .from('follows')
-    .insert({ poster_email: post.poster_email, follower_email: follower });
-
-  if (error && error.code !== '23505') {
-    // 23505 = unique_violation (already following) -> treat as success
-    console.error('[follow]', error);
-    return NextResponse.json({ error: 'failed to follow' }, { status: 500 });
-  }
-
-  // Recount followers for this poster and store on the post for display.
   const { count } = await supabaseAdmin
     .from('follows')
     .select('*', { count: 'exact', head: true })
     .eq('poster_email', post.poster_email);
 
-  await supabaseAdmin.from('posts').update({ followers: count || 0 }).eq('uid', uid);
-
-  const base = process.env.APP_URL || 'https://revlong.vercel.app';
-  await sendEmail({
+  const base = process.env.APP_URL || 'https://revlo.ng';
+  let pending;
+  try {
+    pending = await createPendingPublicAction({ action: 'follow', postUid: uid, email: follower, sourceIp });
+  } catch {
+    return NextResponse.json({ error: 'follow verification is temporarily unavailable' }, { status: 503 });
+  }
+  const confirmUrl = `${base}/api/follow?token=${encodeURIComponent(pending.token)}`;
+  const delivery = await sendEmail({
     to: follower,
-    subject: 'You are following a poster on Revlo.ng',
-    html: `<p>You'll get an email whenever this poster publishes something new.</p>
-           <p><a href="${base}/api/unfollow?email=${encodeURIComponent(
-      follower
-    )}&poster=${encodeURIComponent(post.poster_email)}">Unsubscribe</a></p>`,
+    subject: 'Confirm your Revlo.ng follow request',
+    html: `<p>Confirm that you want email updates when this poster publishes.</p>
+           <p><a href="${confirmUrl}">Confirm follow</a></p>
+           <p>This one-time link expires in 30 minutes. If you did not request it, ignore this email.</p>`,
   });
+  if (delivery?.ok === false) {
+    await discardPendingPublicAction(pending.id);
+    return NextResponse.json({ error: 'failed to send confirmation' }, { status: 502 });
+  }
 
-  return NextResponse.json({ ok: true, followers: count || 0 });
+  return NextResponse.json({ ok: true, pending: true, followers: count || 0 });
+}
+
+export async function GET(request) {
+  const pending = await consumePendingPublicAction('follow', request.nextUrl.searchParams.get('token'));
+  if (!pending) return htmlResponse('This confirmation link is invalid or has expired.', 400);
+
+  const { data: post } = await supabaseAdmin
+    .from('posts')
+    .select('uid,poster_email,followable,expires_at')
+    .eq('uid', pending.post_uid)
+    .maybeSingle();
+  if (!post || !post.followable || new Date(post.expires_at) < new Date() || post.poster_email === pending.email) {
+    return htmlResponse('This follow request is no longer available.', 410);
+  }
+
+  const { error } = await supabaseAdmin.from('follows').insert({
+    poster_email: post.poster_email,
+    follower_email: pending.email,
+  });
+  if (error && error.code !== '23505') return htmlResponse('Could not confirm this follow request.', 500);
+
+  const { count } = await supabaseAdmin.from('follows').select('*', { count: 'exact', head: true })
+    .eq('poster_email', post.poster_email);
+  await supabaseAdmin.from('posts').update({ followers: count || 0 }).eq('uid', post.uid);
+  return htmlResponse('Your follow request is confirmed.', 200);
+}
+
+function htmlResponse(message, status) {
+  return new NextResponse(
+    `<html><body style="font-family:sans-serif;text-align:center;padding:40px"><h2>Revlo.ng</h2><p>${message}</p></body></html>`,
+    { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } },
+  );
 }

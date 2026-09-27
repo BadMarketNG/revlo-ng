@@ -3,11 +3,13 @@ import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import { requireRateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/magic-link { email }  -> emails a short-lived publish link.
 export async function POST(request) {
+  const sourceIp = requestIp(request);
   let body;
   try {
     body = await request.json();
@@ -17,14 +19,25 @@ export async function POST(request) {
   const { email } = body || {};
   if (!isEmail(email))
     return NextResponse.json({ error: 'valid email required' }, { status: 400 });
-  if (await findActiveBlock({ email: normaliseEmail(email), ip: requestIp(request) })) return blockedResponse();
+  const cleanEmail = normaliseEmail(email);
+  if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
+  const ipLimited = await requireRateLimit({ action: 'magic-link:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
+  if (ipLimited) return ipLimited;
+  const emailLimited = await requireRateLimit({ action: 'magic-link:email:hour', key: cleanEmail, limit: 3, windowSeconds: 3600 });
+  if (emailLimited) return emailLimited;
 
-  const token = signToken({ email: email.trim().toLowerCase(), action: 'publish' }, 30 * 60 * 1000);
+  let token;
+  try {
+    token = signToken({ email: cleanEmail, action: 'publish' }, 30 * 60 * 1000);
+  } catch (error) {
+    console.error('[magic-link]', error.message);
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+  }
   const base = process.env.APP_URL || 'https://revlo.ng';
   const link = `${base}/?token=${encodeURIComponent(token)}`;
 
   await sendEmail({
-    to: email.trim().toLowerCase(),
+    to: cleanEmail,
     subject: 'Your Revlo.ng publish link',
     html: wrapEmail(`
       <p style="margin:0 0 16px;">Here is your one-time publish link. It expires in <strong>30 minutes</strong>.</p>

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { requiredSecret } from '@/lib/security';
 
 // Generate a Revlo post id: RV-XXXXXX (6 uppercase alphanumerics)
 export function makeUid() {
@@ -41,19 +42,18 @@ export function isEmail(s) {
 
 // Create a tamper-proof, expiring token (used for delete & magic links).
 // Format: base64url(payloadJSON).hmacHex
-const SECRET = process.env.TOKEN_SECRET || 'dev-secret-change-me';
-
 export function signToken(payload, ttlMs = 30 * 60 * 1000) {
+  const secret = requiredSecret('TOKEN_SECRET');
   const body = { ...payload, exp: Date.now() + ttlMs };
   const json = Buffer.from(JSON.stringify(body)).toString('base64url');
-  const sig = crypto.createHmac('sha256', SECRET).update(json).digest('hex');
+  const sig = crypto.createHmac('sha256', secret).update(json).digest('hex');
   return `${json}.${sig}`;
 }
 
 export function verifyToken(token) {
   if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const [json, sig] = token.split('.');
-  const expected = crypto.createHmac('sha256', SECRET).update(json).digest('hex');
+  const expected = crypto.createHmac('sha256', requiredSecret('TOKEN_SECRET')).update(json).digest('hex');
   // constant-time compare
   if (
     sig.length !== expected.length ||

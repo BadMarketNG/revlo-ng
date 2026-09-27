@@ -1,6 +1,7 @@
 # Revlo.ng — Backend
 
 Administrator setup, permissions, handoff security, moderation block lists and operational recovery are documented in [docs/REVLO_ADMIN_ACCESS.md](docs/REVLO_ADMIN_ACCESS.md).
+The public threat boundary, required secrets, rate limits and release checks are documented in [docs/SECURITY.md](docs/SECURITY.md).
 
 Next.js + Supabase backend for Revlo.ng: an accountless, time-based publishing
 platform. Posts expire automatically (24h / 30d / 60d / 90d). No accounts,
@@ -83,6 +84,8 @@ Vercel → Settings → Environment Variables. The `vercel.json` cron runs
 - RLS is ON for all tables, so the public anon key can't read or write directly.
 - The poster's email is never returned by any public endpoint.
 - Delete and magic links use signed, expiring tokens (HMAC-SHA256).
+- Follow and contact requests require one-time email confirmation before they take effect.
+- Public uploads are checked by file signature and anonymous write/email actions have database-backed rate limits.
 
 ## Administrator access
 

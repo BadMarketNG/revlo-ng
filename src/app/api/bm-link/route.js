@@ -24,10 +24,13 @@ export async function POST(request) {
 
   const { data: post } = await supabaseAdmin
     .from('posts')
-    .select('id,uid')
+    .select('id,uid,poster_email')
     .eq('uid', uid)
     .maybeSingle();
   if (!post) return NextResponse.json({ error: 'post not found' }, { status: 404 });
+  if (post.poster_email !== normaliseEmail(payout_email)) {
+    return NextResponse.json({ error: 'post ownership could not be verified' }, { status: 403 });
+  }
 
   const { error } = await supabaseAdmin
     .from('bm_links')

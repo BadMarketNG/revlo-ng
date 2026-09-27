@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
+import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import { requireRateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +11,7 @@ export const dynamic = 'force-dynamic';
 // If email matches the post's poster_email, emails a one-time delete link.
 // (We respond 200 either way so we don't reveal whether the email matched.)
 export async function POST(request) {
+  const sourceIp = requestIp(request);
   let body;
   try {
     body = await request.json();
@@ -20,6 +23,12 @@ export async function POST(request) {
   if (!uid) return NextResponse.json({ error: 'uid required' }, { status: 400 });
   if (!isEmail(email))
     return NextResponse.json({ error: 'valid email required' }, { status: 400 });
+  const requester = normaliseEmail(email);
+  if (await findActiveBlock({ email: requester, ip: sourceIp })) return blockedResponse();
+  const ipLimited = await requireRateLimit({ action: 'delete-link:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
+  if (ipLimited) return ipLimited;
+  const emailLimited = await requireRateLimit({ action: 'delete-link:email:hour', key: requester, limit: 3, windowSeconds: 3600 });
+  if (emailLimited) return emailLimited;
 
   const { data: post } = await supabaseAdmin
     .from('posts')
@@ -27,9 +36,14 @@ export async function POST(request) {
     .eq('uid', uid)
     .maybeSingle();
 
-  const requester = email.trim().toLowerCase();
   if (post && post.poster_email === requester) {
-    const token = signToken({ uid, email: requester, action: 'delete' });
+    let token;
+    try {
+      token = signToken({ uid, email: requester, action: 'delete' });
+    } catch (error) {
+      console.error('[delete]', error.message);
+      return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+    }
     const base = process.env.APP_URL || 'https://revlong.vercel.app';
     await sendEmail({
       to: requester,

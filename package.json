@@ -6,7 +6,8 @@
     "dev": "NODE_EXTRA_CA_CERTS=$(brew --prefix)/etc/ca-certificates/cert.pem next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:security": "node --test tests/security-primitives.test.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

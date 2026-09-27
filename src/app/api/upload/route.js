@@ -1,18 +1,26 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { blockedResponse, findActiveBlock, requestIp } from '@/lib/revloBlocklist';
+import { detectUploadType, requireRateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 const BUCKET = process.env.STORAGE_BUCKET || 'media';
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
-const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
 
 // POST /api/upload  (multipart form-data, field "file")
 // Returns { url } -- a public URL to the stored object.
 export async function POST(request) {
-  if (await findActiveBlock({ ip: requestIp(request) })) return blockedResponse();
+  const sourceIp = requestIp(request);
+  if (await findActiveBlock({ ip: sourceIp })) return blockedResponse();
+  const limited = await requireRateLimit({ action: 'upload:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
+  if (limited) return limited;
+  const declaredLength = Number(request.headers.get('content-length') || 0);
+  if (declaredLength > MAX_BYTES + 1024 * 1024) {
+    return NextResponse.json({ error: 'file too large (max 25MB)' }, { status: 413 });
+  }
   let form;
   try {
     form = await request.formData();
@@ -26,17 +34,16 @@ export async function POST(request) {
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: 'file too large (max 25MB)' }, { status: 413 });
   }
-  if (!ALLOWED.includes(file.type)) {
-    return NextResponse.json({ error: 'unsupported file type' }, { status: 415 });
-  }
-
-  const ext = (file.name?.split('.').pop() || 'bin').toLowerCase().slice(0, 5);
-  const key = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());
+  const detected = detectUploadType(bytes);
+  if (!detected) {
+    return NextResponse.json({ error: 'unsupported or invalid file content' }, { status: 415 });
+  }
+  const key = `${Date.now()}-${crypto.randomUUID()}.${detected.extension}`;
 
   const { error } = await supabaseAdmin.storage
     .from(BUCKET)
-    .upload(key, bytes, { contentType: file.type, upsert: false });
+    .upload(key, bytes, { contentType: detected.mime, upsert: false });
 
   if (error) {
     console.error('[upload]', error);

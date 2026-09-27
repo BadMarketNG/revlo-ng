@@ -1,14 +1,15 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requiredSecret } from '@/lib/security';
 
-const SECRET = process.env.TOKEN_SECRET || 'dev-secret-change-me';
 const COOKIE = 'revlo_admin';
 const TTL_MS = 60 * 60 * 1000;
 
 // Revlo administrator sessions can only be minted after the BadMarket
 // administrator panel has verified the person, their Revlo permission and MFA.
 export function makeAdminSession(identity) {
+  const secret = requiredSecret('TOKEN_SECRET');
   const body = {
     admin: true,
     source: 'badmarket-admin',
@@ -20,14 +21,14 @@ export function makeAdminSession(identity) {
     exp: Date.now() + TTL_MS,
   };
   const json = Buffer.from(JSON.stringify(body)).toString('base64url');
-  const sig = crypto.createHmac('sha256', SECRET).update(json).digest('hex');
+  const sig = crypto.createHmac('sha256', secret).update(json).digest('hex');
   return `${json}.${sig}`;
 }
 
 export function verifyAdminToken(token) {
   if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const [json, sig] = token.split('.');
-  const expected = crypto.createHmac('sha256', SECRET).update(json).digest('hex');
+  const expected = crypto.createHmac('sha256', requiredSecret('TOKEN_SECRET')).update(json).digest('hex');
   if (sig.length !== expected.length) return null;
   try {
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;

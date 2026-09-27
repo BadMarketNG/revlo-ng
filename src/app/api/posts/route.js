@@ -4,6 +4,7 @@ import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail } from '@
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import { requireRateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,6 +76,9 @@ export async function POST(request) {
   if (!title || typeof title !== 'string' || title.trim().length < 2) {
     return NextResponse.json({ error: 'title required' }, { status: 400 });
   }
+  if (title.length > 200 || String(description).length > 5000 || location.length > 200) {
+    return NextResponse.json({ error: 'post content is too long' }, { status: 413 });
+  }
   if (!location || typeof location !== 'string') {
     return NextResponse.json({ error: 'location required' }, { status: 400 });
   }
@@ -90,6 +94,8 @@ export async function POST(request) {
 
   const cleanEmail = normaliseEmail(poster_email);
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
+  const ipLimited = await requireRateLimit({ action: 'publish:ip:hour', key: sourceIp, limit: 10, windowSeconds: 3600 });
+  if (ipLimited) return ipLimited;
 
   // Rate limit: max 5 posts per email per rolling hour.
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
