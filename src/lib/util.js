@@ -28,6 +28,12 @@ export function isValidDuration(d) {
   return Object.prototype.hasOwnProperty.call(DURATION_MS, d);
 }
 
+export const CATEGORIES = ['jobs', 'rentals', 'for_sale', 'promotions', 'general'];
+
+export function isValidCategory(c) {
+  return CATEGORIES.includes(c);
+}
+
 // Very light email sanity check.
 export function isEmail(s) {
   return typeof s === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.trim());

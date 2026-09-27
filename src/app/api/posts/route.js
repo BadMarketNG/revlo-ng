@@ -1,23 +1,28 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { makeUid, expiryFor, isValidDuration, isEmail } from '@/lib/util';
+import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
+import { wrapEmail } from '@/lib/emailTemplate';
 
 export const dynamic = 'force-dynamic';
 
 // Columns safe to expose publicly (poster_email is HIDDEN).
 const PUBLIC_COLS =
-  'uid,title,description,location,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,created_at,expires_at';
+  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,created_at,expires_at';
 
-// GET /api/posts?duration=now  -> list non-expired posts for a tab
+// GET /api/posts?duration=now&category=jobs  -> list non-expired posts for a tab
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const duration = searchParams.get('duration') || 'now';
+  const category = searchParams.get('category');
   if (!isValidDuration(duration)) {
     return NextResponse.json({ error: 'invalid duration' }, { status: 400 });
   }
+  if (category && !isValidCategory(category)) {
+    return NextResponse.json({ error: 'invalid category' }, { status: 400 });
+  }
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('posts')
     .select(PUBLIC_COLS)
     .eq('duration', duration)
@@ -25,6 +30,9 @@ export async function GET(request) {
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(100);
+  if (category) query = query.eq('category', category);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('[posts:GET]', error);
@@ -47,6 +55,7 @@ export async function POST(request) {
     title,
     description = '',
     location,
+    category = 'general',
     header_url = null,
     thumb_url = null,
     media_type = 'images',
@@ -70,8 +79,25 @@ export async function POST(request) {
   if (!isValidDuration(duration)) {
     return NextResponse.json({ error: 'valid duration required' }, { status: 400 });
   }
+  if (!isValidCategory(category)) {
+    return NextResponse.json({ error: 'invalid category' }, { status: 400 });
+  }
   if (!['public', 'private'].includes(contact_visibility)) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
+  }
+
+  // Rate limit: max 5 posts per email per rolling hour.
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentCount, error: rateError } = await supabaseAdmin
+    .from('posts')
+    .select('uid', { count: 'exact', head: true })
+    .eq('poster_email', poster_email.trim().toLowerCase())
+    .gt('created_at', oneHourAgo);
+  if (!rateError && recentCount >= 5) {
+    return NextResponse.json(
+      { error: 'Too many posts from this email recently. Try again later.' },
+      { status: 429 }
+    );
   }
 
   const expires_at = expiryFor(duration);
@@ -96,6 +122,7 @@ export async function POST(request) {
       title: title.trim(),
       description: String(description).slice(0, 5000),
       location,
+      category,
       header_url,
       thumb_url,
       media_type,
@@ -129,14 +156,31 @@ async function notifyFollowers(posterEmail, post) {
     .eq('poster_email', posterEmail);
   if (!followers || followers.length === 0) return;
 
-  const base = process.env.APP_URL || 'https://revlong.vercel.app';
+  const base = process.env.APP_URL || 'https://revlo.ng';
   for (const f of followers) {
+    const unsubUrl = `${base}/api/unfollow?email=${encodeURIComponent(f.follower_email)}&poster=${encodeURIComponent(posterEmail)}`;
     await sendEmail({
       to: f.follower_email,
-      subject: `New post on Revlo.ng: ${post.title}`,
-      html: `<p>Someone you follow just published a new post.</p>
-             <p><strong>${escapeHtml(post.title)}</strong><br/>${escapeHtml(post.location)}</p>
-             <p><a href="${base}/#post-${post.uid}">View it on Revlo.ng</a></p>`,
+      subject: `New post on Revlo.ng: ${escapeHtml(post.title)}`,
+      html: wrapEmail(`
+        <p style="margin:0 0 16px;">Someone you follow just published something new.</p>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-bottom:20px;">
+          <p style="margin:0 0 6px;font-size:18px;font-weight:700;">${escapeHtml(post.title)}</p>
+          <p style="margin:0;font-size:13px;color:#6b7280;">${escapeHtml(post.location)}</p>
+        </div>
+        <a href="${base}/p/${post.uid}"
+           style="display:inline-block;background:#6d28d9;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
+          View Post
+        </a>
+        <p style="margin:0;font-size:12px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:16px;">
+          You're receiving this because you follow this poster on Revlo.ng.<br>
+          <a href="${unsubUrl}" style="color:#6d28d9;">Unsubscribe</a>
+        </p>
+      `),
+      headers: {
+        'List-Unsubscribe': `<${unsubUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
     });
   }
 }
