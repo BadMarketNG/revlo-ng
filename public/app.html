@@ -18,5 +18,19 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Revlo.ng — Publicity without identity">
 <meta name="twitter:description" content="Nigeria's accountless publishing platform. Share your story — no signup, no passwords. Posts expire automatically.">
-<style>html,body{margin:0;padding:0;background:#f5f6f7}#root{min-height:100vh}</style>
+<style>
+html,body{margin:0;padding:0;background:#f5f6f7}
+#root{min-height:100vh}
+/* Keep feed cards prominent and balanced instead of pinning a lone post left. */
+main>div[style*="grid-template-columns"]{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),600px))!important;
+  justify-content:center!important;
+  row-gap:22px!important;
+}
+@media(max-width:640px){
+  main>div[style*="grid-template-columns"]{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+}
+</style>
 </head><body><div id="root"></div><script src="/revlo-theme.js" defer></script><script src="/revlo-ui.js" defer></script><script src="/revlo-presence.js" defer></script><script src="/revlo-app.js" defer></script></body></html>
