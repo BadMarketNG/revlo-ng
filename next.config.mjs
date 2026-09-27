@@ -13,6 +13,7 @@ const nextConfig = {
     ];
     return [
       { source: '/:path*', headers: baseline },
+      { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'private, no-store' }] },
       {
         source: '/p/:path*',
         headers: [{
