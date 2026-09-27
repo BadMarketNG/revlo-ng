@@ -31,8 +31,15 @@ export async function GET(request) {
   }
   await supabaseAdmin.from('public_visitor_presence').delete().lt('last_seen_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
+  const { data: blockRows } = await supabaseAdmin
+    .from('revlo_access_blocks')
+    .select('block_type,expires_at');
+  const activeBlocks = (blockRows || []).filter((row) => !row.expires_at || new Date(row.expires_at) > new Date());
+  const emailBlocks = activeBlocks.filter((row) => row.block_type === 'email').length;
+  const ipBlocks = activeBlocks.filter((row) => row.block_type === 'ip').length;
+
   return NextResponse.json({
-    counts: { stats: 0, reports: actionableReports, posts: 0, emails: 0, bm: 0 },
+    counts: { stats: 0, reports: actionableReports, posts: 0, emails: 0, bm: 0, 'email-blocks': emailBlocks, 'ip-blocks': ipBlocks },
     visitors: { count: visitorError ? 0 : (visitorRows || []).length, pages: visitorError ? {} : pages },
     updatedAt: new Date().toISOString(),
   }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } });

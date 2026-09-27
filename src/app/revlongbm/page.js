@@ -1,14 +1,16 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 
-const GREEN = '#22c55e';
-const RED = '#f87171';
-const AMBER = '#fbbf24';
-const BLUE = '#60a5fa';
-const BG = '#0a0e17';
-const CARD = '#111827';
-const BORDER = 'rgba(255,255,255,0.08)';
-const MUTED = '#8b93a7';
+const GREEN = '#16803d';
+const RED = '#dc2626';
+const AMBER = '#b45309';
+const BLUE = '#2563eb';
+const BG = '#f5f7fa';
+const CARD = '#ffffff';
+const BORDER = '#d9e1ea';
+const TEXT = '#172033';
+const MUTED = '#667085';
+const SUBTLE = '#475467';
 
 const DUR_LABEL = { now: 'RIGHT NOW (24h)', '1m': '1 MONTH', '2m': '2 MONTHS', '3m': '3 MONTHS' };
 const CAT_LABEL = { jobs: 'Jobs', rentals: 'Rentals', for_sale: 'For Sale', promotions: 'Promotions', general: 'General' };
@@ -21,7 +23,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('tab');
-    if (['stats', 'reports', 'posts', 'emails', 'bm'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'posts', 'emails', 'bm', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -45,7 +47,7 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <Shell>
-        <h1 style={{ color: GREEN, marginTop: 0, letterSpacing: '-0.5px' }}>revlo<span style={{ color: '#fff' }}>.ng</span></h1>
+        <h1 style={{ color: GREEN, marginTop: 0, letterSpacing: '-0.5px' }}>revlo<span style={{ color: TEXT }}>.ng</span></h1>
         <p style={{ color: MUTED, fontSize: 13, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginTop: -8 }}>Admin Panel</p>
         <p style={{ color: MUTED, fontSize: 14 }}>This administrator session has ended. Return to the BadMarket administrator panel and open Revlo again.</p>
         <a href="https://badmarket.ng/admin" style={{ ...btn(GREEN), display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>Return to administrator panel</a>
@@ -57,7 +59,7 @@ export default function AdminPage() {
     <Shell wide>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ color: GREEN, margin: 0, letterSpacing: '-0.5px', fontSize: 28 }}>revlo<span style={{ color: '#fff' }}>.ng</span></h1>
+          <h1 style={{ color: GREEN, margin: 0, letterSpacing: '-0.5px', fontSize: 28 }}>revlo<span style={{ color: TEXT }}>.ng</span></h1>
           <p style={{ color: MUTED, fontSize: 12, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, margin: '2px 0 0' }}>Admin Panel</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -72,7 +74,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -98,6 +100,8 @@ export default function AdminPage() {
       {tab === 'posts' && <AllPosts />}
       {tab === 'emails' && <Emails />}
       {tab === 'bm' && <BMLinks />}
+      {tab === 'email-blocks' && <BlockList blockType="email" />}
+      {tab === 'ip-blocks' && <BlockList blockType="ip" />}
       <p style={{ marginTop: 40, fontSize: 12, color: MUTED, borderTop: `1px solid ${BORDER}`, paddingTop: 16 }}>
         Admin view shows hidden emails and full controls. Public users never see these. · © 2026 Revlo.ng
       </p>
@@ -126,13 +130,13 @@ function Stats() {
         {card('Reports', s.reports, AMBER)}
         {card('BadMarket links', s.bmLinks, AMBER)}
       </div>
-      <h3 style={{ marginTop: 28, color: '#fff', fontSize: 15, textTransform: 'uppercase', letterSpacing: '1px' }}>Active posts by duration</h3>
+      <h3 style={{ marginTop: 28, color: TEXT, fontSize: 15, textTransform: 'uppercase', letterSpacing: '1px' }}>Active posts by duration</h3>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {Object.entries(s.byDuration).map(([k, v]) => card(DUR_LABEL[k], v))}
       </div>
       {s.byCategory && (
         <>
-          <h3 style={{ marginTop: 28, color: '#fff', fontSize: 15, textTransform: 'uppercase', letterSpacing: '1px' }}>Active posts by category</h3>
+          <h3 style={{ marginTop: 28, color: TEXT, fontSize: 15, textTransform: 'uppercase', letterSpacing: '1px' }}>Active posts by category</h3>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {Object.entries(s.byCategory).map(([k, v]) => card(CAT_LABEL[k] || k, v, CAT_COLOR[k] || GREEN))}
           </div>
@@ -158,7 +162,7 @@ function Reports() {
         <div key={r.uid} style={{ ...cardStyle, opacity: r.deleted ? 0.55 : 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <strong style={{ color: '#fff' }}>{r.title}</strong> <span style={{ color: MUTED, fontSize: 13 }}>{r.uid} · {r.location}</span>
+              <strong style={{ color: TEXT }}>{r.title}</strong> <span style={{ color: MUTED, fontSize: 13 }}>{r.uid} · {r.location}</span>
               <div style={{ fontSize: 13, color: MUTED, marginTop: 6 }}>Contact: {r.poster_email}</div>
               <div style={{ marginTop: 8 }}>
                 <span style={{ background: 'rgba(251,191,36,0.12)', color: AMBER, borderRadius: 6, padding: '3px 8px', fontWeight: 700, fontSize: 13 }}>{r.count} report{r.count > 1 ? 's' : ''}</span>
@@ -261,7 +265,7 @@ function AllPosts() {
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                         <div>
-                          <strong style={{ color: '#fff' }}>{p.title}</strong>{' '}
+                          <strong style={{ color: TEXT }}>{p.title}</strong>{' '}
                           <span style={{ color: MUTED, fontSize: 13 }}>{p.uid} · {p.location}</span>
                           {p.category && (
                             <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: CAT_COLOR[p.category] || MUTED, background: `${CAT_COLOR[p.category] || MUTED}1a`, borderRadius: 6, padding: '2px 8px' }}>
@@ -271,7 +275,7 @@ function AllPosts() {
                           {p.deleted_at && <span style={{ marginLeft: 8, color: RED, fontSize: 12, fontWeight: 700 }}>DELETED</span>}
                           {!p.deleted_at && expired && <span style={{ marginLeft: 8, color: MUTED, fontSize: 12, fontWeight: 700 }}>EXPIRED</span>}
                           <div style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>Contact: {p.poster_email} · {p.views} views · {p.followers} followers</div>
-                          {p.description && <div style={{ fontSize: 13, color: '#c5cbd6', marginTop: 6, maxWidth: 520 }}>{p.description}</div>}
+                          {p.description && <div style={{ fontSize: 13, color: SUBTLE, marginTop: 6, maxWidth: 520 }}>{p.description}</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                           <select defaultValue={p.duration} onChange={(e) => act(p.uid, 'change_duration', { duration: e.target.value })} style={{ ...inp, width: 'auto', padding: '6px 8px' }}>
@@ -308,16 +312,16 @@ function Emails() {
   if (!data) return <p style={{ color: MUTED }}>Loading…</p>;
   return (
     <div>
-      <h3 style={{ color: '#fff', fontSize: 15 }}>Poster emails ({data.posters.length})</h3>
-      <div style={{ ...cardStyle, marginBottom: 24, fontSize: 14, columns: 2, color: '#c5cbd6' }}>
+      <h3 style={{ color: TEXT, fontSize: 15 }}>Poster emails ({data.posters.length})</h3>
+      <div style={{ ...cardStyle, marginBottom: 24, fontSize: 14, columns: 2, color: SUBTLE }}>
         {data.posters.map((e) => <div key={e} style={{ padding: '2px 0' }}>{e}</div>)}
         {data.posters.length === 0 && <span style={{ color: MUTED }}>None yet.</span>}
       </div>
-      <h3 style={{ color: '#fff', fontSize: 15 }}>Follow subscriptions ({data.follows.length})</h3>
+      <h3 style={{ color: TEXT, fontSize: 15 }}>Follow subscriptions ({data.follows.length})</h3>
       <div style={{ display: 'grid', gap: 8 }}>
         {data.follows.map((f, i) => (
           <div key={i} style={{ ...cardStyle, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 14 }}>
-            <span style={{ color: '#c5cbd6' }}><strong style={{ color: '#fff' }}>{f.follower_email}</strong> follows <strong style={{ color: '#fff' }}>{f.poster_email}</strong></span>
+            <span style={{ color: SUBTLE }}><strong style={{ color: TEXT }}>{f.follower_email}</strong> follows <strong style={{ color: TEXT }}>{f.poster_email}</strong></span>
             <button onClick={() => unsub(f.poster_email, f.follower_email)} style={miniBtn(AMBER)}>Unsubscribe</button>
           </div>
         ))}
@@ -336,10 +340,81 @@ function BMLinks() {
     <div style={{ display: 'grid', gap: 8 }}>
       {rows.map((l, i) => (
         <div key={i} style={{ ...cardStyle, padding: '10px 14px', fontSize: 14 }}>
-          <strong style={{ color: '#fff' }}>{l.title}</strong> <span style={{ color: MUTED }}>{l.uid}</span>
-          <div style={{ color: '#c5cbd6', marginTop: 4 }}>Payout: {l.payout_email}</div>
+          <strong style={{ color: TEXT }}>{l.title}</strong> <span style={{ color: MUTED }}>{l.uid}</span>
+          <div style={{ color: SUBTLE, marginTop: 4 }}>Payout: {l.payout_email}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function BlockList({ blockType }) {
+  const [rows, setRows] = useState(null);
+  const [value, setValue] = useState('');
+  const [reason, setReason] = useState('');
+  const [message, setMessage] = useState('');
+  const label = blockType === 'email' ? 'email address' : 'IP address';
+
+  const load = useCallback(() => {
+    fetch('/api/admin/blocks')
+      .then((r) => r.json())
+      .then((data) => setRows((data.blocks || []).filter((row) => row.block_type === blockType)));
+  }, [blockType]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    const response = await fetch('/api/admin/blocks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ block_type: blockType, value, reason }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return setMessage(result.error || 'Could not add block.');
+    setValue('');
+    setReason('');
+    setMessage('Block added.');
+    load();
+  };
+
+  const remove = async (id) => {
+    const response = await fetch(`/api/admin/blocks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (response.ok) load();
+  };
+
+  const active = (row) => !row.expires_at || new Date(row.expires_at) > new Date();
+  return (
+    <div>
+      <div style={{ ...cardStyle, marginBottom: 18 }}>
+        <h2 style={{ color: TEXT, fontSize: 18, margin: '0 0 6px' }}>{blockType === 'email' ? 'Email Block List' : 'IP Block List'}</h2>
+        <p style={{ color: MUTED, fontSize: 13, margin: '0 0 16px' }}>
+          Revlo-only controls. Manual blocks remain until removed; automatic blocks show their trigger and expiry.
+        </p>
+        <form onSubmit={add} style={{ display: 'grid', gap: 10 }}>
+          <input value={value} onChange={(event) => setValue(event.target.value)} style={inp} placeholder={`Enter ${label}`} required />
+          <input value={reason} onChange={(event) => setReason(event.target.value)} style={inp} placeholder="Reason (optional)" />
+          <button type="submit" style={{ ...miniBtn(GREEN), width: 'fit-content' }}>Add to block list</button>
+          {message && <span style={{ color: message === 'Block added.' ? GREEN : RED, fontSize: 13 }}>{message}</span>}
+        </form>
+      </div>
+      <div style={{ display: 'grid', gap: 10 }}>
+        {(rows || []).map((row) => (
+          <div key={row.id} style={{ ...cardStyle, opacity: active(row) ? 1 : 0.65, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <div>
+              <strong style={{ color: TEXT }}>{row.value}</strong>
+              <div style={{ color: MUTED, fontSize: 13, marginTop: 4 }}>{row.reason}</div>
+              <div style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
+                {row.source === 'manual' ? 'Manual' : `Automatic · ${row.source.replaceAll('_', ' ')}`}
+                {' · '}{row.expires_at ? `${active(row) ? 'Expires' : 'Expired'} ${new Date(row.expires_at).toLocaleString()}` : 'No expiry'}
+              </div>
+            </div>
+            <button type="button" onClick={() => remove(row.id)} style={miniBtn(RED)}>Remove block</button>
+          </div>
+        ))}
+        {rows && rows.length === 0 && <p style={{ color: MUTED }}>No blocked {blockType === 'email' ? 'email addresses' : 'IP addresses'}.</p>}
+        {!rows && <p style={{ color: MUTED }}>Loading…</p>}
+      </div>
     </div>
   );
 }
@@ -347,7 +422,7 @@ function BMLinks() {
 // ── shared styles ──
 function Shell({ children, wide }) {
   return (
-    <div style={{ minHeight: '100vh', background: BG, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", padding: '40px 20px' }}>
+    <div style={{ minHeight: '100vh', background: BG, color: TEXT, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", padding: '40px 20px' }}>
       <div style={{ maxWidth: wide ? 1000 : 420, margin: '0 auto', background: wide ? 'transparent' : CARD, border: wide ? 'none' : `1px solid ${BORDER}`, borderRadius: 16, padding: wide ? 0 : 28 }}>
         {children}
       </div>
@@ -355,6 +430,6 @@ function Shell({ children, wide }) {
   );
 }
 const cardStyle = { background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 };
-const inp = { width: '100%', boxSizing: 'border-box', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${BORDER}`, fontSize: 15, outline: 'none', background: '#0d1220', color: '#fff' };
-const btn = (bg) => ({ width: '100%', marginTop: 14, padding: '12px', borderRadius: 10, border: 'none', background: bg, color: '#06210c', fontWeight: 700, fontSize: 15, cursor: 'pointer' });
-const miniBtn = (bg) => ({ padding: '7px 12px', borderRadius: 8, border: 'none', background: bg, color: bg === 'transparent' ? undefined : (bg === '#374151' || bg === '#1f2937' || bg === '#7f1d1d' ? '#fff' : '#06210c'), fontWeight: 700, fontSize: 13, cursor: 'pointer' });
+const inp = { width: '100%', boxSizing: 'border-box', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${BORDER}`, fontSize: 15, outline: 'none', background: '#ffffff', color: TEXT };
+const btn = (bg) => ({ width: '100%', marginTop: 14, padding: '12px', borderRadius: 10, border: 'none', background: bg, color: '#ffffff', fontWeight: 700, fontSize: 15, cursor: 'pointer' });
+const miniBtn = (bg) => ({ padding: '7px 12px', borderRadius: 8, border: 'none', background: bg, color: bg === 'transparent' ? undefined : '#ffffff', fontWeight: 700, fontSize: 13, cursor: 'pointer' });

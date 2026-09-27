@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { blockedResponse, findActiveBlock, requestIp } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -11,6 +12,7 @@ const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp
 // POST /api/upload  (multipart form-data, field "file")
 // Returns { url } -- a public URL to the stored object.
 export async function POST(request) {
+  if (await findActiveBlock({ ip: requestIp(request) })) return blockedResponse();
   let form;
   try {
     form = await request.formData();

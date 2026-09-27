@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
+import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,7 @@ export async function GET(request) {
 
 // POST /api/posts -> create a post
 export async function POST(request) {
+  const sourceIp = requestIp(request);
   let body;
   try {
     body = await request.json();
@@ -86,6 +88,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
   }
 
+  const cleanEmail = normaliseEmail(poster_email);
+  if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
+
   // Rate limit: max 5 posts per email per rolling hour.
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { count: recentCount, error: rateError } = await supabaseAdmin
@@ -94,6 +99,13 @@ export async function POST(request) {
     .eq('poster_email', poster_email.trim().toLowerCase())
     .gt('created_at', oneHourAgo);
   if (!rateError && recentCount >= 5) {
+    await addAutomaticBlocks({
+      email: cleanEmail,
+      ip: sourceIp,
+      reason: 'Exceeded the Revlo publishing limit of five posts per hour',
+      source: 'publishing_limit',
+      durationMs: 24 * 60 * 60 * 1000,
+    });
     return NextResponse.json(
       { error: 'Too many posts from this email recently. Try again later.' },
       { status: 429 }
@@ -118,7 +130,8 @@ export async function POST(request) {
     .from('posts')
     .insert({
       uid,
-      poster_email: poster_email.trim().toLowerCase(),
+      poster_email: cleanEmail,
+      source_ip: sourceIp || null,
       title: title.trim(),
       description: String(description).slice(0, 5000),
       location,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { expiryFor, isValidDuration, isValidCategory } from '@/lib/util';
+import { addAutomaticBlocks } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,10 +52,20 @@ export async function POST(request) {
     }
     detail = update;
   } else if (action === 'hard_delete') {
+    const { data: post } = await supabaseAdmin.from('posts').select('poster_email,source_ip').eq('uid', uid).maybeSingle();
     const { error: delError } = await supabaseAdmin.from('posts').delete().eq('uid', uid);
     if (delError) {
       console.error('[admin/post-action:hard_delete]', delError);
       return NextResponse.json({ error: 'failed' }, { status: 500 });
+    }
+    if (post) {
+      await addAutomaticBlocks({
+        email: post.poster_email,
+        ip: post.source_ip,
+        reason: `Administrator permanently deleted post ${uid}`,
+        source: 'hard_delete',
+        durationMs: 30 * 24 * 60 * 60 * 1000,
+      });
     }
     supabaseAdmin
       .from('admin_log')

@@ -1,5 +1,7 @@
 # Revlo.ng — Backend
 
+Administrator setup, permissions, handoff security, moderation block lists and operational recovery are documented in [docs/REVLO_ADMIN_ACCESS.md](docs/REVLO_ADMIN_ACCESS.md).
+
 Next.js + Supabase backend for Revlo.ng: an accountless, time-based publishing
 platform. Posts expire automatically (24h / 30d / 60d / 90d). No accounts,
 likes, comments, or DMs.

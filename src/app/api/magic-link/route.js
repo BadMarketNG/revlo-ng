@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
+import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export async function POST(request) {
   const { email } = body || {};
   if (!isEmail(email))
     return NextResponse.json({ error: 'valid email required' }, { status: 400 });
+  if (await findActiveBlock({ email: normaliseEmail(email), ip: requestIp(request) })) return blockedResponse();
 
   const token = signToken({ email: email.trim().toLowerCase(), action: 'publish' }, 30 * 60 * 1000);
   const base = process.env.APP_URL || 'https://revlo.ng';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
+import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export async function POST(request) {
   if (!uid) return NextResponse.json({ error: 'uid required' }, { status: 400 });
   if (!isEmail(follower_email))
     return NextResponse.json({ error: 'valid follower_email required' }, { status: 400 });
+  if (await findActiveBlock({ email: normaliseEmail(follower_email), ip: requestIp(request) })) return blockedResponse();
 
   const { data: post } = await supabaseAdmin
     .from('posts')
