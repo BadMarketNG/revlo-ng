@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { expiryFor, isValidDuration } from '@/lib/util';
+import { expiryFor, isValidDuration, isValidCategory } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ export async function POST(request) {
   } catch {
     return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
   }
-  const { uid, action, duration } = body || {};
+  const { uid, action, duration, title, description, category } = body || {};
   if (!uid || !action) {
     return NextResponse.json({ error: 'uid and action required' }, { status: 400 });
   }
@@ -36,6 +36,32 @@ export async function POST(request) {
     // Reset the clock: new expiry from now.
     update = { duration, expires_at: expiryFor(duration) };
     detail = { duration };
+  } else if (action === 'edit') {
+    update = {};
+    if (typeof title === 'string' && title.trim().length >= 2) update.title = title.trim();
+    if (typeof description === 'string') update.description = description.slice(0, 5000);
+    if (category !== undefined) {
+      if (!isValidCategory(category)) {
+        return NextResponse.json({ error: 'invalid category' }, { status: 400 });
+      }
+      update.category = category;
+    }
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: 'nothing to update' }, { status: 400 });
+    }
+    detail = update;
+  } else if (action === 'hard_delete') {
+    const { error: delError } = await supabaseAdmin.from('posts').delete().eq('uid', uid);
+    if (delError) {
+      console.error('[admin/post-action:hard_delete]', delError);
+      return NextResponse.json({ error: 'failed' }, { status: 500 });
+    }
+    supabaseAdmin
+      .from('admin_log')
+      .insert({ action, target_uid: uid, detail: {} })
+      .then(() => {})
+      .catch(() => {});
+    return NextResponse.json({ ok: true });
   } else {
     return NextResponse.json({ error: 'unknown action' }, { status: 400 });
   }

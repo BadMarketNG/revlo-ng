@@ -5,7 +5,7 @@ const APP_URL = process.env.APP_URL || 'https://revlo.ng';
 async function getPost(uid) {
   const { data } = await supabaseAdmin
     .from('posts')
-    .select('uid,title,description,location,category,header_url,thumb_url')
+    .select('uid,title,description,location,category,header_url,thumb_url,created_at')
     .eq('uid', uid)
     .is('deleted_at', null)
     .gt('expires_at', new Date().toISOString())
@@ -56,9 +56,25 @@ export default async function PostPage({ params }) {
   }
 
   const link = `/app.html#post-${post.uid}`;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SocialMediaPosting',
+    headline: post.title,
+    articleBody: post.description || undefined,
+    datePublished: post.created_at,
+    image: post.header_url || post.thumb_url || undefined,
+    url: `${APP_URL}/p/${post.uid}`,
+    contentLocation: post.location || undefined,
+    publisher: { '@type': 'Organization', name: 'Revlo.ng', url: APP_URL },
+  };
 
   return (
     <div style={{ fontFamily: '-apple-system, sans-serif', maxWidth: 600, margin: '0 auto', padding: '32px 20px' }}>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {post.header_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={post.header_url} alt="" style={{ width: '100%', borderRadius: 12, marginBottom: 20, display: 'block' }} />

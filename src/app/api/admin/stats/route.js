@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data: posts } = await supabaseAdmin
     .from('posts')
-    .select('duration, views, expires_at, deleted_at');
+    .select('duration, category, views, expires_at, deleted_at');
 
   const stats = {
     total: 0,
@@ -23,6 +23,7 @@ export async function GET() {
     deleted: 0,
     totalViews: 0,
     byDuration: { now: 0, '1m': 0, '2m': 0, '3m': 0 },
+    byCategory: { jobs: 0, rentals: 0, for_sale: 0, promotions: 0, general: 0 },
   };
 
   for (const p of posts || []) {
@@ -35,6 +36,7 @@ export async function GET() {
     } else {
       stats.active += 1;
       if (stats.byDuration[p.duration] !== undefined) stats.byDuration[p.duration] += 1;
+      if (stats.byCategory[p.category] !== undefined) stats.byCategory[p.category] += 1;
     }
   }
 
