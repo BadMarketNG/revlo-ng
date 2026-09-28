@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 
 const GREEN = '#16803d';
 const RED = '#dc2626';
@@ -357,8 +358,13 @@ function Features() {
   const [settings, setSettings] = useState(null);
   const [message, setMessage] = useState('');
   const [promo, setPromo] = useState({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [creatingPromo, setCreatingPromo] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const load = useCallback(() => fetch('/api/admin/features', { cache: 'no-store' }).then((r) => r.json()).then((d) => setSettings(d.settings)), []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
   if (!settings) return <p style={{ color: MUTED }}>Loading…</p>;
   const save = async () => {
     setMessage('');
@@ -369,10 +375,54 @@ function Features() {
   };
   const createPromo = async () => {
     setMessage('');
-    const response = await fetch('/api/admin/features', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(promo) });
-    const body = await response.json();
-    setMessage(response.ok ? 'Admin promotion created.' : body.error || 'Could not create promotion.');
-    if (response.ok) setPromo({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+    setCreatingPromo(true);
+    try {
+      let imageUrl = promo.image_url;
+      if (imageFile) {
+        const form = new FormData();
+        form.append('file', imageFile);
+        const uploadResponse = await fetch('/api/admin/promotion-image', { method: 'POST', body: form });
+        const uploadBody = await uploadResponse.json().catch(() => ({}));
+        if (!uploadResponse.ok || !uploadBody.url) throw new Error(uploadBody.error || 'Could not upload header image.');
+        imageUrl = uploadBody.url;
+      }
+      const response = await fetch('/api/admin/features', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...promo, image_url: imageUrl }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Could not create promotion.');
+      setMessage('Admin promotion created.');
+      setPromo({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+      setImageFile(null);
+      setImagePreview('');
+      setFileInputKey((key) => key + 1);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not create promotion.');
+    } finally {
+      setCreatingPromo(false);
+    }
+  };
+  const chooseImage = (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      setMessage('Use a JPEG, PNG, GIF, or WebP image.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('Image is too large (maximum 5 MB).');
+      event.target.value = '';
+      return;
+    }
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setMessage('');
+  };
+  const clearImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview('');
+    setFileInputKey((key) => key + 1);
   };
   const number = (field, label, suffix = '') => (
     <label style={{ display: 'grid', gap: 6, color: SUBTLE, fontSize: 13, fontWeight: 700 }}>
@@ -407,10 +457,20 @@ function Features() {
       <div style={{ display: 'grid', gap: 10 }}>
         <input style={inp} value={promo.title} onChange={(e) => setPromo((p) => ({ ...p, title: e.target.value }))} placeholder="Promotion title" />
         <textarea style={{ ...inp, minHeight: 72 }} value={promo.description} onChange={(e) => setPromo((p) => ({ ...p, description: e.target.value }))} placeholder="Description" />
-        <input style={inp} value={promo.image_url} onChange={(e) => setPromo((p) => ({ ...p, image_url: e.target.value }))} placeholder="Image URL (optional)" />
+        <div style={{ border: `1px dashed ${BORDER}`, borderRadius: 12, padding: 14, display: 'grid', gap: 10 }}>
+          <strong style={{ color: TEXT, fontSize: 14 }}>Header image</strong>
+          <span style={{ color: MUTED, fontSize: 12 }}>Upload JPEG, PNG, GIF, or WebP · maximum 5 MB. A wide landscape image works best.</span>
+          <input key={fileInputKey} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={chooseImage} style={{ color: SUBTLE }} />
+          {imagePreview && <div style={{ position: 'relative' }}>
+            <Image src={imagePreview} alt="Promotion header preview" width={1600} height={700} unoptimized style={{ display: 'block', width: '100%', height: 'auto', maxHeight: 280, aspectRatio: '16 / 7', objectFit: 'cover', borderRadius: 10, border: `1px solid ${BORDER}` }} />
+            <button type="button" onClick={clearImage} style={{ ...miniBtn(RED), position: 'absolute', top: 10, right: 10 }}>Remove image</button>
+          </div>}
+          <span style={{ color: MUTED, fontSize: 12 }}>Or provide an externally hosted image:</span>
+          <input style={inp} value={promo.image_url} onChange={(e) => setPromo((p) => ({ ...p, image_url: e.target.value }))} placeholder="Image URL (optional)" disabled={Boolean(imageFile)} />
+        </div>
         <input style={inp} value={promo.target_url} onChange={(e) => setPromo((p) => ({ ...p, target_url: e.target.value }))} placeholder="Destination URL" />
         <div style={{ display: 'flex', gap: 10 }}><select style={inp} value={promo.category} onChange={(e) => setPromo((p) => ({ ...p, category: e.target.value }))}><option value="">All categories</option>{Object.entries(CAT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><input style={inp} type="number" min="1" max="365" value={promo.days} onChange={(e) => setPromo((p) => ({ ...p, days: Number(e.target.value) }))} /></div>
-        <button onClick={createPromo} style={miniBtn(BLUE)}>Create promotion</button>
+        <button onClick={createPromo} disabled={creatingPromo} style={{ ...miniBtn(BLUE), opacity: creatingPromo ? 0.65 : 1 }}>{creatingPromo ? (imageFile ? 'Uploading header image…' : 'Creating promotion…') : 'Create promotion'}</button>
       </div>
     </section>
   </div>;

@@ -72,6 +72,8 @@ Premium Green is separate from trust badges. Its default eligibility is 10 posts
 
 Active promotions appear at the top and between ordinary listings. One promotion remains visible; multiple promotions rotate every 20 seconds. Administrators can pause new user promotion purchases without removing already-paid active campaigns and can create house/external promotions without payment.
 
+Administrator promotions accept a directly uploaded header image (JPEG, PNG, GIF or WebP, maximum 5 MB) or an HTTPS image URL. Direct uploads pass through an administrator-authenticated, same-origin, rate-limited endpoint; the server verifies the file signature before storing it under the dedicated `admin-promotions/` media prefix. Uploaded files override the optional URL field.
+
 ## Public appearance
 
 The Revlo public site offers **Light** and **Dark** page themes. Light is the default. The selection is stored locally in the visitor’s browser and does not require an account. Visitors can also collapse the introductory controls to the compact logo row; that preference is remembered locally. The public logo is rendered with its white image background removed so it remains clean in either theme.

@@ -37,3 +37,13 @@ test('administrator cookies use the asynchronous Next.js request boundary', () =
   assert.match(source, /cookieStore\.get\(COOKIE\)/);
   assert.doesNotMatch(source, /cookies\(\)\.get\(/);
 });
+
+test('administrator promotion images use an authenticated, rate-limited, byte-checked upload boundary', () => {
+  const source = readFileSync('src/app/api/admin/promotion-image/route.js', 'utf8');
+  assert.match(source, /getAdminSession\(\)/);
+  assert.match(source, /admin-promotion-image:15m/);
+  assert.match(source, /detectUploadType\(bytes\)/);
+  assert.match(source, /startsWith\('image\/'\)/);
+  assert.match(source, /admin-promotions\//);
+  assert.match(source, /Cross-site request rejected/);
+});
