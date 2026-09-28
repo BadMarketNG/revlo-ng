@@ -74,6 +74,8 @@ Active promotions appear at the top and between ordinary listings. One promotion
 
 Administrator promotions accept a directly uploaded header image (JPEG, PNG, GIF or WebP, maximum 5 MB) or an HTTPS image URL. Direct uploads pass through an administrator-authenticated, same-origin, rate-limited endpoint; the server verifies the file signature before storing it under the dedicated `admin-promotions/` media prefix. Uploaded files override the optional URL field.
 
+The administrator chooses either **Listings** or **Header advert** placement. Listing adverts retain the top-of-list and every-six-post positions. Header adverts are administrator-only and use the open desktop space beside the public post button; multiple active header adverts rotate every 20 seconds, while a single advert remains fixed. The header slot is hidden on narrow screens where it would collide with navigation controls.
+
 ## Public appearance
 
 The Revlo public site offers **Light** and **Dark** page themes. Light is the default. The selection is stored locally in the visitor’s browser and does not require an account. Visitors can also collapse the introductory controls to the compact logo row; that preference is remembered locally. The public logo is rendered with its white image background removed so it remains clean in either theme.

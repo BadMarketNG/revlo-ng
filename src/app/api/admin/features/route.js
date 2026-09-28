@@ -49,9 +49,10 @@ export async function POST(request) {
     } catch { return NextResponse.json({ error: 'Image URL must use HTTP or HTTPS.' }, { status: 400 }); }
   }
   if (body.category && !['jobs','rentals','for_sale','promotions','general'].includes(body.category)) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
+  const placement = body.placement === 'header' ? 'header' : 'feed';
   const { data, error } = await supabaseAdmin.from('revlo_promotions').insert({
     title, description: String(body.description || '').slice(0, 500), image_url: imageUrl,
-    target_url: targetUrl, category: body.category || null, source: 'admin',
+    target_url: targetUrl, category: body.category || null, placement, source: 'admin',
     ends_at: new Date(Date.now() + days * 86400000).toISOString(), active: true,
   }).select('*').single();
   if (error) return NextResponse.json({ error: 'Could not create promotion.' }, { status: 500 });

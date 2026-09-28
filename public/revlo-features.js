@@ -128,10 +128,42 @@
     copy.append(label, title, description); node.appendChild(copy);
     return node;
   }
+  function headerPromoElement(promo) {
+    const post = promo.posts || {};
+    const href = promo.target_url || (promo.post_uid ? `/p/${promo.post_uid}` : '#');
+    const node = document.createElement('a');
+    node.href = href;
+    node.className = 'revlo-header-ad-slot';
+    node.setAttribute('aria-label', `Advert: ${promo.title || post.title || 'Featured on Revlo'}`);
+    const image = promo.image_url || post.header_url || post.thumb_url;
+    if (image) {
+      const img = document.createElement('img'); img.src = image; img.alt = '';
+      node.appendChild(img);
+    }
+    const copy = document.createElement('span'); copy.className = 'revlo-header-ad-copy';
+    const label = document.createElement('small'); label.textContent = 'ADVERT';
+    const title = document.createElement('strong'); title.textContent = promo.title || post.title || 'Featured on Revlo';
+    const description = document.createElement('span'); description.textContent = promo.description || post.description || '';
+    copy.append(label, title, description); node.appendChild(copy);
+    return node;
+  }
+  function renderHeaderPromotion(headerPromotions) {
+    document.querySelectorAll('.revlo-header-ad-slot').forEach((node) => node.remove());
+    if (!headerPromotions.length) return;
+    const header = document.querySelector('header');
+    const logo = header?.querySelector('img[alt*="revlo.ng"]');
+    const firstRow = logo?.parentElement;
+    if (!firstRow) return;
+    const promo = headerPromotions[state.rotation % headerPromotions.length];
+    firstRow.appendChild(headerPromoElement(promo));
+  }
   function renderPromotions() {
     document.querySelectorAll('.revlo-promotion').forEach((n) => n.remove());
-    if (!state.promotions.length) return;
-    const promo = state.promotions[state.rotation % state.promotions.length];
+    const headerPromotions = state.promotions.filter((promo) => promo.placement === 'header' && promo.source === 'admin');
+    const feedPromotions = state.promotions.filter((promo) => promo.placement !== 'header');
+    renderHeaderPromotion(headerPromotions);
+    if (!feedPromotions.length) return;
+    const promo = feedPromotions[state.rotation % feedPromotions.length];
     const grid = document.querySelector('main > div[style*="grid-template-columns"]');
     if (!grid) return;
     grid.parentElement.insertBefore(promoElement(promo), grid);
@@ -143,6 +175,7 @@
   }
   const observer = new MutationObserver(() => {
     decoratePosts();
+    if (!document.querySelector('.revlo-header-ad-slot') && state.promotions.some((promo) => promo.placement === 'header' && promo.source === 'admin')) renderPromotions();
     const headings = [...document.querySelectorAll('h1,h2,h3')];
     const newPost = headings.find((h) => h.textContent.trim() === 'New post');
     if (newPost) featurePanel(newPost.closest('[role="dialog"]') || newPost.parentElement?.parentElement || document.body);
@@ -150,4 +183,19 @@
   observer.observe(document.documentElement, { childList: true, subtree: true });
   loadPromotions();
   setInterval(() => { if (state.promotions.length > 1) { state.rotation += 1; renderPromotions(); } }, 20000);
+
+  const promotionStyles = document.createElement('style');
+  promotionStyles.textContent = `
+    .revlo-header-ad-slot{position:absolute;left:270px;right:210px;top:6px;min-height:78px;display:flex;align-items:center;gap:12px;padding:8px 13px;border:1px solid #a9d6af;border-radius:15px;background:linear-gradient(120deg,#f0fff2,#fff9df);box-shadow:0 8px 24px rgba(22,128,61,.10);color:#17251b;text-decoration:none;overflow:hidden;z-index:2}
+    .revlo-header-ad-slot:hover{border-color:#16803d;box-shadow:0 10px 28px rgba(22,128,61,.16)}
+    .revlo-header-ad-slot>img{width:112px;height:64px;object-fit:cover;border-radius:10px;flex:none}
+    .revlo-header-ad-copy{display:block;min-width:0;line-height:1.2}
+    .revlo-header-ad-copy small{display:block;color:#16803d;font:900 10px/1.1 system-ui;letter-spacing:.12em;margin-bottom:4px}
+    .revlo-header-ad-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 15px/1.2 system-ui}
+    .revlo-header-ad-copy>span{display:-webkit-box;overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:#667085;font:12px/1.3 system-ui;margin-top:3px}
+    html[data-revlo-theme="dark"] .revlo-header-ad-slot{background:linear-gradient(120deg,#13271a,#292615);border-color:#356643;color:#f4fbf5}
+    html[data-revlo-theme="dark"] .revlo-header-ad-copy>span{color:#c8d3ca}
+    @media(max-width:980px){.revlo-header-ad-slot{display:none}}
+  `;
+  document.head.appendChild(promotionStyles);
 })();

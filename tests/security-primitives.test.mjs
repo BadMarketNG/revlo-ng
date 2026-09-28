@@ -47,3 +47,13 @@ test('administrator promotion images use an authenticated, rate-limited, byte-ch
   assert.match(source, /admin-promotions\//);
   assert.match(source, /Cross-site request rejected/);
 });
+
+test('header adverts are administrator-only and remain separate from feed promotions', () => {
+  const api = readFileSync('src/app/api/admin/features/route.js', 'utf8');
+  const publicApi = readFileSync('src/app/api/promotions/route.js', 'utf8');
+  const browser = readFileSync('public/revlo-features.js', 'utf8');
+  assert.match(api, /body\.placement === 'header'/);
+  assert.match(publicApi, /category,placement,source/);
+  assert.match(browser, /promo\.placement === 'header' && promo\.source === 'admin'/);
+  assert.match(browser, /revlo-header-ad-slot/);
+});

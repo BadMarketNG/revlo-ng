@@ -357,7 +357,7 @@ function AllPosts() {
 function Features() {
   const [settings, setSettings] = useState(null);
   const [message, setMessage] = useState('');
-  const [promo, setPromo] = useState({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+  const [promo, setPromo] = useState({ title: '', description: '', image_url: '', target_url: '', category: '', placement: 'feed', days: 7 });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [creatingPromo, setCreatingPromo] = useState(false);
@@ -390,7 +390,7 @@ function Features() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Could not create promotion.');
       setMessage('Admin promotion created.');
-      setPromo({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+      setPromo({ title: '', description: '', image_url: '', target_url: '', category: '', placement: 'feed', days: 7 });
       setImageFile(null);
       setImagePreview('');
       setFileInputKey((key) => key + 1);
@@ -469,6 +469,13 @@ function Features() {
           <input style={inp} value={promo.image_url} onChange={(e) => setPromo((p) => ({ ...p, image_url: e.target.value }))} placeholder="Image URL (optional)" disabled={Boolean(imageFile)} />
         </div>
         <input style={inp} value={promo.target_url} onChange={(e) => setPromo((p) => ({ ...p, target_url: e.target.value }))} placeholder="Destination URL" />
+        <label style={{ display: 'grid', gap: 6, color: SUBTLE, fontSize: 13, fontWeight: 700 }}>
+          Advert placement
+          <select style={inp} value={promo.placement} onChange={(e) => setPromo((p) => ({ ...p, placement: e.target.value }))}>
+            <option value="feed">Listings — top and throughout the page</option>
+            <option value="header">Header advert — beside the post button</option>
+          </select>
+        </label>
         <div style={{ display: 'flex', gap: 10 }}><select style={inp} value={promo.category} onChange={(e) => setPromo((p) => ({ ...p, category: e.target.value }))}><option value="">All categories</option>{Object.entries(CAT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><input style={inp} type="number" min="1" max="365" value={promo.days} onChange={(e) => setPromo((p) => ({ ...p, days: Number(e.target.value) }))} /></div>
         <button onClick={createPromo} disabled={creatingPromo} style={{ ...miniBtn(BLUE), opacity: creatingPromo ? 0.65 : 1 }}>{creatingPromo ? (imageFile ? 'Uploading header image…' : 'Creating promotion…') : 'Create promotion'}</button>
       </div>
