@@ -43,7 +43,7 @@ const SECTIONS = [
     [
       'Supabase: database and file storage.',
       'Vercel: website hosting and delivery.',
-      'Resend: sending emails.',
+      'Amazon Web Services (Amazon SES): sending emails.',
       'Paystack: processing payments.',
     ],
     'We may also disclose data where the law requires it, to respond to valid requests from the Nigeria Police Force, courts or regulators, or to protect people from fraud or harm. Some providers store data outside Nigeria. Where they do, we rely on the safeguards the NDPA allows for cross-border transfers.',
