@@ -92,6 +92,9 @@
 
   function progressFor(article) {
     var rect = article.getBoundingClientRect();
+    var documentHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    var atPageEnd = window.scrollY + window.innerHeight >= documentHeight - 2;
+    if (atPageEnd && rect.top < window.innerHeight && rect.bottom > 0) return 1;
     var distance = window.innerHeight + Math.max(rect.height, 1);
     return Math.max(0, Math.min(1, (window.innerHeight - rect.top) / distance));
   }
