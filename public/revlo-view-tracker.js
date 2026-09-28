@@ -103,7 +103,7 @@
     var walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
     var node;
     while ((node = walker.nextNode())) {
-      if (/^\s*👁\s*[\d,]+/.test(node.nodeValue || '')) {
+      if (/👁\s*[\d,]+/.test(node.nodeValue || '')) {
         node.nodeValue = (node.nodeValue || '').replace(/(👁\s*)[\d,]+/, '$1' + views.toLocaleString());
         return;
       }
