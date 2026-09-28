@@ -23,6 +23,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('tab');
+    // The query string is an external browser value and is intentionally
+    // synchronized once after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (['stats', 'reports', 'posts', 'emails', 'bm', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
@@ -367,6 +370,9 @@ function Emails() {
       .then(setData)
       .catch((loadError) => setError(loadError.message));
   }, []);
+  // `load` performs an asynchronous fetch before updating state; this is the
+  // initial subscription read for the email activity panel.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
   const unsub = async (poster_email, follower_email) => {
     await fetch('/api/admin/emails', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster_email, follower_email }) });

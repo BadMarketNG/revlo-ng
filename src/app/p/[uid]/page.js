@@ -74,7 +74,6 @@ export default async function PostPage({ params }) {
     <div style={{ fontFamily: '-apple-system, sans-serif', maxWidth: 600, margin: '0 auto', padding: '32px 20px' }}>
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jsonLd) }}
       />
       {post.header_url && (
