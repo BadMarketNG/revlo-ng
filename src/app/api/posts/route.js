@@ -113,6 +113,12 @@ export async function POST(request) {
   if (media_type === 'video' && !publisherStatus.videoEligible) {
     return NextResponse.json({ error: `Video unlocks with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
+  if (duration === '2m' && !publisherStatus.trustBadge) {
+    return NextResponse.json({ error: `2-month posts unlock with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
+  }
+  if (duration === '3m' && publisherStatus.trustBadge !== 'gold') {
+    return NextResponse.json({ error: `3-month posts unlock with the Gold badge at ${publisherStatus.settings.gold_posts} posts.` }, { status: 403 });
+  }
   const ipLimited = await requireRateLimit({ action: 'publish:ip:hour', key: sourceIp, limit: 10, windowSeconds: 3600 });
   if (ipLimited) return ipLimited;
 
