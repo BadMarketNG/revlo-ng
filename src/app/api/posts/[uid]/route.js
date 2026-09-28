@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 const PUBLIC_COLS =
   'uid,title,description,location,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,created_at,expires_at';
 
-// GET /api/posts/[uid] -> fetch one post and increment its view count
+// GET /api/posts/[uid] -> fetch one post. Feed views are recorded only after
+// the post's scroll-progress rail is completed (see /api/posts/[uid]/view).
 export async function GET(request, { params }) {
   const { uid } = params;
 
@@ -26,13 +27,5 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'not found or expired' }, { status: 404 });
   }
 
-  // Increment views (best-effort)
-  supabaseAdmin
-    .from('posts')
-    .update({ views: (data.views || 0) + 1 })
-    .eq('uid', uid)
-    .then(() => {})
-    .catch(() => {});
-
-  return NextResponse.json({ post: { ...data, views: (data.views || 0) + 1 } });
+  return NextResponse.json({ post: data });
 }

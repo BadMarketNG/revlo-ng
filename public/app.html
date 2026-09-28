@@ -27,10 +27,26 @@ main>div[style*="grid-template-columns"]{
   justify-content:center!important;
   row-gap:22px!important;
 }
+.revlo-view-progress{
+  height:7px;
+  overflow:hidden;
+  background:rgba(126,143,135,.22);
+  border-top:1px solid rgba(126,143,135,.2);
+  border-bottom:1px solid rgba(126,143,135,.2);
+}
+.revlo-view-progress__fill{
+  width:0;
+  height:100%;
+  background:linear-gradient(90deg,#28ba50,#8adf91);
+  transform-origin:left center;
+  transform:scaleX(0);
+  transition:transform 90ms linear;
+}
+@media(prefers-reduced-motion:reduce){.revlo-view-progress__fill{transition:none}}
 @media(max-width:640px){
   main>div[style*="grid-template-columns"]{
     grid-template-columns:minmax(0,1fr)!important;
   }
 }
 </style>
-</head><body><div id="root"></div><script src="/revlo-theme.js" defer></script><script src="/revlo-ui.js" defer></script><script src="/revlo-presence.js" defer></script><script src="/revlo-app.js" defer></script></body></html>
+</head><body><div id="root"></div><script src="/revlo-theme.js" defer></script><script src="/revlo-ui.js" defer></script><script src="/revlo-presence.js" defer></script><script src="/revlo-app.js" defer></script><script src="/revlo-view-tracker.js" defer></script></body></html>
