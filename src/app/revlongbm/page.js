@@ -564,6 +564,7 @@ function BMLinks() {
 
 function BlockList({ blockType }) {
   const [rows, setRows] = useState(null);
+  const [builtIn, setBuiltIn] = useState(null);
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');
   const [message, setMessage] = useState('');
@@ -572,7 +573,10 @@ function BlockList({ blockType }) {
   const load = useCallback(() => {
     fetch('/api/admin/blocks')
       .then((r) => r.json())
-      .then((data) => setRows((data.blocks || []).filter((row) => row.block_type === blockType)));
+      .then((data) => {
+        setRows((data.blocks || []).filter((row) => row.block_type === blockType));
+        setBuiltIn(data.built_in || null);
+      });
   }, [blockType]);
   useEffect(() => { load(); }, [load]);
 
@@ -603,10 +607,17 @@ function BlockList({ blockType }) {
       <div style={{ ...cardStyle, marginBottom: 18 }}>
         <h2 style={{ color: TEXT, fontSize: 18, margin: '0 0 6px' }}>{blockType === 'email' ? 'Email Block List' : 'IP Block List'}</h2>
         <p style={{ color: MUTED, fontSize: 13, margin: '0 0 16px' }}>
-          Revlo-only controls. Manual blocks remain until removed; automatic blocks show their trigger and expiry.
+          {blockType === 'email'
+            ? 'Block one address or an entire domain. Blocked people see the normal success message, but Revlo sends no email and does not relay contact to a blocked owner.'
+            : 'Revlo-only controls. Manual blocks remain until removed; automatic blocks show their trigger and expiry.'}
         </p>
+        {blockType === 'email' && builtIn && (
+          <div style={{ background: '#f3f8f3', border: '1px solid #cfe3d1', borderRadius: 10, padding: '10px 12px', marginBottom: 14, color: TEXT, fontSize: 13 }}>
+            <strong>{Number(builtIn.count || 0).toLocaleString()} known disposable domains</strong> are also blocked by the bundled {builtIn.snapshot} security snapshot. These rules are not individually removable here.
+          </div>
+        )}
         <form onSubmit={add} style={{ display: 'grid', gap: 10 }}>
-          <input value={value} onChange={(event) => setValue(event.target.value)} style={inp} placeholder={`Enter ${label}`} required />
+          <input value={value} onChange={(event) => setValue(event.target.value)} style={inp} placeholder={blockType === 'email' ? 'Email or domain, e.g. *@bill.com' : `Enter ${label}`} required />
           <input value={reason} onChange={(event) => setReason(event.target.value)} style={inp} placeholder="Reason (optional)" />
           <button type="submit" style={{ ...miniBtn(GREEN), width: 'fit-content' }}>Add to block list</button>
           {message && <span style={{ color: message === 'Block added.' ? GREEN : RED, fontSize: 13 }}>{message}</span>}

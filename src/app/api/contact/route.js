@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
-import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import { findActiveBlock, normaliseEmail, requestIp, silentEmailSuccess } from '@/lib/revloBlocklist';
 import {
   consumePendingPublicAction,
   createPendingPublicAction,
@@ -32,7 +32,7 @@ export async function POST(request) {
   if (cleanMessage.length < 2 || cleanMessage.length > 2000)
     return NextResponse.json({ error: 'message required' }, { status: 400 });
   const sender = normaliseEmail(from_email);
-  if (await findActiveBlock({ email: sender, ip: sourceIp })) return blockedResponse();
+  if (await findActiveBlock({ email: sender, ip: sourceIp })) return silentEmailSuccess({ pending: true });
   const ipLimited = await requireRateLimit({ action: 'contact:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
   if (ipLimited) return ipLimited;
   const emailLimited = await requireRateLimit({ action: 'contact:email:hour', key: sender, limit: 3, windowSeconds: 3600 });
@@ -52,6 +52,9 @@ export async function POST(request) {
   if (post.contact_visibility !== 'public') {
     return NextResponse.json({ error: 'contact disabled for this post' }, { status: 403 });
   }
+  // Do not create a confirmation workflow that can ultimately notify a blocked
+  // post owner. The sender sees the same response as a normal request.
+  if (await findActiveBlock({ email: post.poster_email })) return silentEmailSuccess({ pending: true });
 
   let pending;
   try {
@@ -88,6 +91,9 @@ export async function GET(request) {
     .maybeSingle();
   if (!post || post.contact_visibility !== 'public' || new Date(post.expires_at) < new Date()) {
     return htmlResponse('This contact request is no longer available.', 410);
+  }
+  if (await findActiveBlock({ email: pending.email }) || await findActiveBlock({ email: post.poster_email })) {
+    return htmlResponse('Your email was verified and the message has been sent.', 200);
   }
   const result = await sendEmail({
     to: post.poster_email,

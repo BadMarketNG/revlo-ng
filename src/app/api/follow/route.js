@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
-import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import { findActiveBlock, normaliseEmail, requestIp, silentEmailSuccess } from '@/lib/revloBlocklist';
 import {
   consumePendingPublicAction,
   createPendingPublicAction,
@@ -29,7 +29,9 @@ export async function POST(request) {
   if (!isEmail(follower_email))
     return NextResponse.json({ error: 'valid follower_email required' }, { status: 400 });
   const follower = normaliseEmail(follower_email);
-  if (await findActiveBlock({ email: follower, ip: sourceIp })) return blockedResponse();
+  if (await findActiveBlock({ email: follower, ip: sourceIp })) {
+    return silentEmailSuccess({ pending: true, followers: 0 });
+  }
   const ipLimited = await requireRateLimit({ action: 'follow:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
   if (ipLimited) return ipLimited;
   const emailLimited = await requireRateLimit({ action: 'follow:email:day', key: follower, limit: 5, windowSeconds: 86400 });
@@ -91,6 +93,9 @@ export async function GET(request) {
     .maybeSingle();
   if (!post || !post.followable || new Date(post.expires_at) < new Date() || post.poster_email === pending.email) {
     return htmlResponse('This follow request is no longer available.', 410);
+  }
+  if (await findActiveBlock({ email: pending.email })) {
+    return htmlResponse('Your follow request is confirmed.', 200);
   }
 
   const { error } = await supabaseAdmin.from('follows').insert({

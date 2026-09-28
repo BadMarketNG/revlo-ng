@@ -200,6 +200,7 @@ async function notifyFollowers(posterEmail, post) {
 
   const base = publicOrigin();
   for (const f of followers) {
+    if (await findActiveBlock({ email: f.follower_email })) continue;
     const unsubUrl = `${base}/api/unfollow?email=${encodeURIComponent(f.follower_email)}&poster=${encodeURIComponent(posterEmail)}`;
     await sendEmail({
       to: f.follower_email,

@@ -1,0 +1,33 @@
+{
+  "retrieved_at": "2026-09-28T08:20:00+01:00",
+  "canonical_url": "https://raw.githubusercontent.com/mehrtat/disposable-email-domain/main/domains.txt",
+  "license": "See the aggregation repository and each upstream source for applicable terms",
+  "count": 163972,
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf",
+      "count": 9185
+    },
+    {
+      "url": "https://raw.githubusercontent.com/disposable/disposable-email-domains/master/domains.txt",
+      "count": 75399
+    },
+    {
+      "url": "https://raw.githubusercontent.com/7c/fakefilter/main/txt/data.txt",
+      "count": 4766
+    },
+    {
+      "url": "https://raw.githubusercontent.com/FGRibreau/mailchecker/master/list.txt",
+      "count": 56331
+    },
+    {
+      "url": "https://raw.githubusercontent.com/wesbos/burner-email-providers/master/emails.txt",
+      "count": 27277
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ivolo/disposable-email-domains/master/index.json",
+      "count": 121557
+    }
+  ],
+  "generated_by": "github-action"
+}

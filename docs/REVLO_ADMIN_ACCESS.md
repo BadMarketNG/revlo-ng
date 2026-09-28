@@ -79,10 +79,12 @@ The Revlo administrator surface uses a light background with Revlo green accents
 
 ## Required deployment configuration
 
-BadMarket administrator project:
+RRSource and BadMarket administrator projects:
 
 - `REVLO_ORIGIN=https://revlo.ng`
 - `REVLO_ADMIN_SSO_SECRET` (at least 32 random characters)
+
+The value must be identical on both administrator deployments and Revlo. Rotate all three together; partially rotating the set deliberately invalidates handoff verification.
 
 Revlo project:
 

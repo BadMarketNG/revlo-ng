@@ -28,6 +28,18 @@ requests never receive the Supabase service-role key.
   address opens a one-time, 30-minute confirmation link.
 - Existing Revlo email and IP block lists remain an additional moderation
   layer; rate limiting does not depend on a block first being created.
+- Email blocks support exact addresses and whole-domain rules such as
+  `*@example.com`. Domain rules also cover subdomains.
+- A bundled, locally evaluated snapshot blocks known disposable email domains
+  without making a runtime request to a third-party reputation service. The
+  snapshot source and count are recorded in
+  `src/data/disposable-email-domains.metadata.json`; it is an abuse-prevention
+  input, not a claim about any person using a listed provider.
+- Blocked email-triggering requests return the same public success response as
+  ordinary requests but create no pending action and send no message. Contact
+  relays and follower notifications also suppress delivery to blocked owners
+  and recipients. This prevents the block list becoming an address/domain
+  enumeration oracle.
 
 ## Required secrets
 
@@ -53,3 +65,7 @@ After deployment, verify:
 5. Follow/contact do not change state before their email link is opened.
 6. `/api/cron/expire` returns `401` for a wrong secret and `503` if the server
    secret is unavailable.
+7. Exact and `*@domain` blocks suppress publish links, follow confirmations,
+   delete links and contact confirmations without changing the success UI.
+8. Contact confirmation never relays a message to a post owner who became
+   blocked after the sender requested confirmation.

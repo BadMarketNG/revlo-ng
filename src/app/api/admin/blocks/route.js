@@ -3,6 +3,7 @@ import { isIP } from 'node:net';
 import { getAdminSession } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
+import { BUILT_IN_BLOCKLIST, normaliseBlockValue } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function GET() {
     .select('id,block_type,value,reason,source,expires_at,created_by,created_at')
     .order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: 'failed to load block list' }, { status: 500 });
-  return NextResponse.json({ blocks: data || [] }, { headers: { 'Cache-Control': 'private, no-store' } });
+  return NextResponse.json({ blocks: data || [], built_in: BUILT_IN_BLOCKLIST }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 export async function POST(request) {
@@ -27,12 +28,16 @@ export async function POST(request) {
   if (session instanceof NextResponse) return session;
   const body = await request.json().catch(() => null);
   const blockType = body?.block_type;
-  const value = typeof body?.value === 'string' ? body.value.trim().toLowerCase() : '';
+  const value = blockType === 'email'
+    ? normaliseBlockValue(body?.value)
+    : (typeof body?.value === 'string' ? body.value.trim().toLowerCase() : '');
   const reason = typeof body?.reason === 'string' && body.reason.trim()
     ? body.reason.trim().slice(0, 500)
     : 'Manual administrator block';
   if (!['email', 'ip'].includes(blockType)) return NextResponse.json({ error: 'invalid block type' }, { status: 400 });
-  if (blockType === 'email' && !isEmail(value)) return NextResponse.json({ error: 'valid email required' }, { status: 400 });
+  if (blockType === 'email' && !(isEmail(value) || /^\*@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(value))) {
+    return NextResponse.json({ error: 'enter an email address or a domain such as *@example.com' }, { status: 400 });
+  }
   if (blockType === 'ip' && !isIP(value)) return NextResponse.json({ error: 'valid IPv4 or IPv6 address required' }, { status: 400 });
 
   const { error } = await supabaseAdmin.from('revlo_access_blocks').upsert({

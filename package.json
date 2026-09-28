@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:security": "node --test tests/security-primitives.test.mjs"
+    "test:security": "node --test tests/security-primitives.test.mjs tests/email-blocklist.test.mjs",
+    "update:blocklist": "node scripts/update-disposable-domains.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    '/*': ['src/data/disposable-email-domains.txt', 'src/data/disposable-email-domains.metadata.json'],
+  },
   async headers() {
     const baseline = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
-import { blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
+import { findActiveBlock, normaliseEmail, requestIp, silentEmailSuccess } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
 import { isPublishTokenUsed } from '@/lib/publishToken';
 import { publicOrigin } from '@/lib/publicOrigin';
@@ -23,7 +23,7 @@ export async function POST(request) {
   if (!isEmail(email))
     return NextResponse.json({ error: 'valid email required' }, { status: 400 });
   const cleanEmail = normaliseEmail(email);
-  if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
+  if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return silentEmailSuccess();
   const ipLimited = await requireRateLimit({ action: 'magic-link:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
   if (ipLimited) return ipLimited;
   const emailLimited = await requireRateLimit({ action: 'magic-link:email:hour', key: cleanEmail, limit: 3, windowSeconds: 3600 });
