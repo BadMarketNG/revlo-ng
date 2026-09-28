@@ -8,12 +8,13 @@ import { requireRateLimit } from '@/lib/security';
 import { claimPublishToken, recordPublishTokenPost, releasePublishToken } from '@/lib/publishToken';
 import { publicOrigin } from '@/lib/publicOrigin';
 import { markMagicLinkRedeemed } from '@/lib/magicLinkAudit';
+import { earnedBadge, getFeatureSettings, getPublisherStatus, incrementPublisherPosts } from '@/lib/revloFeatures';
 
 export const dynamic = 'force-dynamic';
 
 // Columns safe to expose publicly (poster_email is HIDDEN).
 const PUBLIC_COLS =
-  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,created_at,expires_at';
+  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
 
 // GET /api/posts?duration=now&category=jobs  -> list non-expired posts for a tab
 export async function GET(request) {
@@ -69,6 +70,10 @@ export async function POST(request) {
     followable = true,
     duration,
     publish_token,
+    media_type = 'images',
+    video_url = null,
+    premium_payment_reference = null,
+    promo_payment_reference = null,
   } = body || {};
 
   // Validation
@@ -78,7 +83,7 @@ export async function POST(request) {
   if (!title || typeof title !== 'string' || title.trim().length < 2) {
     return NextResponse.json({ error: 'title required' }, { status: 400 });
   }
-  if (title.length > 200 || String(description).length > 5000 || location.length > 200) {
+  if (title.length > 200 || String(description).length > 5000 || String(location || '').length > 200) {
     return NextResponse.json({ error: 'post content is too long' }, { status: 413 });
   }
   if (!location || typeof location !== 'string') {
@@ -93,8 +98,8 @@ export async function POST(request) {
   if (!['public', 'private'].includes(contact_visibility)) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
   }
-  if (body?.video_url || (body?.media_type && body.media_type !== 'images')) {
-    return NextResponse.json({ error: 'video posts are not supported' }, { status: 415 });
+  if (!['images', 'video'].includes(media_type) || (media_type === 'video' && !video_url)) {
+    return NextResponse.json({ error: 'invalid media' }, { status: 415 });
   }
 
   const cleanEmail = normaliseEmail(poster_email);
@@ -104,6 +109,10 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Open the publish link we emailed you to continue.' }, { status: 401 });
   }
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
+  const publisherStatus = await getPublisherStatus(cleanEmail);
+  if (media_type === 'video' && !publisherStatus.videoEligible) {
+    return NextResponse.json({ error: `Video unlocks with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
+  }
   const ipLimited = await requireRateLimit({ action: 'publish:ip:hour', key: sourceIp, limit: 10, windowSeconds: 3600 });
   if (ipLimited) return ipLimited;
 
@@ -138,6 +147,22 @@ export async function POST(request) {
   }
 
   const expires_at = expiryFor(duration);
+  const settings = await getFeatureSettings();
+  const postCountAfterPublish = publisherStatus.publishedPosts + 1;
+  const trustBadge = earnedBadge(postCountAfterPublish, settings);
+  let premiumBadge = publisherStatus.premiumActive;
+  if (premium_payment_reference) {
+    const { data: premiumIntent } = await supabaseAdmin.from('revlo_payment_intents').select('status,email,kind').eq('reference', premium_payment_reference).maybeSingle();
+    premiumBadge = premiumBadge || Boolean(premiumIntent?.status === 'paid' && premiumIntent.email === cleanEmail && premiumIntent.kind === 'premium');
+  }
+  let promotionIntent = null;
+  if (promo_payment_reference) {
+    const { data: candidate } = await supabaseAdmin.from('revlo_payment_intents').select('*').eq('reference', promo_payment_reference).maybeSingle();
+    if (!candidate || candidate.status !== 'paid' || candidate.email !== cleanEmail || candidate.kind !== 'promo' || candidate.post_uid || !settings.promotions_enabled) {
+      return NextResponse.json({ error: 'Promotion payment has not been verified.' }, { status: 402 });
+    }
+    promotionIntent = candidate;
+  }
 
   // Generate a unique uid (retry on rare collision)
   let uid = makeUid();
@@ -149,6 +174,15 @@ export async function POST(request) {
       .maybeSingle();
     if (!existing) break;
     uid = makeUid();
+  }
+
+  if (promotionIntent) {
+    const { data: claimedPromotion } = await supabaseAdmin.from('revlo_payment_intents')
+      .update({ post_uid: uid }).eq('reference', promotionIntent.reference).is('post_uid', null).select('reference').maybeSingle();
+    if (!claimedPromotion) {
+      await releasePublishToken(publish_token).catch(() => {});
+      return NextResponse.json({ error: 'This promotion payment has already been used.' }, { status: 409 });
+    }
   }
 
   const { data, error } = await supabaseAdmin
@@ -163,18 +197,21 @@ export async function POST(request) {
       category,
       header_url,
       thumb_url,
-      media_type: 'images',
-      video_url: null,
+      media_type,
+      video_url: media_type === 'video' ? video_url : null,
       gallery: Array.isArray(gallery) ? gallery : [],
       contact_visibility,
       followable: !!followable,
       duration,
       expires_at,
+      trust_badge: trustBadge,
+      premium_badge: premiumBadge,
     })
     .select(PUBLIC_COLS)
     .single();
 
   if (error) {
+    if (promotionIntent) await supabaseAdmin.from('revlo_payment_intents').update({ post_uid: null }).eq('reference', promotionIntent.reference).eq('post_uid', uid);
     await releasePublishToken(publish_token).catch(() => {});
     console.error('[posts:POST]', error);
     return NextResponse.json({ error: 'failed to create post' }, { status: 500 });
@@ -182,6 +219,11 @@ export async function POST(request) {
 
   await recordPublishTokenPost(publish_token, data.uid).catch(() => {});
   await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
+  await incrementPublisherPosts(cleanEmail).catch((e) => console.error('[publisherStats]', e));
+  if (promotionIntent) {
+    const endsAt = new Date(Date.now() + promotionIntent.promo_days * 86400000).toISOString();
+    await supabaseAdmin.from('revlo_promotions').insert({ post_uid: data.uid, category: null, source: 'user', ends_at: endsAt, payment_reference: promotionIntent.reference });
+  }
 
   // Notify followers of this poster (fire and forget).
   notifyFollowers(poster_email.trim().toLowerCase(), data).catch((e) =>

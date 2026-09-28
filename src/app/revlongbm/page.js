@@ -26,7 +26,7 @@ export default function AdminPage() {
     // The query string is an external browser value and is intentionally
     // synchronized once after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (['stats', 'reports', 'posts', 'emails', 'bm', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'posts', 'emails', 'bm', 'features', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -96,7 +96,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -122,6 +122,7 @@ export default function AdminPage() {
       {tab === 'posts' && <AllPosts />}
       {tab === 'emails' && <Emails />}
       {tab === 'bm' && <BMLinks />}
+      {tab === 'features' && <Features />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
       <p style={{ marginTop: 40, fontSize: 12, color: MUTED, borderTop: `1px solid ${BORDER}`, paddingTop: 16 }}>
@@ -325,7 +326,7 @@ function AllPosts() {
                           )}
                           {p.deleted_at && <span style={{ marginLeft: 8, color: RED, fontSize: 12, fontWeight: 700 }}>DELETED</span>}
                           {!p.deleted_at && expired && <span style={{ marginLeft: 8, color: MUTED, fontSize: 12, fontWeight: 700 }}>EXPIRED</span>}
-                          <div style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>Contact: {p.poster_email} · {p.views} views · {p.followers} followers</div>
+                          <div style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>Contact: {p.poster_email} · IP: {p.source_ip || 'Unavailable'} · {p.views} views · {p.followers} followers</div>
                           {p.description && <div style={{ fontSize: 13, color: SUBTLE, marginTop: 6, maxWidth: 520 }}>{p.description}</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -350,6 +351,69 @@ function AllPosts() {
       </div>
     </div>
   );
+}
+
+function Features() {
+  const [settings, setSettings] = useState(null);
+  const [message, setMessage] = useState('');
+  const [promo, setPromo] = useState({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+  const load = useCallback(() => fetch('/api/admin/features', { cache: 'no-store' }).then((r) => r.json()).then((d) => setSettings(d.settings)), []);
+  useEffect(() => { load(); }, [load]);
+  if (!settings) return <p style={{ color: MUTED }}>Loading…</p>;
+  const save = async () => {
+    setMessage('');
+    const response = await fetch('/api/admin/features', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
+    const body = await response.json();
+    setMessage(response.ok ? 'Settings saved.' : body.error || 'Could not save settings.');
+    if (response.ok) setSettings(body.settings);
+  };
+  const createPromo = async () => {
+    setMessage('');
+    const response = await fetch('/api/admin/features', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(promo) });
+    const body = await response.json();
+    setMessage(response.ok ? 'Admin promotion created.' : body.error || 'Could not create promotion.');
+    if (response.ok) setPromo({ title: '', description: '', image_url: '', target_url: '', category: '', days: 7 });
+  };
+  const number = (field, label, suffix = '') => (
+    <label style={{ display: 'grid', gap: 6, color: SUBTLE, fontSize: 13, fontWeight: 700 }}>
+      {label}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input type="number" min="1" value={settings[field]} onChange={(e) => setSettings((s) => ({ ...s, [field]: Number(e.target.value) }))} style={inp} />
+        {suffix && <span style={{ color: MUTED }}>{suffix}</span>}
+      </div>
+    </label>
+  );
+  return <div style={{ display: 'grid', gap: 18 }}>
+    {message && <div style={{ ...cardStyle, color: message.includes('saved') || message.includes('created') ? GREEN : RED }}>{message}</div>}
+    <section style={cardStyle}>
+      <h2 style={{ color: TEXT, marginTop: 0 }}>Community badges</h2>
+      <p style={{ color: MUTED }}>Thresholds count successful posts from the same verified email. Silver unlocks video publishing.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 14 }}>
+        {number('silver_posts', 'Silver posts')}{number('bronze_posts', 'Bronze posts')}{number('gold_posts', 'Gold posts')}
+        {number('premium_min_posts', 'Green eligibility posts')}{number('premium_price_kobo', 'Green price', 'kobo')}{number('premium_days', 'Green validity', 'days')}
+      </div>
+    </section>
+    <section style={cardStyle}>
+      <h2 style={{ color: TEXT, marginTop: 0 }}>Promoted posts</h2>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', color: TEXT, fontWeight: 700, marginBottom: 14 }}><input type="checkbox" checked={settings.promotions_enabled} onChange={(e) => setSettings((s) => ({ ...s, promotions_enabled: e.target.checked }))} /> Enable user promotions</label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 14 }}>
+        {number('promo_price_per_day_kobo', 'Price per day', 'kobo')}{number('promo_min_days', 'Minimum days')}{number('promo_max_days', 'Maximum days')}
+      </div>
+      <button onClick={save} style={{ ...miniBtn(GREEN), marginTop: 16 }}>Save badge and promotion settings</button>
+    </section>
+    <section style={cardStyle}>
+      <h2 style={{ color: TEXT, marginTop: 0 }}>Create an admin promotion</h2>
+      <p style={{ color: MUTED }}>Use this for house campaigns or external ads. It rotates with paid promotions every 20 seconds.</p>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <input style={inp} value={promo.title} onChange={(e) => setPromo((p) => ({ ...p, title: e.target.value }))} placeholder="Promotion title" />
+        <textarea style={{ ...inp, minHeight: 72 }} value={promo.description} onChange={(e) => setPromo((p) => ({ ...p, description: e.target.value }))} placeholder="Description" />
+        <input style={inp} value={promo.image_url} onChange={(e) => setPromo((p) => ({ ...p, image_url: e.target.value }))} placeholder="Image URL (optional)" />
+        <input style={inp} value={promo.target_url} onChange={(e) => setPromo((p) => ({ ...p, target_url: e.target.value }))} placeholder="Destination URL" />
+        <div style={{ display: 'flex', gap: 10 }}><select style={inp} value={promo.category} onChange={(e) => setPromo((p) => ({ ...p, category: e.target.value }))}><option value="">All categories</option>{Object.entries(CAT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><input style={inp} type="number" min="1" max="365" value={promo.days} onChange={(e) => setPromo((p) => ({ ...p, days: Number(e.target.value) }))} /></div>
+        <button onClick={createPromo} style={miniBtn(BLUE)}>Create promotion</button>
+      </div>
+    </section>
+  </div>;
 }
 
 function Emails() {

@@ -1,6 +1,6 @@
 # Revlo administrator access and operations
 
-Last updated: 27 September 2026
+Last updated: 28 September 2026
 
 ## Service relationship
 
@@ -38,6 +38,7 @@ The Revlo section appears below BadMarket and contains:
 - **All Posts** — search, edit, restore, remove and permanently delete Revlo posts.
 - **Emails & Followers** — private poster email and follow-subscription administration.
 - **BadMarket Links** — Revlo posts that users have linked to the collaborating BadMarket service.
+- **Badges & Promos** — configure trust thresholds, Premium Green pricing, promotion pricing/availability, and create administrator promotions.
 - **Email Block List** — Revlo-only manual and automatic email blocks.
 - **IP Block List** — Revlo-only manual and automatic network-address blocks.
 
@@ -62,6 +63,14 @@ Revlo adds both the available email and publishing IP to its block lists when th
 One IP address can count only once toward a post’s report threshold. An existing manual block is never shortened or replaced by an automatic temporary block. Automatic entries display their trigger and expiry in the administrator list.
 
 IP addresses used for enforcement are moderation data. They are excluded from all public post responses and are available only through service-role moderation code and the protected Revlo administration UI.
+
+## Publisher badges, video and promotions
+
+Revlo counts successful publications against the verified, normalised publisher email in a durable server-only table. Expiring or deleting a post does not erase that publishing history. By default Silver is awarded at 100 posts, Bronze at 500 and Gold at 1,500. Administrators can adjust all three thresholds. The badge saved on a post is determined by the server; browser input is ignored. Video upload is available only to a publisher who has earned a trust badge, with Silver as the first qualifying level.
+
+Premium Green is separate from trust badges. Its default eligibility is 10 posts and its default price is ₦5,000 for 30 days; administrators control all three values. Paid promotions default to ₦1,000 per day for 1–30 days. Payment is initialised and verified by the server, including exact amount, customer email and successful status, before a badge or promotion is fulfilled. Paystack webhook signatures are checked and fulfilment is idempotent. `PAYSTACK_SECRET_KEY` is server-only.
+
+Active promotions appear at the top and between ordinary listings. One promotion remains visible; multiple promotions rotate every 20 seconds. Administrators can pause new user promotion purchases without removing already-paid active campaigns and can create house/external promotions without payment.
 
 ## Public appearance
 
@@ -91,5 +100,6 @@ Revlo project:
 - `BADMARKET_ADMIN_ORIGIN=https://badmarket.ng`
 - the same `REVLO_ADMIN_SSO_SECRET`
 - Supabase service-role configuration used by the Revlo server
+- `PAYSTACK_SECRET_KEY` for server-side Premium Green and promotion payments
 
 Never expose the shared SSO secret to browser code or a `NEXT_PUBLIC_` environment variable.

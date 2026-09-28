@@ -7,6 +7,7 @@ import { requireRateLimit } from '@/lib/security';
 import { isPublishTokenUsed } from '@/lib/publishToken';
 import { publicOrigin } from '@/lib/publicOrigin';
 import { beginMagicLinkAudit, finishMagicLinkDelivery, markMagicLinkOpened } from '@/lib/magicLinkAudit';
+import { getPublisherStatus } from '@/lib/revloFeatures';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,5 +88,6 @@ export async function GET(request) {
   }
   if (used) return NextResponse.json({ valid: false, used: true }, { status: 410 });
   await markMagicLinkOpened(token);
-  return NextResponse.json({ valid: true, email: payload.email });
+  if (await findActiveBlock({ email: payload.email, ip: requestIp(request) })) return NextResponse.json({ valid: false }, { status: 400 });
+  return NextResponse.json({ valid: true, email: payload.email, publisher: await getPublisherStatus(payload.email) });
 }

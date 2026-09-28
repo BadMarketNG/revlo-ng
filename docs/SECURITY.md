@@ -21,6 +21,10 @@ requests never receive the Supabase service-role key.
 - Uploads are limited by source IP and accepted only when their file signature
   matches JPEG, PNG, GIF, WebP, MP4 or WebM. The client filename and declared
   `Content-Type` do not determine the stored type.
+- Images are limited to 1.5 MB. Videos are limited to 25 MB and require a valid
+  one-use publishing token for the same email plus server-calculated Silver,
+  Bronze or Gold eligibility. Email and IP blocks are rechecked at upload and
+  again when the post is created.
 - Publishing, magic-link, delete-link, follow and contact requests have
   independent database-backed limits. Rate-limit keys are SHA-256 hashes; the
   counter table does not store raw email or IP values.
@@ -46,6 +50,9 @@ requests never receive the Supabase service-role key.
 `TOKEN_SECRET`, `CRON_SECRET` and `REVLO_ADMIN_SSO_SECRET` must each be at
 least 32 characters in production. Token and cron operations fail closed if a
 secret is absent or too short. There is no repository fallback secret.
+`PAYSTACK_SECRET_KEY` is also server-only. Payment fulfilment verifies the
+provider status, exact amount and customer email, and webhook requests require
+Paystack's HMAC-SHA512 signature.
 
 ## Deployment
 
