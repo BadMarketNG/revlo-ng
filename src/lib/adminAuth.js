@@ -45,7 +45,8 @@ export function verifyAdminToken(token) {
 }
 
 export async function getAdminSession() {
-  const token = cookies().get(COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE)?.value;
   const session = verifyAdminToken(token);
   if (!session?.iat) return null;
   const { data } = await supabaseAdmin

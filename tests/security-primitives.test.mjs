@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { detectUploadType, requiredSecret, serializeJsonForHtml } from '../src/lib/securityPrimitives.mjs';
 
 test('JSON-LD serialization cannot close its script element', () => {
@@ -28,4 +29,11 @@ test('security secrets fail closed when absent or weak', () => {
   assert.equal(requiredSecret('REVLO_TEST_SECRET'), 'a'.repeat(32));
   if (previous == null) delete process.env.REVLO_TEST_SECRET;
   else process.env.REVLO_TEST_SECRET = previous;
+});
+
+test('administrator cookies use the asynchronous Next.js request boundary', () => {
+  const source = readFileSync('src/lib/adminAuth.js', 'utf8');
+  assert.match(source, /const cookieStore = await cookies\(\)/);
+  assert.match(source, /cookieStore\.get\(COOKIE\)/);
+  assert.doesNotMatch(source, /cookies\(\)\.get\(/);
 });
