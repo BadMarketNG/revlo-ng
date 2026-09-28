@@ -31,6 +31,14 @@ const nextConfig = {
           value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
         }],
       },
+      // Email images are loaded by webmail on other origins.
+      {
+        source: '/email/:path*',
+        headers: [
+          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          { key: 'Cache-Control', value: 'public, max-age=604800' },
+        ],
+      },
     ];
   },
 };

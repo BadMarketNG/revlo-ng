@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { htmlToText, renderEmail } from '@/lib/emailTemplate';
 
 // Amazon SES (API v2) with request signing done here (AWS Signature V4), so no
 // AWS SDK dependency is needed. Credentials use SES_* names because Vercel
@@ -45,14 +46,22 @@ export async function sendEmail({ to, subject, html, headers }) {
     console.log('[email:skipped] SES is not configured. Would send:', { to, subject });
     return { skipped: true };
   }
+  const fullHtml = renderEmail({ subject, html });
+  // SES takes Reply-To as a field, not a custom header.
+  const { 'Reply-To': replyTo, ...customHeaders } = headers || {};
+  const headerList = Object.entries(customHeaders).map(([Name, Value]) => ({ Name, Value: String(Value) }));
   const payload = {
     FromEmailAddress: FROM,
     Destination: { ToAddresses: [].concat(to) },
+    ...(replyTo ? { ReplyToAddresses: [].concat(replyTo) } : {}),
     Content: {
       Simple: {
         Subject: { Data: subject, Charset: 'UTF-8' },
-        Body: { Html: { Data: html, Charset: 'UTF-8' } },
-        ...(headers ? { Headers: Object.entries(headers).map(([Name, Value]) => ({ Name, Value: String(Value) })) } : {}),
+        Body: {
+          Html: { Data: fullHtml, Charset: 'UTF-8' },
+          Text: { Data: htmlToText(fullHtml), Charset: 'UTF-8' },
+        },
+        ...(headerList.length ? { Headers: headerList } : {}),
       },
     },
     ...(CONFIGURATION_SET ? { ConfigurationSetName: CONFIGURATION_SET } : {}),
