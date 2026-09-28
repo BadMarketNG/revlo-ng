@@ -7,6 +7,7 @@ export default async function sitemap() {
   const APP_URL = publicOrigin();
   const staticEntries = [
     { url: `${APP_URL}/`, changeFrequency: 'always', priority: 1 },
+    ...['rules', 'privacy', 'terms'].map((page) => ({ url: `${APP_URL}/${page}`, changeFrequency: 'monthly', priority: 0.3 })),
   ];
 
   const { data: posts } = await supabaseAdmin
