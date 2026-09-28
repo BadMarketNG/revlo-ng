@@ -11,7 +11,7 @@ const SECTIONS = [
     [
       'You must be at least 18 years old to publish, contact a poster, follow a publisher or pay for a feature.',
       'Use an email address you own and can read. Disposable or throwaway email services are not accepted.',
-      'Each emailed publish link creates one post. Do not share, sell or reuse publish links.',
+      'Every publish link is single-use: it creates exactly one post and then stops working. Links cannot be reused, so request a new link for each post.',
       'One person, one identity. Do not impersonate another person, business, government agency or Revlo.',
     ]],
   ['Every post must be honest',
