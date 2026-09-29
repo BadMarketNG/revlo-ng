@@ -50,3 +50,16 @@ test('publish confirmation describes duration rather than a future go-live date'
   assert.match(bundle, /Your post is now live for/);
   assert.doesNotMatch(bundle, /Your post is now live in/);
 });
+
+test('only one unexpired publish link can be active per email', () => {
+  const route = read('src/app/api/magic-link/route.js');
+  const audit = read('src/lib/magicLinkAudit.js');
+  const migration = read('supabase/migrations/20260929000002_one_active_publish_link.sql');
+  assert.match(route, /hasActiveMagicLink\(cleanEmail\)/);
+  assert.match(route, /if \(!reserved\) return NextResponse\.json\(\{ ok: true \}\)/);
+  assert.match(audit, /reserve_revlo_magic_link/);
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /redeemed_at is null/);
+  assert.match(migration, /expires_at > now\(\)/);
+  assert.match(migration, /delivery_status in \('pending', 'sent'\)/);
+});

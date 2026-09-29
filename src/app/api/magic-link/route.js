@@ -6,7 +6,7 @@ import { findActiveBlock, normaliseEmail, requestIp, silentEmailSuccess } from '
 import { requireRateLimit } from '@/lib/security';
 import { isPublishTokenUsed } from '@/lib/publishToken';
 import { publicOrigin } from '@/lib/publicOrigin';
-import { beginMagicLinkAudit, finishMagicLinkDelivery, markMagicLinkOpened } from '@/lib/magicLinkAudit';
+import { beginMagicLinkAudit, finishMagicLinkDelivery, hasActiveMagicLink, markMagicLinkOpened } from '@/lib/magicLinkAudit';
 import { getPublisherStatus } from '@/lib/revloFeatures';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +27,11 @@ export async function POST(request) {
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return silentEmailSuccess();
   const ipLimited = await requireRateLimit({ action: 'magic-link:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
   if (ipLimited) return ipLimited;
+  try {
+    if (await hasActiveMagicLink(cleanEmail)) return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+  }
   const emailLimited = await requireRateLimit({ action: 'magic-link:email:hour', key: cleanEmail, limit: 3, windowSeconds: 3600 });
   if (emailLimited) return emailLimited;
 
@@ -41,11 +46,14 @@ export async function POST(request) {
   const link = `${base}/?token=${encodeURIComponent(token)}`;
 
   try {
-    await beginMagicLinkAudit({
+    const reserved = await beginMagicLinkAudit({
       token,
       email: cleanEmail,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
+    // Another simultaneous request may have reserved the active link first.
+    // Keep the outward response identical and do not send a second email.
+    if (!reserved) return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
   }
