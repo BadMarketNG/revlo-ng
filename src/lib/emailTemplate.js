@@ -137,7 +137,7 @@ export function renderEmail({ subject, html }) {
                 <tr>
                   <td align="center" style="padding:22px 24px 14px;">
                     <a href="${APP_URL}" style="text-decoration:none;">
-                      <img src="${APP_URL}/email/revlo-logo.png" width="200" height="83" alt="revlo.ng — Revolution Nigeria" style="display:block;width:200px;max-width:60%;height:auto;border:0;outline:none;color:#1B5E20;font-size:22px;font-weight:900;">
+                      <img src="${APP_URL}/email/revlo-logo.png" width="200" height="73" alt="revlo.ng — Revolution Nigeria" style="display:block;width:200px;max-width:60%;height:auto;border:0;outline:none;color:#1B5E20;font-size:22px;font-weight:900;">
                     </a>
                   </td>
                 </tr>
