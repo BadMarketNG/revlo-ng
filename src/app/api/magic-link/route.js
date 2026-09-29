@@ -32,14 +32,18 @@ export async function POST(request) {
   // NOTE (2026-09-29): Silver, Bronze and Gold publishers get a badge link that
   // creates 50, 100 or 200 posts with no time limit. Everyone else continues
   // below on the original one-post, 30-minute path, unchanged.
+  // NOTE: publishers without a badge also get a multi-post link (default 5 posts),
+  // which still expires after 30 minutes. An allowance of 1 uses the original path.
   let allowance = 1;
+  let hasBadge = false;
   try {
     const status = await getPublisherStatus(cleanEmail);
+    hasBadge = Boolean(status.trustBadge);
     allowance = publishLinkAllowance(status.trustBadge, status.settings);
   } catch {
     allowance = 1;
   }
-  if (allowance > 1) return sendBadgeLink(cleanEmail, allowance);
+  if (allowance > 1) return sendBadgeLink(cleanEmail, allowance, hasBadge);
 
   try {
     if (await hasActiveMagicLink(cleanEmail)) return NextResponse.json({ ok: true });
@@ -99,12 +103,15 @@ export async function POST(request) {
 // creates `allowance` posts and never expires with time.
 const BADGE_LINK_LIFETIME_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
-async function sendBadgeLink(cleanEmail, allowance) {
+const NORMAL_LINK_LIFETIME_MS = 30 * 60 * 1000;
+
+async function sendBadgeLink(cleanEmail, allowance, hasBadge = true) {
+  const lifetimeMs = hasBadge ? BADGE_LINK_LIFETIME_MS : NORMAL_LINK_LIFETIME_MS;
   const emailLimited = await requireRateLimit({ action: 'magic-link:email:hour', key: cleanEmail, limit: 3, windowSeconds: 3600 });
   if (emailLimited) return emailLimited;
   let token;
   try {
-    token = signToken({ email: cleanEmail, action: 'publish', uses: allowance }, BADGE_LINK_LIFETIME_MS);
+    token = signToken({ email: cleanEmail, action: 'publish', uses: allowance }, lifetimeMs);
   } catch (error) {
     console.error('[magic-link:badge]', error.message);
     return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
@@ -119,7 +126,7 @@ async function sendBadgeLink(cleanEmail, allowance) {
   const { error: insertError } = await supabaseAdmin.from('revlo_magic_link_events').insert({
     token_hash: publishTokenHash(token),
     email: cleanEmail,
-    expires_at: new Date(Date.now() + BADGE_LINK_LIFETIME_MS).toISOString(),
+    expires_at: new Date(Date.now() + lifetimeMs).toISOString(),
   });
   if (supersedeError || insertError) {
     console.error('[magic-link:badge:audit]', (supersedeError || insertError).code);
@@ -130,7 +137,9 @@ async function sendBadgeLink(cleanEmail, allowance) {
     to: cleanEmail,
     subject: 'Your Revlo.ng publish link',
     html: wrapEmail(`
-      <p style="margin:0 0 16px;">Thanks to your Revlo badge, this link publishes up to <strong>${allowance} posts</strong> and does not expire with time. Open it each time you want to post.</p>
+      <p style="margin:0 0 16px;">${hasBadge
+        ? `Thanks to your Revlo badge, this link publishes up to <strong>${allowance} posts</strong> and does not expire with time. Open it each time you want to post.`
+        : `This link publishes up to <strong>${allowance} posts</strong> within <strong>30 minutes</strong>. Open it each time you want to post. Earn a Revlo badge for links with more posts and no time limit.`}</p>
       <a href="${link}"
          style="display:inline-block;background:#1B5E20;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
         Continue Publishing

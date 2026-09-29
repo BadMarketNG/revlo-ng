@@ -65,7 +65,7 @@ export async function changePublisherBadge({ email, override, reason, admin }) {
     html = `<p>The Revlo.ng team has awarded you the <strong>${name} badge</strong>. It now appears on all your live and future posts.</p>${note}<p>Your publish links now create up to <strong>${publishLinkAllowance(override, settings)} posts</strong> each, with no time limit.</p><p><a href="${appUrl}">Open Revlo.ng</a></p>`;
   } else if (override === 'none') {
     subject = 'Your Revlo.ng badge has been removed';
-    html = `<p>The Revlo.ng team has removed ${before.effectiveBadge ? `your <strong>${BADGE_NAMES[before.effectiveBadge]} badge</strong>` : 'badges from your account'}. It no longer appears on your posts.</p>${note}<p>Your publish links now create one post each and expire after 30 minutes.</p>`;
+    html = `<p>The Revlo.ng team has removed ${before.effectiveBadge ? `your <strong>${BADGE_NAMES[before.effectiveBadge]} badge</strong>` : 'badges from your account'}. It no longer appears on your posts.</p>${note}<p>Your publish links now create up to ${publishLinkAllowance(null, settings)} posts each and expire after 30 minutes.</p>`;
   } else {
     subject = 'Your Revlo.ng badge has been updated';
     html = `<p>The Revlo.ng team has returned your account to the badge you have earned from your posts: <strong>${effective ? `${BADGE_NAMES[effective]} badge` : 'no badge yet'}</strong>.</p>${note}<p><a href="${appUrl}">Open Revlo.ng</a></p>`;

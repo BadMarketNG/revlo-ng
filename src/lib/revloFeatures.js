@@ -5,6 +5,7 @@ export const DEFAULT_FEATURE_SETTINGS = Object.freeze({
   silver_posts: 100,
   bronze_posts: 500,
   gold_posts: 1500,
+  normal_link_posts: 5,
   silver_link_posts: 50,
   bronze_link_posts: 100,
   gold_link_posts: 200,
@@ -63,6 +64,7 @@ export function publicSettings(settings) {
     silver_posts: settings.silver_posts,
     bronze_posts: settings.bronze_posts,
     gold_posts: settings.gold_posts,
+    normal_link_posts: settings.normal_link_posts,
     silver_link_posts: settings.silver_link_posts,
     bronze_link_posts: settings.bronze_link_posts,
     gold_link_posts: settings.gold_link_posts,
@@ -94,8 +96,15 @@ export const NORMAL_LINK_MINUTES = 30;
 // }
 // NOTE: administrators set the allowances in Badges & Promos; PUBLISH_LINK_ALLOWANCE
 // is the fallback when settings are unavailable.
+export const NORMAL_LINK_POSTS = 5;
+
 export function publishLinkAllowance(trustBadge, settings = null) {
-  if (!trustBadge || !PUBLISH_LINK_ALLOWANCE[trustBadge]) return 1;
+  // ORIGINAL (commented out 2026-09-29): if (!trustBadge || !PUBLISH_LINK_ALLOWANCE[trustBadge]) return 1;
+  // NOTE: publishers without a badge now start with 5 posts per link (30-minute link), administrator-set.
+  if (!trustBadge || !PUBLISH_LINK_ALLOWANCE[trustBadge]) {
+    const normal = Math.floor(Number(settings?.normal_link_posts));
+    return Number.isFinite(normal) && normal >= 1 ? Math.min(normal, 1000) : NORMAL_LINK_POSTS;
+  }
   const configured = Math.floor(Number(settings?.[`${trustBadge}_link_posts`]));
   return Number.isFinite(configured) && configured >= 1 ? Math.min(configured, 1000) : PUBLISH_LINK_ALLOWANCE[trustBadge];
 }

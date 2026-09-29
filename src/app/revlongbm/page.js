@@ -626,10 +626,10 @@ function Features() {
     {message && <div style={{ ...cardStyle, color: message.includes('saved') || message.includes('created') ? GREEN : RED }}>{message}</div>}
     <section style={cardStyle}>
       <h2 style={{ color: TEXT, marginTop: 0 }}>Community badges</h2>
-      <p style={{ color: MUTED }}>Thresholds count successful posts from the same verified email. Silver unlocks video publishing. Posts per link is how many posts one emailed publish link creates for each badge, with no time limit (maximum 1,000). Without a badge a link creates one post within 30 minutes.</p>
+      <p style={{ color: MUTED }}>Thresholds count successful posts from the same verified email. Silver unlocks video publishing. Posts per link is how many posts one emailed publish link creates for each badge, with no time limit (maximum 1,000). Without a badge a link creates up to the no-badge number of posts within 30 minutes (default 5).</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 14 }}>
         {number('silver_posts', 'Silver posts')}{number('bronze_posts', 'Bronze posts')}{number('gold_posts', 'Gold posts')}
-        {number('silver_link_posts', 'Silver posts per link')}{number('bronze_link_posts', 'Bronze posts per link')}{number('gold_link_posts', 'Gold posts per link')}
+        {number('normal_link_posts', 'Posts per link (no badge)')}{number('silver_link_posts', 'Silver posts per link')}{number('bronze_link_posts', 'Bronze posts per link')}{number('gold_link_posts', 'Gold posts per link')}
         {number('premium_min_posts', 'Green eligibility posts')}{number('premium_price_kobo', 'Green price', 'kobo')}{number('premium_days', 'Green validity', 'days')}
       </div>
     </section>

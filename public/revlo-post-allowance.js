@@ -2,7 +2,7 @@
   'use strict';
   // "Check posts available" in the Create a post window: shows how many posts
   // one emailed publish link allows for the typed email. Without a badge that is
-  // one post within 30 minutes; Silver, Bronze and Gold links allow 50, 100 and
+  // 5 posts (administrator-set) within 30 minutes; Silver, Bronze and Gold links allow 50, 100 and
   // 200 posts with no time limit (see /api/publish-allowance).
   const BADGE_NAMES = { silver: 'Silver', bronze: 'Bronze', gold: 'Gold' };
 
@@ -18,11 +18,11 @@
   document.head.appendChild(style);
 
   function describe(data) {
-    if (data.postsPerLink > 1) {
+    if (data.badge) {
       const badge = BADGE_NAMES[data.badge] || 'badge';
       return `<img src="/badges/${data.badge}.svg" alt=""><strong>${badge} badge:</strong> one publish link creates up to <strong>${data.postsPerLink} posts</strong>, with no time limit.`;
     }
-    return `<strong>${data.postsPerLink} post per link.</strong> Each emailed link publishes one post and expires after ${data.timeLimitMinutes} minutes. Earn a Silver badge for links that publish ${data.silverLinkPosts || 50} posts.`;
+    return `<strong>${data.postsPerLink} ${data.postsPerLink === 1 ? 'post' : 'posts'} per link.</strong> Each emailed link publishes up to ${data.postsPerLink} ${data.postsPerLink === 1 ? 'post' : 'posts'} and expires after ${data.timeLimitMinutes} minutes. Earn a Silver badge for links that publish ${data.silverLinkPosts || 50} posts with no time limit.`;
   }
 
   function mount(input) {
