@@ -16,6 +16,15 @@ export const dynamic = 'force-dynamic';
 const PUBLIC_COLS =
   'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
 
+// A post's duration is how long it stays live from publication. "Right now"
+// shows every live post; each longer tab shows posts lasting at least that long.
+const TAB_DURATIONS = {
+  now: null,
+  '1m': ['1m', '2m', '3m'],
+  '2m': ['2m', '3m'],
+  '3m': ['3m'],
+};
+
 // GET /api/posts?duration=now&category=jobs  -> list non-expired posts for a tab
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -31,11 +40,11 @@ export async function GET(request) {
   let query = supabaseAdmin
     .from('posts')
     .select(PUBLIC_COLS)
-    .eq('duration', duration)
     .is('deleted_at', null)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(100);
+  if (TAB_DURATIONS[duration]) query = query.in('duration', TAB_DURATIONS[duration]);
   if (category) query = query.eq('category', category);
 
   const { data, error } = await query;
