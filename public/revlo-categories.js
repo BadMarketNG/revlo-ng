@@ -67,7 +67,10 @@
   function renderToolbar() {
     const original = originalCategoryRow();
     if (!original || !categories.length) return;
+    // The original row has an inline display:flex, which overrides the
+    // hidden attribute, so hide it with an important rule instead.
     original.hidden = true;
+    original.classList.add('revlo-original-categories');
     let managed = original.nextElementSibling;
     if (!managed?.classList.contains('revlo-managed-categories')) {
       managed = document.createElement('nav');
@@ -119,14 +122,14 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    .revlo-managed-categories{display:flex;gap:10px;align-items:center;overflow-x:auto;padding:2px 0 5px;scrollbar-width:none}
+    .revlo-original-categories{display:none!important}
+    .revlo-managed-categories{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:10px 0 12px;scrollbar-width:none}
     .revlo-managed-categories::-webkit-scrollbar{display:none}
-    .revlo-managed-categories button,.revlo-managed-categories a{flex:0 0 auto;border:2px solid #e1e3e1;border-radius:999px;background:#fff;color:#535753;padding:9px 18px;font:750 14px/1.2 system-ui;text-decoration:none;cursor:pointer}
-    .revlo-managed-categories button.active{border-color:#1b6b2a;background:#1b6b2a;color:#fff}
-    .revlo-managed-categories .rules{border-style:dashed;border-color:#1b6b2a;color:#1b6b2a}
+    .revlo-managed-categories button,.revlo-managed-categories a{flex:0 0 auto;border:1.5px solid #e3e3e3;border-radius:99px;background:#fff;color:#555;padding:7px 14px;font-size:13px;font-weight:700;line-height:1.2;font-family:inherit;white-space:nowrap;text-decoration:none;cursor:pointer}
+    .revlo-managed-categories button.active{border-color:#1b5e20;background:#1b5e20;color:#fff}
+    .revlo-managed-categories .rules{border-style:dashed;border-color:#1b5e20;color:#1b5e20}
     html[data-revlo-theme="dark"] .revlo-managed-categories button,html[data-revlo-theme="dark"] .revlo-managed-categories a{border-color:#40506a;background:#0f192b;color:#dce5f3}
     html[data-revlo-theme="dark"] .revlo-managed-categories button.active{border-color:#247a31;background:#1b6b2a;color:#fff}
-    @media(max-width:640px){.revlo-managed-categories{gap:8px}.revlo-managed-categories button,.revlo-managed-categories a{padding:8px 15px;font-size:13px}}
   `;
   document.head.appendChild(style);
 
