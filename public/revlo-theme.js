@@ -7,6 +7,8 @@
 
   const style = document.createElement('style');
   style.textContent = `
+    html { scrollbar-width: none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
     html[data-revlo-theme="dark"] { color-scheme: dark; }
     html[data-revlo-theme="dark"],
     html[data-revlo-theme="dark"] body,
@@ -19,6 +21,15 @@
     html[data-revlo-theme="dark"] .revlo-theme-primary-text { color: #f8fafc !important; }
     html[data-revlo-theme="dark"] .revlo-theme-muted-text { color: #cbd5e1 !important; }
     html[data-revlo-theme="dark"] .revlo-theme-border { border-color: #334155 !important; }
+    html[data-revlo-theme="dark"] img[alt^="revlo.ng"] {
+      box-sizing: content-box;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,.78);
+      border-radius: 14px;
+      background: #ffffff;
+      filter: contrast(1.14) saturate(1.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,.24);
+    }
     #revlo-theme-control {
       position: fixed;
       right: 20px;
@@ -57,6 +68,7 @@
     @media (max-width: 640px) {
       #revlo-theme-control { right: 12px; bottom: 12px; }
       #revlo-theme-control label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+      html[data-revlo-theme="dark"] img[alt^="revlo.ng"] { padding: 4px 7px; border-radius: 11px; }
     }
   `;
   document.head.appendChild(style);

@@ -77,6 +77,10 @@
       border-bottom: 0 !important;
       box-shadow: none !important;
     }
+    .revlo-public-header + div[style*="position: sticky"] {
+      border-bottom: 0 !important;
+      box-shadow: none !important;
+    }
     .revlo-public-header > :first-child {
       position: relative;
     }

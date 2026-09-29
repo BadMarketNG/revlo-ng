@@ -252,10 +252,13 @@ export async function POST(request) {
     await supabaseAdmin.from('revlo_promotions').insert({ post_uid: data.uid, category: null, source: 'user', ends_at: endsAt, payment_reference: promotionIntent.reference });
   }
 
-  // Notify followers of this poster (fire and forget).
-  notifyFollowers(poster_email.trim().toLowerCase(), data).catch((e) =>
-    console.error('[notifyFollowers]', e)
-  );
+  // The publisher controls following on every post. When they turn it off,
+  // the post has no follow button and existing followers receive no alert.
+  if (data.followable) {
+    notifyFollowers(cleanEmail, data).catch((e) =>
+      console.error('[notifyFollowers]', e)
+    );
+  }
 
   return NextResponse.json({ post: data }, { status: 201 });
 }
