@@ -34,7 +34,8 @@ export async function POST(request) {
   // below on the original one-post, 30-minute path, unchanged.
   let allowance = 1;
   try {
-    allowance = publishLinkAllowance((await getPublisherStatus(cleanEmail)).trustBadge);
+    const status = await getPublisherStatus(cleanEmail);
+    allowance = publishLinkAllowance(status.trustBadge, status.settings);
   } catch {
     allowance = 1;
   }

@@ -22,7 +22,7 @@
       const badge = BADGE_NAMES[data.badge] || 'badge';
       return `<img src="/badges/${data.badge}.svg" alt=""><strong>${badge} badge:</strong> one publish link creates up to <strong>${data.postsPerLink} posts</strong>, with no time limit.`;
     }
-    return `<strong>${data.postsPerLink} post per link.</strong> Each emailed link publishes one post and expires after ${data.timeLimitMinutes} minutes. Earn a Silver badge for links that publish 50 posts.`;
+    return `<strong>${data.postsPerLink} post per link.</strong> Each emailed link publishes one post and expires after ${data.timeLimitMinutes} minutes. Earn a Silver badge for links that publish ${data.silverLinkPosts || 50} posts.`;
   }
 
   function mount(input) {

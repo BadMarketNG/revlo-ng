@@ -5,6 +5,9 @@ export const DEFAULT_FEATURE_SETTINGS = Object.freeze({
   silver_posts: 100,
   bronze_posts: 500,
   gold_posts: 1500,
+  silver_link_posts: 50,
+  bronze_link_posts: 100,
+  gold_link_posts: 200,
   premium_min_posts: 10,
   premium_price_kobo: 500000,
   premium_days: 30,
@@ -60,6 +63,9 @@ export function publicSettings(settings) {
     silver_posts: settings.silver_posts,
     bronze_posts: settings.bronze_posts,
     gold_posts: settings.gold_posts,
+    silver_link_posts: settings.silver_link_posts,
+    bronze_link_posts: settings.bronze_link_posts,
+    gold_link_posts: settings.gold_link_posts,
     premium_min_posts: settings.premium_min_posts,
     premium_price_kobo: settings.premium_price_kobo,
     premium_days: settings.premium_days,
@@ -82,6 +88,14 @@ export async function incrementPublisherPosts(email) {
 export const PUBLISH_LINK_ALLOWANCE = Object.freeze({ silver: 50, bronze: 100, gold: 200 });
 export const NORMAL_LINK_MINUTES = 30;
 
-export function publishLinkAllowance(trustBadge) {
-  return PUBLISH_LINK_ALLOWANCE[trustBadge] || 1;
+// ORIGINAL (commented out 2026-09-29): fixed allowances only.
+// export function publishLinkAllowance(trustBadge) {
+//   return PUBLISH_LINK_ALLOWANCE[trustBadge] || 1;
+// }
+// NOTE: administrators set the allowances in Badges & Promos; PUBLISH_LINK_ALLOWANCE
+// is the fallback when settings are unavailable.
+export function publishLinkAllowance(trustBadge, settings = null) {
+  if (!trustBadge || !PUBLISH_LINK_ALLOWANCE[trustBadge]) return 1;
+  const configured = Math.floor(Number(settings?.[`${trustBadge}_link_posts`]));
+  return Number.isFinite(configured) && configured >= 1 ? Math.min(configured, 1000) : PUBLISH_LINK_ALLOWANCE[trustBadge];
 }

@@ -3,7 +3,7 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { publicOrigin } from '@/lib/publicOrigin';
 import { normaliseEmail } from '@/lib/revloBlocklist';
-import { PUBLISH_LINK_ALLOWANCE, earnedBadge, getFeatureSettings, getPublisherStatus } from '@/lib/revloFeatures';
+import { earnedBadge, getFeatureSettings, getPublisherStatus, publishLinkAllowance } from '@/lib/revloFeatures';
 
 // Administrator tools (2026-09-29): award or remove any publisher's badge, and
 // email any user with the Revlo template. Every badge change emails the user.
@@ -62,7 +62,7 @@ export async function changePublisherBadge({ email, override, reason, admin }) {
   if (override && override !== 'none') {
     const name = BADGE_NAMES[override];
     subject = `You've been awarded the ${name} badge on Revlo.ng`;
-    html = `<p>The Revlo.ng team has awarded you the <strong>${name} badge</strong>. It now appears on all your live and future posts.</p>${note}<p>Your publish links now create up to <strong>${PUBLISH_LINK_ALLOWANCE[override]} posts</strong> each, with no time limit.</p><p><a href="${appUrl}">Open Revlo.ng</a></p>`;
+    html = `<p>The Revlo.ng team has awarded you the <strong>${name} badge</strong>. It now appears on all your live and future posts.</p>${note}<p>Your publish links now create up to <strong>${publishLinkAllowance(override, settings)} posts</strong> each, with no time limit.</p><p><a href="${appUrl}">Open Revlo.ng</a></p>`;
   } else if (override === 'none') {
     subject = 'Your Revlo.ng badge has been removed';
     html = `<p>The Revlo.ng team has removed ${before.effectiveBadge ? `your <strong>${BADGE_NAMES[before.effectiveBadge]} badge</strong>` : 'badges from your account'}. It no longer appears on your posts.</p>${note}<p>Your publish links now create one post each and expire after 30 minutes.</p>`;

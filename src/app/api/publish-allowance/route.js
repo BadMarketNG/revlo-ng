@@ -17,11 +17,12 @@ export async function GET(request) {
   if (limited) return limited;
   try {
     const status = await getPublisherStatus(normaliseEmail(email));
-    const postsPerLink = publishLinkAllowance(status.trustBadge);
+    const postsPerLink = publishLinkAllowance(status.trustBadge, status.settings);
     const response = NextResponse.json({
       badge: status.trustBadge,
       postsPerLink,
       timeLimitMinutes: postsPerLink > 1 ? null : NORMAL_LINK_MINUTES,
+      silverLinkPosts: publishLinkAllowance('silver', status.settings),
     });
     response.headers.set('Cache-Control', 'private, no-store');
     return response;
