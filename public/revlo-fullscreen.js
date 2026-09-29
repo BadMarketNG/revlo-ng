@@ -2,7 +2,7 @@
   'use strict';
   // "Full screen" switches the whole feed to large posts that scroll with the
   // page. Each post stretches from under the "All" category button to the right
-  // edge of the Theme switcher, and its header image fills most of the screen
+  // edge of the green "Post directly" banner, and its header image fills most of the screen
   // below the navigation bar. Pressing the button again returns to the previous
   // layout (list or two-column). The choice is remembered on this device.
   const KEY = 'revlo_feed_fullscreen';
@@ -27,9 +27,11 @@
     if (!column) return;
     const columnBox = column.getBoundingClientRect();
     const all = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'All' && button.offsetParent);
-    const theme = document.querySelector('#revlo-theme-select')?.parentElement;
+    // Right edge: the green "Post directly" banner that holds the + Post button.
+    const postButton = [...document.querySelectorAll('button')].find((button) => /^[+＋]\s*Post$/.test(button.textContent.trim()) && button.offsetParent);
+    const banner = postButton?.parentElement;
     const left = all ? Math.max(0, columnBox.left - all.getBoundingClientRect().left) : 0;
-    const right = theme ? Math.max(0, theme.getBoundingClientRect().right - columnBox.right) : 0;
+    const right = banner ? Math.max(0, banner.getBoundingClientRect().right - columnBox.right) : 0;
     const navbar = [...document.querySelectorAll('.revlo-theme-surface')].find((el) => getComputedStyle(el).position === 'sticky');
     const navHeight = navbar ? navbar.getBoundingClientRect().height : 120;
     const header = Math.max(360, Math.round(window.innerHeight - navHeight - 190));
