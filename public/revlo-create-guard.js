@@ -89,6 +89,9 @@
   function handleLimit(event, kind, cookie, lockDuration, allowedClicks) {
     const now = Date.now();
     const state = readState(cookie);
+    const stateLifetime = typeof lockDuration === 'function'
+      ? POST_ACTION_MAX_LOCK_MINUTES * 60 * 1000
+      : lockDuration;
     if (state.blockedUntil > now) {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -107,7 +110,7 @@
       return;
     }
     recent.push(now);
-    writeState(cookie, { clicks: recent, blockedUntil: 0 }, lockMs);
+    writeState(cookie, { clicks: recent, blockedUntil: 0 }, stateLifetime);
   }
 
   document.addEventListener('click', (event) => {
