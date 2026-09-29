@@ -73,15 +73,67 @@
     const publish = [...modal.querySelectorAll('button')].find((b) => /publish/i.test(b.textContent));
     if (!publish) return;
     const s = state.publisher.settings;
-    const panel = document.createElement('section');
+    const posts = Number(state.publisher.publishedPosts) || 0;
+    const rank = { silver: 1, bronze: 2, gold: 3 }[state.publisher.trustBadge] || 0;
+    const tiers = [
+      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: 'Video posts and 2-month posts' },
+      { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: 'A stronger trust mark on every post' },
+      { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: '3-month posts and the top trust mark' },
+    ].map((tier, index) => ({ ...tier, earned: rank >= index + 1 || posts >= tier.posts }));
+    const current = [...tiers].reverse().find((tier) => tier.earned);
+    const next = tiers.find((tier) => !tier.earned);
+    const progress = next ? Math.min(100, Math.round((posts / next.posts) * 100)) : 100;
+    const summary = next
+      ? `${current ? `${current.name} · ` : ''}${posts} of ${next.posts} posts to ${next.name}`
+      : 'Gold · every badge earned';
+    let open = false;
+    try { open = localStorage.getItem('revlo_standing_open') === '1'; } catch {}
+    const panel = document.createElement('details');
     panel.className = 'revlo-feature-panel';
+    panel.open = open;
+    panel.addEventListener('toggle', () => { try { localStorage.setItem('revlo_standing_open', panel.open ? '1' : '0'); } catch {} });
     panel.innerHTML = `<style>
-      .revlo-feature-panel{margin:18px 0;padding:16px;border:1px solid #d8e7d9;border-radius:16px;background:linear-gradient(145deg,#f8fff8,#fff);font:14px system-ui;color:#233128}.revlo-feature-panel h3{margin:0 0 7px;font-size:16px}.revlo-feature-panel p{margin:5px 0;color:#637067}.revlo-feature-panel button{border:0;border-radius:10px;background:#1b5e20;color:white;font-weight:800;padding:11px 14px;cursor:pointer}.revlo-feature-panel select{padding:9px;border:1px solid #ccd7cd;border-radius:9px}.revlo-badge-line{display:flex;gap:9px;align-items:center;margin:10px 0}.revlo-badge-line img{width:38px;height:38px;filter:drop-shadow(0 3px 4px #0003)}
-    </style><h3>Your community standing</h3><div class="revlo-badge-line">${['silver','bronze','gold'].map((b) => `<img src="/badges/${b}.svg" alt="${b}">`).join('')}<strong>${state.publisher.publishedPosts} verified posts</strong></div>
-    <p>Silver at ${s.silver_posts} posts unlocks video. Bronze at ${s.bronze_posts}; Gold at ${s.gold_posts}.</p>
-    <div class="revlo-premium"><div class="revlo-badge-line"><img src="/badges/premium-green.svg" alt="Premium Green"><strong>Premium Green · ${money(s.premium_price_kobo)} for ${s.premium_days} days</strong></div></div>
-    <div class="revlo-promo"><strong>Promote this post</strong><p>Rotates at the top and throughout every category every 20 seconds.</p><select aria-label="Promotion duration"></select> <button type="button">Pay & promote</button></div>`;
-    publish.parentElement.insertBefore(panel, publish);
+      .revlo-feature-panel{margin:18px 0;border:1px solid #d8e7d9;border-radius:16px;background:linear-gradient(145deg,#f8fff8,#fff);font:14px system-ui;color:#233128}
+      .revlo-feature-panel>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer}
+      .revlo-feature-panel>summary::-webkit-details-marker{display:none}
+      .revlo-feature-panel>summary img{width:30px;height:30px;flex:none}
+      .revlo-feature-panel>summary .rv-title{display:block;font-weight:800;font-size:15px}
+      .revlo-feature-panel>summary .rv-sub{display:block;font-size:12px;color:#637067;margin-top:2px}
+      .revlo-feature-panel>summary .rv-chev{margin-left:auto;transition:transform .2s;color:#637067}
+      .revlo-feature-panel[open]>summary .rv-chev{transform:rotate(180deg)}
+      .revlo-feature-panel .rv-bar{height:6px;border-radius:9px;background:#e3ece4;overflow:hidden;margin:0 16px 12px}
+      .revlo-feature-panel .rv-bar span{display:block;height:100%;background:#1b5e20;border-radius:9px}
+      .revlo-feature-panel .rv-body{padding:0 16px 16px}
+      .revlo-feature-panel p{margin:5px 0;color:#637067}
+      .revlo-feature-panel button{border:0;border-radius:10px;background:#1b5e20;color:white;font-weight:800;padding:11px 14px;cursor:pointer}
+      .revlo-feature-panel select{padding:9px;border:1px solid #ccd7cd;border-radius:9px}
+      .revlo-feature-panel .rv-ladder{list-style:none;margin:4px 0 10px;padding:0;display:grid;gap:8px}
+      .revlo-feature-panel .rv-ladder li{display:flex;gap:11px;align-items:center;padding:9px 10px;border-radius:12px;background:#fff;border:1px solid #e3ece4}
+      .revlo-feature-panel .rv-ladder img{width:34px;height:34px;flex:none;filter:drop-shadow(0 2px 3px #0002)}
+      .revlo-feature-panel .rv-ladder li.rv-locked img{filter:grayscale(1);opacity:.45}
+      .revlo-feature-panel .rv-ladder strong{display:block;font-size:14px}
+      .revlo-feature-panel .rv-ladder small{display:block;color:#637067;font-size:12px;line-height:1.35}
+      .revlo-feature-panel .rv-status{margin-left:auto;font-size:11px;font-weight:800;white-space:nowrap;color:#637067}
+      .revlo-feature-panel .rv-earned .rv-status{color:#1b5e20}
+      .revlo-feature-panel .rv-note{font-size:12px}
+      .revlo-feature-panel .revlo-premium,.revlo-feature-panel .revlo-promo{margin-top:12px;padding-top:12px;border-top:1px solid #e3ece4}
+      .revlo-badge-line{display:flex;gap:9px;align-items:center;margin:6px 0}
+      .revlo-badge-line img{width:34px;height:34px;filter:drop-shadow(0 3px 4px #0003)}
+    </style>
+    <summary><img src="/badges/${current ? current.key : 'silver'}.svg" alt="" style="${current ? '' : 'filter:grayscale(1);opacity:.45'}"><span><span class="rv-title">Your Revlo standing</span><span class="rv-sub">${summary}</span></span><span class="rv-chev" aria-hidden="true">▾</span></summary>
+    <div class="rv-bar" role="progressbar" aria-label="Progress to next badge" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span style="width:${progress}%"></span></div>
+    <div class="rv-body">
+      <ul class="rv-ladder">${tiers.map((tier) => `<li class="${tier.earned ? 'rv-earned' : 'rv-locked'}"><img src="/badges/${tier.key}.svg" alt=""><span><strong>${tier.name} · ${Number(tier.posts).toLocaleString('en-NG')} posts</strong><small>Unlocks: ${tier.unlocks}</small></span><span class="rv-status">${tier.earned ? '✓ Earned' : `${Math.max(0, tier.posts - posts).toLocaleString('en-NG')} to go`}</span></li>`).join('')}</ul>
+      <p class="rv-note">Every post you publish through an emailed Revlo link counts towards your badges. Earned badges appear on your posts so people know you're an established publisher.</p>
+      <div class="revlo-premium"><div class="revlo-badge-line"><img src="/badges/premium-green.svg" alt="Premium Green"><strong>Premium Green · ${money(s.premium_price_kobo)} for ${s.premium_days} days</strong></div><p>A paid green badge on all your posts for ${s.premium_days} days.</p></div>
+      <div class="revlo-promo"><strong>Promote this post</strong><p>Rotates at the top and throughout every category every 20 seconds.</p><select aria-label="Promotion duration"></select> <button type="button">Pay & promote</button></div>
+    </div>`;
+    // Sit just above the pinned publish footer so the panel scrolls with the
+    // form instead of covering it when expanded.
+    const footer = publish.parentElement;
+    const pinned = footer && getComputedStyle(footer).position === 'sticky';
+    if (pinned && footer.parentElement) footer.parentElement.insertBefore(panel, footer);
+    else footer.insertBefore(panel, publish);
     const premium = panel.querySelector('.revlo-premium');
     if (state.publisher.premiumActive) premium.insertAdjacentHTML('beforeend', '<p><strong>✓ Active</strong></p>');
     else if (state.publisher.premiumEligible) { const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Get Premium Green'; b.onclick = () => pay('premium', null, b); premium.appendChild(b); }
