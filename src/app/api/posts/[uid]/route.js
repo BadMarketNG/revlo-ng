@@ -9,7 +9,7 @@ const PUBLIC_COLS =
 // GET /api/posts/[uid] -> fetch one post. Feed views are recorded only after
 // the post's scroll-progress rail is completed (see /api/posts/[uid]/view).
 export async function GET(request, { params }) {
-  const { uid } = params;
+  const { uid } = await params;
 
   const { data, error } = await supabaseAdmin
     .from('posts')

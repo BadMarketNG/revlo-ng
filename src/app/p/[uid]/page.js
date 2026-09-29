@@ -16,7 +16,8 @@ async function getPost(uid) {
 }
 
 export async function generateMetadata({ params }) {
-  const post = await getPost(params.uid);
+  const { uid } = await params;
+  const post = await getPost(uid);
   if (!post) {
     return {
       title: 'Post not found — Revlo.ng',
@@ -46,7 +47,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function PostPage({ params }) {
-  const post = await getPost(params.uid);
+  const { uid } = await params;
+  const post = await getPost(uid);
 
   if (!post) {
     return (
