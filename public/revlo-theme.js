@@ -22,13 +22,8 @@
     html[data-revlo-theme="dark"] .revlo-theme-muted-text { color: #cbd5e1 !important; }
     html[data-revlo-theme="dark"] .revlo-theme-border { border-color: #334155 !important; }
     html[data-revlo-theme="dark"] img[alt^="revlo.ng"] {
-      box-sizing: content-box;
-      padding: 6px 10px;
-      border: 1px solid rgba(255,255,255,.78);
-      border-radius: 14px;
-      background: #ffffff;
-      filter: contrast(1.14) saturate(1.08);
-      box-shadow: 0 8px 24px rgba(0,0,0,.24);
+      background: transparent !important;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,.32));
     }
     #revlo-theme-control {
       position: fixed;
@@ -68,7 +63,6 @@
     @media (max-width: 640px) {
       #revlo-theme-control { right: 12px; bottom: 12px; }
       #revlo-theme-control label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-      html[data-revlo-theme="dark"] img[alt^="revlo.ng"] { padding: 4px 7px; border-radius: 11px; }
     }
   `;
   document.head.appendChild(style);
@@ -116,17 +110,33 @@
     node.querySelectorAll('*').forEach(markElement);
   };
 
+  const syncLogo = () => {
+    const logo = document.querySelector('img[alt^="revlo.ng"]');
+    if (!logo) return;
+    if (!logo.dataset.revloLightLogo) logo.dataset.revloLightLogo = logo.src;
+    if (theme === 'dark') {
+      logo.dataset.revloDarkLogo = 'true';
+      const darkSource = new URL('/revlo-logo-dark.png', location.href).href;
+      if (logo.src !== darkSource) logo.src = darkSource;
+    } else if (logo.dataset.revloDarkLogo === 'true') {
+      logo.src = logo.dataset.revloLightLogo;
+      delete logo.dataset.revloDarkLogo;
+    }
+  };
+
   const applyTheme = (nextTheme) => {
     theme = validThemes.has(nextTheme) ? nextTheme : 'light';
     root.dataset.revloTheme = theme;
     localStorage.setItem(storageKey, theme);
     const select = document.querySelector('#revlo-theme-select');
     if (select) select.value = theme;
+    setTimeout(syncLogo, 0);
   };
 
   root.dataset.revloTheme = theme;
   const observer = new MutationObserver((records) => {
     records.forEach((record) => record.addedNodes.forEach(markTree));
+    syncLogo();
   });
 
   const start = () => {
@@ -134,6 +144,7 @@
     if (appRoot) {
       markTree(appRoot);
       observer.observe(appRoot, { childList: true, subtree: true });
+      setTimeout(syncLogo, 0);
     }
 
     const control = document.createElement('div');

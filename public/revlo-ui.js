@@ -2,8 +2,10 @@
   const collapseKey = 'revlo_header_collapsed';
 
   const makeLogoTransparent = (image) => {
-    if (!(image instanceof HTMLImageElement) || image.dataset.revloTransparent === 'true') return;
+    if (!(image instanceof HTMLImageElement) || image.dataset.revloTransparent === 'true'
+        || image.dataset.revloDarkLogo === 'true') return;
     const convert = () => {
+      if (image.dataset.revloDarkLogo === 'true') return;
       if (!image.naturalWidth || !image.naturalHeight) return;
       try {
         const canvas = document.createElement('canvas');

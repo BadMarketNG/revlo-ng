@@ -27,7 +27,7 @@
   function isCreateButton(button) {
     if (!button || button.closest('[role="dialog"]')) return false;
     const label = `${button.textContent || ''} ${button.getAttribute('aria-label') || ''}`.trim();
-    return label === '+' || label === '＋' || /post something|post the first one|create a post/i.test(label);
+    return label === '+' || label === '＋' || /post something|post the first one|create (?:a )?post/i.test(label);
   }
 
   function remainingText(blockedUntil) {

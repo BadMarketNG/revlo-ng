@@ -71,6 +71,7 @@ test('repeated create-post openings pause the browser entry point for two hours'
   assert.match(guard, /const WINDOW_MS = 60 \* 1000/);
   assert.match(guard, /const LOCK_MS = 2 \* 60 \* 60 \* 1000/);
   assert.match(guard, /const ALLOWED_CLICKS = 5/);
+  assert.match(guard, /create \(\?:a \)\?post/);
   assert.match(guard, /document\.cookie/);
   assert.match(guard, /event\.stopImmediatePropagation\(\)/);
   assert.match(guard, /revlo-create-locked/);
@@ -87,7 +88,9 @@ test('publishers can suppress follow alerts on each new post', () => {
 test('dark mode keeps the logo clear and hides only the visual page scrollbar', () => {
   const theme = read('public/revlo-theme.js');
   assert.match(theme, /img\[alt\^="revlo\.ng"\]/);
-  assert.match(theme, /background: #ffffff/);
+  assert.match(theme, /revlo-logo-dark\.png/);
+  assert.match(theme, /revloLightLogo/);
+  assert.doesNotMatch(theme, /background: #ffffff/);
   assert.match(theme, /scrollbar-width: none/);
   assert.match(theme, /::-webkit-scrollbar/);
 });
