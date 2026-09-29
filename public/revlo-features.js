@@ -16,8 +16,8 @@
     if (url === '/api/posts' && init.method === 'POST') {
       try {
         const body = JSON.parse(init.body);
-        body.premium_payment_reference = sessionStorage.getItem('revlo_premium_reference') || null;
-        body.promo_payment_reference = sessionStorage.getItem('revlo_promo_reference') || null;
+        body.premium_payment_reference = savedReference('premium');
+        body.promo_payment_reference = savedReference('promo');
         init = { ...init, body: JSON.stringify(body) };
       } catch {}
     }
@@ -30,6 +30,10 @@
           sessionStorage.setItem('revlo_publisher', JSON.stringify(state.publisher));
         }
       }
+      if (url === '/api/posts' && init.method === 'POST' && response.ok) {
+        // A promotion payment applies to exactly one post.
+        clearReference('promo');
+      }
       if (url.startsWith('/api/posts?') && response.ok) {
         const body = await response.clone().json();
         for (const post of body.posts || []) state.posts.set(post.uid, post);
@@ -41,31 +45,90 @@
 
   try { state.publisher = JSON.parse(sessionStorage.getItem('revlo_publisher')); } catch {}
 
+  // Publish links usually open in a new tab, so paid references are kept in
+  // localStorage (not per-tab sessionStorage). The server checks each one
+  // against the paying email and marks promotions used, so this is not a secret.
+  function savedReference(kind) {
+    try { return localStorage.getItem(`revlo_${kind}_reference`) || sessionStorage.getItem(`revlo_${kind}_reference`) || null; } catch { return null; }
+  }
+  function saveReference(kind, reference) {
+    try { localStorage.setItem(`revlo_${kind}_reference`, reference); } catch {}
+    try { sessionStorage.setItem(`revlo_${kind}_reference`, reference); } catch {}
+  }
+  function clearReference(kind) {
+    try { localStorage.removeItem(`revlo_${kind}_reference`); } catch {}
+    try { sessionStorage.removeItem(`revlo_${kind}_reference`); } catch {}
+  }
+
+  async function verifyPayment(reference) {
+    const verify = await originalFetch('/api/payments/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publish_token: token(), reference }) });
+    return verify.json().catch(() => ({}));
+  }
+
+  function paymentNotice(text) {
+    const note = document.createElement('div');
+    note.setAttribute('role', 'status');
+    note.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:10000;max-width:92vw;padding:13px 18px;border-radius:14px;background:#1b5e20;color:#fff;font:600 14px system-ui;box-shadow:0 10px 30px rgba(0,0,0,.25)';
+    note.textContent = text;
+    document.body.appendChild(note);
+    setTimeout(() => note.remove(), 6000);
+  }
+
+  // Returning from Paystack (/app.html?payment=REF): in the payment pop-up,
+  // or after a full-page redirect when the pop-up was blocked.
+  const returnedReference = initial.get('payment');
+  if (returnedReference) {
+    history.replaceState(null, '', location.pathname);
+    const inPopup = window.name === 'revlo-payment' && window.opener && !window.opener.closed;
+    verifyPayment(returnedReference).then((result) => {
+      if (inPopup) {
+        document.body.innerHTML = '<div style="font:16px system-ui;padding:40px;text-align:center">' + (result.paid ? '<strong>Payment received.</strong><br>You can close this window and return to Revlo.' : 'Payment not confirmed yet. Return to Revlo and choose “Check payment again”.') + '</div>';
+        setTimeout(() => window.close(), 1500);
+        return;
+      }
+      if (!result.paid) { paymentNotice('We could not confirm that payment yet. If you were charged, it will be applied automatically within a few minutes.'); return; }
+      if (result.kind === 'premium' || result.kind === 'promo') saveReference(result.kind, returnedReference);
+      try { sessionStorage.removeItem('revlo_pending_payment'); } catch {}
+      if (token()) location.replace(`/app.html?token=${encodeURIComponent(token())}&paid=${result.kind}`);
+      else paymentNotice(result.kind === 'promo' ? 'Payment received. Open your publish link to publish the promoted post.' : 'Premium Green is active.');
+    }).catch(() => paymentNotice('We could not check the payment. Please refresh the page.'));
+  }
+  if (initial.get('paid')) {
+    history.replaceState(null, '', `${location.pathname}?token=${encodeURIComponent(initial.get('token') || '')}`);
+    setTimeout(() => paymentNotice(initial.get('paid') === 'promo' ? 'Payment received. Your next post will be promoted when you publish it.' : 'Payment received. Premium Green is active.'), 800);
+  }
+
   async function pay(kind, promoDays, button) {
     button.disabled = true;
     button.textContent = 'Opening secure payment…';
+    // Open the window synchronously in the click so browsers (notably iPhone
+    // Safari) don't block it; it is pointed at Paystack once the payment starts.
+    let popup = null;
+    try { popup = window.open('', 'revlo-payment', 'width=520,height=760'); } catch {}
+    try { popup?.document.write('<p style="font:16px system-ui;padding:32px;text-align:center">Opening secure Paystack payment…</p>'); } catch {}
     try {
       const response = await originalFetch('/api/payments/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publish_token: token(), kind, promo_days: promoDays }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Payment could not start');
-      const popup = window.open(data.authorization_url, 'revlo-payment', 'width=520,height=760');
-      if (!popup) location.href = data.authorization_url;
+      try { sessionStorage.setItem('revlo_pending_payment', JSON.stringify({ kind, reference: data.reference })); } catch {}
+      if (popup && !popup.closed) popup.location.href = data.authorization_url;
+      else { location.href = data.authorization_url; return; }
       button.textContent = 'Waiting for payment…';
       let tries = 0;
       const timer = setInterval(async () => {
         tries += 1;
-        const verify = await originalFetch('/api/payments/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publish_token: token(), reference: data.reference }) });
-        const result = await verify.json().catch(() => ({}));
+        const result = await verifyPayment(data.reference);
         if (result.paid) {
           clearInterval(timer); popup?.close();
-          sessionStorage.setItem(`revlo_${kind}_reference`, data.reference);
+          saveReference(kind, data.reference);
+          try { sessionStorage.removeItem('revlo_pending_payment'); } catch {}
           button.textContent = kind === 'premium' ? '✓ Premium Green active' : '✓ Promotion ready';
           button.style.background = '#087a45';
         } else if (tries >= 100) {
           clearInterval(timer); button.disabled = false; button.textContent = 'Check payment again';
         }
       }, 3000);
-    } catch (error) { button.disabled = false; button.textContent = error.message; }
+    } catch (error) { try { popup?.close(); } catch {} button.disabled = false; button.textContent = error.message; }
   }
 
   function featurePanel(modal) {

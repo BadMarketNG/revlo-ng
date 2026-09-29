@@ -173,6 +173,7 @@ export async function POST(request) {
   if (promo_payment_reference) {
     const { data: candidate } = await supabaseAdmin.from('revlo_payment_intents').select('*').eq('reference', promo_payment_reference).maybeSingle();
     if (!candidate || candidate.status !== 'paid' || candidate.email !== cleanEmail || candidate.kind !== 'promo' || candidate.post_uid || !settings.promotions_enabled) {
+      await releasePublishToken(publish_token).catch(() => {});
       return NextResponse.json({ error: 'Promotion payment has not been verified.' }, { status: 402 });
     }
     promotionIntent = candidate;
