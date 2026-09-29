@@ -57,12 +57,19 @@ const RevloAPI = {
     return data;
   },
 
-  async report(uid, reason) {
+  async requestReportVerification(uid, email) {
     const r = await fetch('/api/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, reason }),
+      body: JSON.stringify({ action: 'request_verification', uid, email }),
     });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'failed');
+    return data;
+  },
+
+  async submitVerifiedReport(formData) {
+    const r = await fetch('/api/report', { method: 'POST', body: formData });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'failed');
     return data;

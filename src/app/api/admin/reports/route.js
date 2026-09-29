@@ -13,7 +13,7 @@ export async function GET() {
 
   const { data: reports, error } = await supabaseAdmin
     .from('reports')
-    .select('id, reason, created_at, post_id')
+    .select('id, reason, created_at, post_id, reporter_email, details, attachments')
     .order('created_at', { ascending: false })
     .limit(1000);
 
@@ -28,7 +28,19 @@ export async function GET() {
     if (!byPost[r.post_id]) byPost[r.post_id] = { post_id: r.post_id, count: 0, reasons: {}, last: r.created_at, entries: [] };
     byPost[r.post_id].count += 1;
     byPost[r.post_id].reasons[r.reason] = (byPost[r.post_id].reasons[r.reason] || 0) + 1;
-    byPost[r.post_id].entries.push({ id: r.id, reason: r.reason, created_at: r.created_at });
+    let evidence = [];
+    if (Array.isArray(r.attachments) && r.attachments.length) {
+      const { data: signed } = await supabaseAdmin.storage.from('report-evidence').createSignedUrls(r.attachments, 300);
+      evidence = (signed || []).filter((item) => item.signedUrl).map((item) => ({ url: item.signedUrl, path: item.path }));
+    }
+    byPost[r.post_id].entries.push({
+      id: r.id,
+      reason: r.reason,
+      created_at: r.created_at,
+      reporter_email: r.reporter_email || null,
+      details: r.details || null,
+      evidence,
+    });
   }
 
   const postIds = Object.keys(byPost);
@@ -71,12 +83,22 @@ export async function DELETE(request) {
     return NextResponse.json({ error: 'report_id or post_id required' }, { status: 400 });
   }
 
+  let evidenceQuery = supabaseAdmin.from('reports').select('attachments');
+  evidenceQuery = report_id ? evidenceQuery.eq('id', report_id) : evidenceQuery.eq('post_id', post_id);
+  const { data: evidenceRows } = await evidenceQuery;
+
   let query = supabaseAdmin.from('reports').delete();
   query = report_id ? query.eq('id', report_id) : query.eq('post_id', post_id);
   const { data: deleted, error } = await query.select('id,post_id');
   if (error) {
     console.error('[admin/reports:delete]', error);
     return NextResponse.json({ error: 'failed to delete report' }, { status: 500 });
+  }
+
+  const evidencePaths = (evidenceRows || []).flatMap((row) => Array.isArray(row.attachments) ? row.attachments : []);
+  if (evidencePaths.length) {
+    const { error: storageError } = await supabaseAdmin.storage.from('report-evidence').remove(evidencePaths);
+    if (storageError) console.error('[admin/reports:evidence-delete]', storageError.code || storageError.message);
   }
 
   await supabaseAdmin.from('admin_log').insert({

@@ -57,6 +57,14 @@ const TEMPLATES = [
     heading: 'Confirm you want to delete your post',
     note: 'Deleting is permanent and cannot be undone. If you didn\'t ask for this, your post is safe: just ignore this email.',
   },
+  {
+    kind: 'report-confirm',
+    match: /^Verify your email to report a Revlo\.ng post/i,
+    accent: '#D32F2F', tint: '#fff1f1', icon: '⚠️',
+    eyebrow: 'Report verification',
+    heading: 'Confirm your email to continue',
+    note: 'Your email address and any evidence are visible only to authorised Revlo moderators.',
+  },
 ]
 
 const GENERIC = {

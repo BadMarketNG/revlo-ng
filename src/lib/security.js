@@ -55,8 +55,25 @@ export async function requireRateLimit(input) {
   return result.allowed ? null : rateLimitResponse(result);
 }
 
-function actionTokenHash(token) {
+export function actionTokenHash(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export async function getPendingPublicAction(action, token) {
+  if (!token || typeof token !== 'string' || token.length > 128) return null;
+  const { data, error } = await supabaseAdmin
+    .from('revlo_pending_public_actions')
+    .select('id,post_uid,email,message,source_ip,expires_at')
+    .eq('action', action)
+    .eq('token_hash', actionTokenHash(token))
+    .is('consumed_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+  if (error) {
+    console.error('[public-action:lookup]', error.code || error.message);
+    return null;
+  }
+  return data;
 }
 
 export async function createPendingPublicAction({ action, postUid, email, message = null, sourceIp = null }) {

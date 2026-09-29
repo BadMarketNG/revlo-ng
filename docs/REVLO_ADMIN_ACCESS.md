@@ -34,7 +34,7 @@ Blocking the administrator account, resetting its MFA, or removing the Revlo per
 The Revlo section appears below BadMarket and contains:
 
 - **Revlo Overview** — activity and publishing totals.
-- **Reports** — posts reported by visitors and moderation actions.
+- **Reports** — email-verified visitor reports, optional private evidence and moderation actions.
 - **All Posts** — search, edit, restore, remove and permanently delete Revlo posts.
 - **Emails & Followers** — private poster email and follow-subscription administration.
 - **BadMarket Links** — Revlo posts that users have linked to the collaborating BadMarket service.
@@ -57,10 +57,18 @@ Revlo adds both the available email and publishing IP to its block lists when th
 | Trigger | Action | Duration |
 | --- | --- | --- |
 | Publishing limit exceeded | Reject the request and block the email/IP | 24 hours |
-| One post receives reports from three independent IP addresses | Hide the post and block its poster email/publishing IP | 7 days |
+| One post receives reports from three independently verified email addresses | Hide the post and block its poster email/publishing IP | 7 days |
 | Administrator permanently deletes a post | Block its poster email/publishing IP | 30 days |
 
-One IP address can count only once toward a post’s report threshold. An existing manual block is never shortened or replaced by an automatic temporary block. Automatic entries display their trigger and expiry in the administrator list.
+One verified email address can count only once toward a post’s report threshold. Shared mobile or household networks do not prevent different verified people from reporting. An existing manual block is never shortened or replaced by an automatic temporary block. Automatic entries display their trigger and expiry in the administrator list.
+
+## Verified reports and evidence
+
+A visitor can see the available report reasons immediately, but cannot select one until their email address has been verified through a one-time link. When that link is opened in the same browser, Revlo returns the verified action to the original tab where possible; if the original tab is unavailable, the link continues safely in its own tab. A report may contain up to two optional JPEG, PNG or WebP evidence images, each no larger than 500 KB.
+
+Evidence is stored in the private `report-evidence` bucket. It has no public storage policy. The protected **Reports** administration section creates five-minute signed viewing links only after administrator access has been checked. Deleting an individual report or all reports for a post also deletes their stored evidence. Reporter email addresses and evidence paths are moderation data and are never included in public post responses.
+
+Blocked email or IP identities receive the same outward response as other visitors, but Revlo silently discards their reporting action and does not store evidence. This prevents the block list from becoming an account-discovery signal.
 
 IP addresses used for enforcement are moderation data. They are excluded from all public post responses and are available only through service-role moderation code and the protected Revlo administration UI.
 
@@ -81,6 +89,8 @@ The administrator chooses either **Listings** or **Header advert** placement. Li
 The Revlo public site offers **Light** and **Dark** page themes. Light is the default. The selection is stored locally in the visitor’s browser and does not require an account. Visitors can also collapse the introductory controls to the compact logo row; that preference is remembered locally. The public logo is rendered with its white image background removed so it remains clean in either theme.
 
 The Revlo administrator surface uses a light background with Revlo green accents for consistent readability.
+
+Visitors can switch the public feed between a focused one-post-per-row view and a two-post-per-row desktop view. The preference is stored only in that browser. On phone-sized screens Revlo always falls back to one column so cards and controls remain readable.
 
 ## Operational recovery
 

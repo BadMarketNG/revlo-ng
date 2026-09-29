@@ -23,10 +23,21 @@ html,body{margin:0;padding:0;background:#f5f6f7}
 #root{min-height:100vh}
 /* Keep feed cards prominent and balanced instead of pinning a lone post left. */
 main>div[style*="grid-template-columns"]{
-  grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),600px))!important;
+  grid-template-columns:minmax(0,min(100%,680px))!important;
   justify-content:center!important;
   row-gap:22px!important;
 }
+body.revlo-two-column main>div[style*="grid-template-columns"]{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  max-width:1180px;
+  margin-left:auto;
+  margin-right:auto;
+  column-gap:24px!important;
+  row-gap:28px!important;
+}
+.revlo-layout-toggle{display:inline-flex;gap:3px;padding:3px;border:1px solid #d7dcd8;border-radius:999px;background:#fff}
+.revlo-layout-toggle button{border:0;border-radius:999px;background:transparent;color:#5e675f;padding:8px 11px;font:750 12px/1 system-ui;cursor:pointer}
+.revlo-layout-toggle button.active{background:#1B5E20;color:#fff;box-shadow:0 2px 7px #1b5e2030}
 .revlo-view-progress{
   height:7px;
   overflow:hidden;
@@ -47,6 +58,8 @@ main>div[style*="grid-template-columns"]{
   main>div[style*="grid-template-columns"]{
     grid-template-columns:minmax(0,1fr)!important;
   }
+  body.revlo-two-column main>div[style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
+  .revlo-layout-toggle{width:100%;justify-content:center;margin-top:8px}
 }
 </style>
-</head><body><div id="root"></div><script src="/revlo-theme.js" defer></script><script src="/revlo-ui.js" defer></script><script src="/revlo-presence.js" defer></script><script src="/revlo-features.js" defer></script><script src="/revlo-app.js" defer></script><script src="/revlo-view-tracker.js" defer></script><script src="/revlo-footer.js" defer></script><script src="/revlo-duration-lock.js" defer></script><script src="/revlo-card-expand.js" defer></script><script src="/revlo-gallery.js" defer></script><script src="/revlo-samples.js" defer></script></body></html>
+</head><body><div id="root"></div><script src="/revlo-handoff.js" defer></script><script src="/revlo-theme.js" defer></script><script src="/revlo-ui.js" defer></script><script src="/revlo-presence.js" defer></script><script src="/revlo-features.js" defer></script><script src="/revlo-app.js" defer></script><script src="/revlo-reporting.js" defer></script><script src="/revlo-layout.js" defer></script><script src="/revlo-view-tracker.js" defer></script><script src="/revlo-footer.js" defer></script><script src="/revlo-duration-lock.js" defer></script><script src="/revlo-card-expand.js" defer></script><script src="/revlo-gallery.js" defer></script><script src="/revlo-samples.js" defer></script></body></html>

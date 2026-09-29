@@ -224,8 +224,22 @@ function Reports() {
           </div>
           <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 14, paddingTop: 8, display: 'grid', gap: 7 }}>
             {(r.entries || []).map((entry) => (
-              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '7px 0' }}>
-                <div style={{ color: SUBTLE, fontSize: 12 }}><strong style={{ color: TEXT }}>{entry.reason}</strong> · {new Date(entry.created_at).toLocaleString('en-GB')}</div>
+              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '10px 0' }}>
+                <div style={{ color: SUBTLE, fontSize: 12, flex: 1, minWidth: 240 }}>
+                  <strong style={{ color: TEXT }}>{entry.reason}</strong> · {new Date(entry.created_at).toLocaleString('en-GB')}
+                  <div style={{ marginTop: 5 }}>Verified reporter: <strong style={{ color: TEXT }}>{entry.reporter_email || 'Legacy anonymous report'}</strong></div>
+                  {entry.details && <div style={{ marginTop: 7, whiteSpace: 'pre-wrap', color: TEXT }}>{entry.details}</div>}
+                  {entry.evidence?.length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 9 }}>
+                      {entry.evidence.map((file, index) => (
+                        <a key={file.path} href={file.url} target="_blank" rel="noreferrer" title={`Open evidence ${index + 1}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={file.url} alt={`Report evidence ${index + 1}`} style={{ width: 92, height: 70, objectFit: 'cover', borderRadius: 8, border: `1px solid ${BORDER}` }} />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => deleteReport({ reportId: entry.id })} style={miniBtn(RED)}>Delete report</button>
               </div>
             ))}

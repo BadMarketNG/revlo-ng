@@ -20,7 +20,7 @@ src/
       contact/route.js       relay a message to the poster (email hidden)
       follow/route.js        follow a poster by email
       unfollow/route.js      one-click unsubscribe
-      report/route.js        report a post
+      report/route.js        email-verified reports + private evidence
       delete/route.js        request delete link + confirm delete (token)
       bm-link/route.js       link to BadMarket.ng (one-time, DB-enforced)
       upload/route.js        upload image/video to Supabase Storage
@@ -85,6 +85,7 @@ Vercel → Settings → Environment Variables. The `vercel.json` cron runs
 - The poster's email is never returned by any public endpoint.
 - Delete and magic links use signed, expiring tokens (HMAC-SHA256).
 - Follow and contact requests require one-time email confirmation before they take effect.
+- Reporting requires a one-time email confirmation before reasons and optional evidence upload are enabled. Report evidence is private and can be opened only through short-lived links in the protected administrator queue.
 - Public uploads are checked by file signature and anonymous write/email actions have database-backed rate limits.
 
 ## Administrator access

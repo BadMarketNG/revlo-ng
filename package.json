@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:security": "node --test tests/security-primitives.test.mjs tests/email-blocklist.test.mjs",
+    "test:security": "node --test tests/security-primitives.test.mjs tests/email-blocklist.test.mjs tests/verified-reports-ui.test.mjs",
     "update:blocklist": "node scripts/update-disposable-domains.mjs"
   },
   "dependencies": {
