@@ -1,11 +1,23 @@
 (() => {
   'use strict';
   const CREATE_COOKIE = 'revlo_create_clicks';
-  const POST_ACTION_COOKIE = 'revlo_post_action_clicks';
+  const POST_ACTION_COOKIE = 'revlo_post_action_clicks_v2';
   const WINDOW_MS = 60 * 1000;
   const CREATE_LOCK_MS = 2 * 60 * 60 * 1000;
-  const POST_ACTION_LOCK_MS = 45 * 60 * 1000;
-  const ALLOWED_CLICKS = 5;
+  const POST_ACTION_MIN_LOCK_MINUTES = 5;
+  const POST_ACTION_MAX_LOCK_MINUTES = 10;
+  const CREATE_ALLOWED_CLICKS = 5;
+  const POST_ACTION_ALLOWED_CLICKS = 20;
+
+  function postActionLockMs() {
+    const range = POST_ACTION_MAX_LOCK_MINUTES - POST_ACTION_MIN_LOCK_MINUTES + 1;
+    if (crypto?.getRandomValues) {
+      const value = new Uint32Array(1);
+      crypto.getRandomValues(value);
+      return (POST_ACTION_MIN_LOCK_MINUTES + (value[0] % range)) * 60 * 1000;
+    }
+    return (POST_ACTION_MIN_LOCK_MINUTES + Math.floor(Math.random() * range)) * 60 * 1000;
+  }
 
   function readState(cookie) {
     const value = document.cookie.split('; ').find((part) => part.startsWith(`${cookie}=`));
@@ -74,7 +86,7 @@
     });
   }
 
-  function handleLimit(event, kind, cookie, lockMs) {
+  function handleLimit(event, kind, cookie, lockDuration, allowedClicks) {
     const now = Date.now();
     const state = readState(cookie);
     if (state.blockedUntil > now) {
@@ -84,7 +96,8 @@
       return;
     }
     const recent = state.clicks.filter((time) => now - time < WINDOW_MS);
-    if (recent.length >= ALLOWED_CLICKS) {
+    if (recent.length >= allowedClicks) {
+      const lockMs = typeof lockDuration === 'function' ? lockDuration() : lockDuration;
       const blockedUntil = now + lockMs;
       writeState(cookie, { clicks: [], blockedUntil }, lockMs);
       event.preventDefault();
@@ -101,9 +114,9 @@
     const target = event.target instanceof Element ? event.target : event.target?.parentElement;
     const element = target?.closest('button, a');
     if (isCreateButton(element)) {
-      handleLimit(event, 'create', CREATE_COOKIE, CREATE_LOCK_MS);
+      handleLimit(event, 'create', CREATE_COOKIE, CREATE_LOCK_MS, CREATE_ALLOWED_CLICKS);
     } else if (isPostAction(element)) {
-      handleLimit(event, 'post', POST_ACTION_COOKIE, POST_ACTION_LOCK_MS);
+      handleLimit(event, 'post', POST_ACTION_COOKIE, postActionLockMs, POST_ACTION_ALLOWED_CLICKS);
     }
   }, true);
 

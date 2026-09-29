@@ -70,16 +70,19 @@ test('repeated create-post openings pause the browser entry point for two hours'
   assert.ok(html.indexOf('/revlo-create-guard.js') < html.indexOf('/revlo-app.js'));
   assert.match(guard, /const WINDOW_MS = 60 \* 1000/);
   assert.match(guard, /const CREATE_LOCK_MS = 2 \* 60 \* 60 \* 1000/);
-  assert.match(guard, /const ALLOWED_CLICKS = 5/);
+  assert.match(guard, /const CREATE_ALLOWED_CLICKS = 5/);
   assert.match(guard, /create \(\?:a \)\?post/);
   assert.match(guard, /document\.cookie/);
   assert.match(guard, /event\.stopImmediatePropagation\(\)/);
   assert.match(guard, /revlo-action-locked/);
 });
 
-test('six rapid controls across post cards pause every post action for 45 minutes', () => {
+test('twenty-one rapid controls across post cards pause every post action for 5–10 minutes', () => {
   const guard = read('public/revlo-create-guard.js');
-  assert.match(guard, /const POST_ACTION_LOCK_MS = 45 \* 60 \* 1000/);
+  assert.match(guard, /const POST_ACTION_ALLOWED_CLICKS = 20/);
+  assert.match(guard, /POST_ACTION_MIN_LOCK_MINUTES = 5/);
+  assert.match(guard, /POST_ACTION_MAX_LOCK_MINUTES = 10/);
+  assert.match(guard, /revlo_post_action_clicks_v2/);
   assert.match(guard, /article\[id\^="post-"\]/);
   assert.match(guard, /POST_ACTION_COOKIE/);
   assert.match(guard, /Post actions temporarily paused/);
@@ -127,4 +130,17 @@ test('eligible listings receive a private stable discovery order per browser ses
   assert.match(route, /httpOnly: true/);
   assert.match(ordering, /createHash\('sha256'\)/);
   assert.match(ordering, /randomBytes\(32\)/);
+});
+
+test('video posts lead with video and retain the header image as the second slide', () => {
+  const carousel = read('public/revlo-video-header.js');
+  const html = read('public/app.html');
+  assert.ok(html.indexOf('/revlo-video-header.js') < html.indexOf('/revlo-app.js'));
+  assert.match(carousel, /post\.media_type === 'video'/);
+  assert.match(carousel, /image\.src = post\.header_url/);
+  assert.match(carousel, /showingVideo = current === 0/);
+  assert.match(carousel, /Choose header media/);
+  assert.match(carousel, /Show video/);
+  assert.match(carousel, /Show header image/);
+  assert.match(carousel, /aria-current/);
 });
