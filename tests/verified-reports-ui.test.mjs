@@ -69,12 +69,20 @@ test('repeated create-post openings pause the browser entry point for two hours'
   const html = read('public/app.html');
   assert.ok(html.indexOf('/revlo-create-guard.js') < html.indexOf('/revlo-app.js'));
   assert.match(guard, /const WINDOW_MS = 60 \* 1000/);
-  assert.match(guard, /const LOCK_MS = 2 \* 60 \* 60 \* 1000/);
+  assert.match(guard, /const CREATE_LOCK_MS = 2 \* 60 \* 60 \* 1000/);
   assert.match(guard, /const ALLOWED_CLICKS = 5/);
   assert.match(guard, /create \(\?:a \)\?post/);
   assert.match(guard, /document\.cookie/);
   assert.match(guard, /event\.stopImmediatePropagation\(\)/);
-  assert.match(guard, /revlo-create-locked/);
+  assert.match(guard, /revlo-action-locked/);
+});
+
+test('six rapid controls across post cards pause every post action for 45 minutes', () => {
+  const guard = read('public/revlo-create-guard.js');
+  assert.match(guard, /const POST_ACTION_LOCK_MS = 45 \* 60 \* 1000/);
+  assert.match(guard, /article\[id\^="post-"\]/);
+  assert.match(guard, /POST_ACTION_COOKIE/);
+  assert.match(guard, /Post actions temporarily paused/);
 });
 
 test('publishers can suppress follow alerts on each new post', () => {
