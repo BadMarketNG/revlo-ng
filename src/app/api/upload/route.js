@@ -18,7 +18,7 @@ const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
 export async function POST(request) {
   const sourceIp = requestIp(request);
   if (await findActiveBlock({ ip: sourceIp })) return blockedResponse();
-  const limited = await requireRateLimit({ action: 'upload:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
+  const limited = await requireRateLimit({ action: 'upload:15m', key: sourceIp, limit: 20, windowSeconds: 900 });
   if (limited) return limited;
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > MAX_VIDEO_BYTES + 1024 * 1024) {

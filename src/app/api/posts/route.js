@@ -106,6 +106,12 @@ export async function POST(request) {
   if (!['public', 'private'].includes(contact_visibility)) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
   }
+  // Up to five gallery photos, each uploaded through /api/upload to Revlo's own storage.
+  const storagePrefix = `${(process.env.SUPABASE_URL || '').replace(/\/$/, '')}/storage/v1/object/public/${process.env.STORAGE_BUCKET || 'media'}/`;
+  if (gallery != null && (!Array.isArray(gallery) || gallery.length > 5
+      || gallery.some((item) => typeof item !== 'string' || !item.startsWith(storagePrefix) || item.length > 500))) {
+    return NextResponse.json({ error: 'Add up to 5 photos uploaded through Revlo.' }, { status: 400 });
+  }
   if (!['images', 'video'].includes(media_type) || (media_type === 'video' && !video_url)) {
     return NextResponse.json({ error: 'invalid media' }, { status: 415 });
   }
