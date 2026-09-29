@@ -1,47 +1,64 @@
 (() => {
   'use strict';
-  // "Full screen" in each post's footer enlarges that post in the middle of the
-  // screen over a dimmed page. The same card element is enlarged (not copied),
-  // so Contact, Follow, Read more and the gallery keep working. Esc, the button
-  // or a click on the backdrop returns to the feed.
+  // "Full screen" switches the whole feed to large posts that scroll with the
+  // page. Each post stretches from under the "All" category button to the right
+  // edge of the Theme switcher, and its header image fills most of the screen
+  // below the navigation bar. Pressing the button again returns to the previous
+  // layout (list or two-column). The choice is remembered on this device.
+  const KEY = 'revlo_feed_fullscreen';
   const style = document.createElement('style');
   style.textContent = `
     .revlo-fs-btn{border:1px solid #cfd8d0;background:#fff;color:#1b5e20;border-radius:8px;padding:5px 10px;font:700 12.5px system-ui;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
     .revlo-fs-btn:hover{background:#f4faf4}
-    .revlo-fs-backdrop{position:fixed;inset:0;z-index:8999;background:rgba(10,20,12,.62);backdrop-filter:blur(2px)}
-    article.revlo-post-fullscreen{position:fixed!important;z-index:9000;top:50%;left:50%;transform:translate(-50%,-50%);width:min(1160px,94vw)!important;max-width:none!important;max-height:94vh;overflow:auto;margin:0!important;box-shadow:0 30px 80px rgba(0,0,0,.45)!important}
-    body.revlo-fs-open{overflow:hidden}
+    body.revlo-feed-full article[id^="post-"]{width:auto!important;max-width:none!important;margin-left:calc(-1 * var(--rfs-left, 0px))!important;margin-right:calc(-1 * var(--rfs-right, 0px))!important}
+    body.revlo-feed-full div:has(> article[id^="post-"]){grid-template-columns:minmax(0,1fr)!important;justify-content:stretch!important}
+    body.revlo-feed-full article[id^="post-"]>div:first-child{height:var(--rfs-header, 60vh)!important;min-height:360px}
   `;
   document.head.appendChild(style);
 
-  let active = null;
-  let backdrop = null;
+  let restoreTwoColumn = false;
+  const isOn = () => document.body.classList.contains('revlo-feed-full');
 
-  function close() {
-    if (!active) return;
-    active.classList.remove('revlo-post-fullscreen');
-    const button = active.querySelector('.revlo-fs-btn');
-    if (button) { button.innerHTML = '⛶ Full screen'; button.setAttribute('aria-pressed', 'false'); }
-    backdrop?.remove();
-    backdrop = null;
-    document.body.classList.remove('revlo-fs-open');
-    const card = active;
-    active = null;
-    card.scrollIntoView({ block: 'center' });
+  // Measure the edges from the live page so the posts line up with the "All"
+  // button and the Theme switcher at any window size.
+  function measure() {
+    const card = document.querySelector('article[id^="post-"]');
+    const column = card?.parentElement;
+    if (!column) return;
+    const columnBox = column.getBoundingClientRect();
+    const all = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'All' && button.offsetParent);
+    const theme = document.querySelector('#revlo-theme-select')?.parentElement;
+    const left = all ? Math.max(0, columnBox.left - all.getBoundingClientRect().left) : 0;
+    const right = theme ? Math.max(0, theme.getBoundingClientRect().right - columnBox.right) : 0;
+    const navbar = [...document.querySelectorAll('.revlo-theme-surface')].find((el) => getComputedStyle(el).position === 'sticky');
+    const navHeight = navbar ? navbar.getBoundingClientRect().height : 120;
+    const header = Math.max(360, Math.round(window.innerHeight - navHeight - 190));
+    document.body.style.setProperty('--rfs-left', `${Math.round(left)}px`);
+    document.body.style.setProperty('--rfs-right', `${Math.round(right)}px`);
+    document.body.style.setProperty('--rfs-header', `${header}px`);
   }
 
-  function open(card) {
-    if (active) close();
-    active = card;
-    backdrop = document.createElement('div');
-    backdrop.className = 'revlo-fs-backdrop';
-    backdrop.addEventListener('click', close);
-    document.body.appendChild(backdrop);
-    document.body.classList.add('revlo-fs-open');
-    card.classList.add('revlo-post-fullscreen');
-    card.scrollTop = 0;
-    const button = card.querySelector('.revlo-fs-btn');
-    if (button) { button.innerHTML = '✕ Exit full screen'; button.setAttribute('aria-pressed', 'true'); button.focus(); }
+  function labels() {
+    document.querySelectorAll('.revlo-fs-btn').forEach((button) => {
+      button.innerHTML = isOn() ? '✕ Exit full screen' : '⛶ Full screen';
+      button.setAttribute('aria-pressed', String(isOn()));
+    });
+  }
+
+  function setMode(on, anchor) {
+    if (on === isOn()) return;
+    if (on) {
+      restoreTwoColumn = document.body.classList.contains('revlo-two-column');
+      document.body.classList.remove('revlo-two-column');
+      document.body.classList.add('revlo-feed-full');
+      measure();
+    } else {
+      document.body.classList.remove('revlo-feed-full');
+      if (restoreTwoColumn) document.body.classList.add('revlo-two-column');
+    }
+    try { localStorage.setItem(KEY, on ? '1' : '0'); } catch {}
+    labels();
+    if (anchor) requestAnimationFrame(() => anchor.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   }
 
   function footerOf(card) {
@@ -56,21 +73,32 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'revlo-fs-btn';
-    button.innerHTML = '⛶ Full screen';
-    button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (active === card) close(); else open(card);
+      setMode(!isOn(), card);
     });
     footer.insertBefore(button, footer.firstChild);
+    labels();
   }
 
-  function scan() { document.querySelectorAll('article[id^="post-"]').forEach(mount); }
+  function scan() {
+    document.querySelectorAll('article[id^="post-"]').forEach(mount);
+    if (isOn()) {
+      // The layout toggle may re-apply two-column; full screen stays single-column.
+      if (document.body.classList.contains('revlo-two-column')) { restoreTwoColumn = true; document.body.classList.remove('revlo-two-column'); }
+      measure();
+    }
+  }
 
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
-  new MutationObserver(() => {
-    if (active && !document.body.contains(active)) { active = null; backdrop?.remove(); backdrop = null; document.body.classList.remove('revlo-fs-open'); }
-    scan();
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener('resize', () => { if (isOn()) measure(); });
+  // Choosing List or Two-column leaves full screen first.
+  document.addEventListener('click', (event) => {
+    if (isOn() && event.target instanceof Element && event.target.closest('.revlo-layout-toggle button')) {
+      restoreTwoColumn = false;
+      setMode(false);
+    }
+  }, true);
+  new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
   scan();
+  try { if (localStorage.getItem(KEY) === '1') setMode(true); } catch {}
 })();
