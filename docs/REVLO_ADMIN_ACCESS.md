@@ -96,6 +96,8 @@ Visitors can switch the public feed between a focused one-post-per-row view and 
 
 To discourage repeated opening of the creation flow, Revlo allows five create-post openings within a rolling minute and pauses the creation entry points on the sixth. That browser pause lasts two hours. Post-card controls have a separate shared counter: after five presses across any controls on any posts within one minute, the sixth press pauses every post-card control for 45 minutes. These browser pauses are shared by Revlo tabs through short-lived site cookies and reset if the visitor clears those cookies. They are usability controls, not security boundaries; server-side email, IP and publishing limits continue to enforce abuse protection independently.
 
+Five actual browser reloads within one minute redirect the visitor to a caution page for a randomly assigned 20–50 minute cooldown. The page displays a live countdown and returns to Revlo automatically when it reaches zero. Ordinary navigation, opening a post, changing a filter and returning from an email link do not count as reloads.
+
 The publisher chooses whether following is enabled on every new post. Switching **Let people follow you** off removes the follow action from that post and suppresses its email alert to existing followers. Existing subscriptions remain available for a later post only if the publisher switches following back on.
 
 ## Operational recovery

@@ -85,6 +85,22 @@ test('six rapid controls across post cards pause every post action for 45 minute
   assert.match(guard, /Post actions temporarily paused/);
 });
 
+test('five true browser reloads in one minute open a timed caution page', () => {
+  const guard = read('public/revlo-refresh-guard.js');
+  const cooldown = read('public/revlo-cooldown.js');
+  const page = read('public/cooldown.html');
+  const html = read('public/app.html');
+  assert.ok(html.indexOf('/revlo-refresh-guard.js') < html.indexOf('/revlo-app.js'));
+  assert.match(guard, /const REFRESH_LIMIT = 5/);
+  assert.match(guard, /navigation\?\.type !== 'reload'/);
+  assert.match(guard, /MIN_COOLDOWN_MINUTES = 20/);
+  assert.match(guard, /MAX_COOLDOWN_MINUTES = 50/);
+  assert.match(guard, /location\.replace\('\/cooldown\.html'\)/);
+  assert.match(cooldown, /setInterval\(update, 1000\)/);
+  assert.match(cooldown, /location\.replace\('\/app\.html'\)/);
+  assert.match(page, /role="timer"/);
+});
+
 test('publishers can suppress follow alerts on each new post', () => {
   const route = read('src/app/api/posts/route.js');
   const ui = read('public/revlo-app.js');
