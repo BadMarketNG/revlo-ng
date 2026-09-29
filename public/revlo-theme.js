@@ -112,7 +112,7 @@
 
   const syncLogo = () => {
     const logo = document.querySelector('img[alt^="revlo.ng"]');
-    if (!logo) return;
+    if (!logo || logo.dataset.revloRotating === 'true') return;
     if (!logo.dataset.revloLightLogo) logo.dataset.revloLightLogo = logo.src;
     if (theme === 'dark') {
       logo.dataset.revloDarkLogo = 'true';
