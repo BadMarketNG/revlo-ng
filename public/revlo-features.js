@@ -70,7 +70,7 @@
 
   function featurePanel(modal) {
     if (modal.querySelector('.revlo-feature-panel') || !state.publisher) return;
-    const publish = [...modal.querySelectorAll('button')].find((b) => /Publish/.test(b.textContent));
+    const publish = [...modal.querySelectorAll('button')].find((b) => /publish/i.test(b.textContent));
     if (!publish) return;
     const s = state.publisher.settings;
     const panel = document.createElement('section');

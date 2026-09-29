@@ -16,14 +16,10 @@ export const dynamic = 'force-dynamic';
 const PUBLIC_COLS =
   'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
 
-// A post's duration is how long it stays live from publication. "Right now"
-// shows every live post; each longer tab shows posts lasting at least that long.
-const TAB_DURATIONS = {
-  now: null,
-  '1m': ['1m', '2m', '3m'],
-  '2m': ['2m', '3m'],
-  '3m': ['3m'],
-};
+// A post's duration is how long it stays live from publication. Every post
+// appears under "Right now" for its first 24 hours, then moves to the tab for
+// its own duration (1, 2 or 3 months) until it expires.
+const FIRST_DAY_MS = 24 * 60 * 60 * 1000;
 
 // GET /api/posts?duration=now&category=jobs  -> list non-expired posts for a tab
 export async function GET(request) {
@@ -44,7 +40,10 @@ export async function GET(request) {
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(100);
-  if (TAB_DURATIONS[duration]) query = query.in('duration', TAB_DURATIONS[duration]);
+  const firstDayStart = new Date(Date.now() - FIRST_DAY_MS).toISOString();
+  query = duration === 'now'
+    ? query.gt('created_at', firstDayStart)
+    : query.eq('duration', duration).lte('created_at', firstDayStart);
   if (category) query = query.eq('category', category);
 
   const { data, error } = await query;
