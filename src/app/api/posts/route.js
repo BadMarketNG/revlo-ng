@@ -9,6 +9,12 @@ import { claimPublishToken, recordPublishTokenPost, releasePublishToken } from '
 import { publicOrigin } from '@/lib/publicOrigin';
 import { markMagicLinkRedeemed } from '@/lib/magicLinkAudit';
 import { earnedBadge, getFeatureSettings, getPublisherStatus, incrementPublisherPosts } from '@/lib/revloFeatures';
+import {
+  FEED_SESSION_COOKIE,
+  createFeedSessionSeed,
+  isFeedSessionSeed,
+  saltedSessionOrder,
+} from '@/lib/feedOrder.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +58,19 @@ export async function GET(request) {
     console.error('[posts:GET]', error);
     return NextResponse.json({ error: 'failed to load posts' }, { status: 500 });
   }
-  return NextResponse.json({ posts: data });
+  const existingSeed = request.cookies.get(FEED_SESSION_COOKIE)?.value;
+  const feedSeed = isFeedSessionSeed(existingSeed) ? existingSeed : createFeedSessionSeed();
+  const context = `${duration}:${category || 'all'}`;
+  const response = NextResponse.json({ posts: saltedSessionOrder(data, feedSeed, context) });
+  if (feedSeed !== existingSeed) {
+    response.cookies.set(FEED_SESSION_COOKIE, feedSeed, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+  }
+  return response;
 }
 
 // POST /api/posts -> create a post

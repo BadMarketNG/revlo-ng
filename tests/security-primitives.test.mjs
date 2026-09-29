@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { detectUploadType, requiredSecret, serializeJsonForHtml } from '../src/lib/securityPrimitives.mjs';
+import { isFeedSessionSeed, saltedSessionOrder } from '../src/lib/feedOrder.mjs';
 
 test('JSON-LD serialization cannot close its script element', () => {
   const serialized = serializeJsonForHtml({ title: 'x</script><script>alert(1)</script>&' });
@@ -56,4 +57,18 @@ test('header adverts are administrator-only and remain separate from feed promot
   assert.match(publicApi, /category,placement,source/);
   assert.match(browser, /promo\.placement === 'header' && promo\.source === 'admin'/);
   assert.match(browser, /revlo-header-ad-slot/);
+});
+
+test('feed ordering is stable within a session and diversified between session salts', () => {
+  const posts = ['A', 'B', 'C', 'D', 'E', 'F'].map((uid) => ({ uid }));
+  const firstSeed = 'a'.repeat(64);
+  const secondSeed = 'b'.repeat(64);
+  const firstOrder = saltedSessionOrder(posts, firstSeed, 'now:all').map(({ uid }) => uid);
+  const repeatedOrder = saltedSessionOrder(posts, firstSeed, 'now:all').map(({ uid }) => uid);
+  const secondOrder = saltedSessionOrder(posts, secondSeed, 'now:all').map(({ uid }) => uid);
+  assert.deepEqual(firstOrder, repeatedOrder);
+  assert.notDeepEqual(firstOrder, secondOrder);
+  assert.deepEqual(posts.map(({ uid }) => uid), ['A', 'B', 'C', 'D', 'E', 'F']);
+  assert.equal(isFeedSessionSeed(firstSeed), true);
+  assert.equal(isFeedSessionSeed('predictable'), false);
 });

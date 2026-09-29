@@ -118,3 +118,13 @@ test('dark mode keeps the logo clear and hides only the visual page scrollbar', 
   assert.match(theme, /scrollbar-width: none/);
   assert.match(theme, /::-webkit-scrollbar/);
 });
+
+test('eligible listings receive a private stable discovery order per browser session', () => {
+  const route = read('src/app/api/posts/route.js');
+  const ordering = read('src/lib/feedOrder.mjs');
+  assert.match(route, /request\.cookies\.get\(FEED_SESSION_COOKIE\)/);
+  assert.match(route, /saltedSessionOrder\(data, feedSeed, context\)/);
+  assert.match(route, /httpOnly: true/);
+  assert.match(ordering, /createHash\('sha256'\)/);
+  assert.match(ordering, /randomBytes\(32\)/);
+});
