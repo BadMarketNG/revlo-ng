@@ -94,6 +94,8 @@ The Revlo administrator surface uses a light background with Revlo green accents
 
 Visitors can switch the public feed between a focused one-post-per-row view and a two-post-per-row desktop view. The preference is stored only in that browser. On phone-sized screens Revlo always falls back to one column so cards and controls remain readable.
 
+To discourage repeated opening of the creation flow, Revlo allows five create-post openings within a rolling minute and pauses the creation entry points on the sixth. The browser pause lasts two hours, is shared by Revlo tabs through a short-lived site cookie, and is reset if the visitor clears that cookie. This is a usability control, not a security boundary; server-side email, IP and publishing limits continue to enforce abuse protection independently.
+
 ## Operational recovery
 
 - If a Revlo subsection returns to the Revlo public site, confirm the administrator is active, MFA has been completed, and Revlo permission is enabled, then open the subsection again from the authorised control panel.

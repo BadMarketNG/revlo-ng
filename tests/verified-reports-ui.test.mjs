@@ -63,3 +63,15 @@ test('only one unexpired publish link can be active per email', () => {
   assert.match(migration, /expires_at > now\(\)/);
   assert.match(migration, /delivery_status in \('pending', 'sent'\)/);
 });
+
+test('repeated create-post openings pause the browser entry point for two hours', () => {
+  const guard = read('public/revlo-create-guard.js');
+  const html = read('public/app.html');
+  assert.ok(html.indexOf('/revlo-create-guard.js') < html.indexOf('/revlo-app.js'));
+  assert.match(guard, /const WINDOW_MS = 60 \* 1000/);
+  assert.match(guard, /const LOCK_MS = 2 \* 60 \* 60 \* 1000/);
+  assert.match(guard, /const ALLOWED_CLICKS = 5/);
+  assert.match(guard, /document\.cookie/);
+  assert.match(guard, /event\.stopImmediatePropagation\(\)/);
+  assert.match(guard, /revlo-create-locked/);
+});
