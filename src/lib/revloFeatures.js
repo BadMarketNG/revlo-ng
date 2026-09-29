@@ -21,6 +21,9 @@ export async function getFeatureSettings() {
 }
 
 export function earnedBadge(count, settings, override = null) {
+  // ORIGINAL (commented out 2026-09-29): if (override) return override;
+  // NOTE: 'none' is an administrator removal and means no badge at any post count.
+  if (override === 'none') return null;
   if (override) return override;
   if (count >= settings.gold_posts) return 'gold';
   if (count >= settings.bronze_posts) return 'bronze';
@@ -41,6 +44,9 @@ export async function getPublisherStatus(email) {
   return {
     publishedPosts,
     trustBadge,
+    // NOTE (2026-09-29): exposed so new posts and the admin panel respect administrator overrides.
+    badgeOverride: stats?.badge_override || null,
+    earnedTrustBadge: earnedBadge(publishedPosts, settings),
     premiumActive: Boolean(premium),
     premiumUntil: premium?.active_until || null,
     videoEligible: Boolean(trustBadge),

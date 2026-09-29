@@ -107,7 +107,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -134,6 +134,7 @@ export default function AdminPage() {
       {tab === 'emails' && <Emails />}
       {tab === 'bm' && <BMLinks />}
       {tab === 'features' && <Features />}
+      {tab === 'users' && <UsersAndEmail />}
       {tab === 'categories' && <Categories />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
@@ -451,6 +452,92 @@ function AllPosts() {
         })}
         {filtered.length === 0 && <p style={{ color: MUTED }}>No posts match.</p>}
       </div>
+    </div>
+  );
+}
+
+// NOTE (2026-09-29): administrator badge awards/removals and emails to users.
+// Every badge change and message is emailed with the Revlo template.
+const BADGE_LABEL = { silver: 'Silver', bronze: 'Bronze', gold: 'Gold' };
+
+function UsersAndEmail() {
+  const [email, setEmail] = useState('');
+  const [publisher, setPublisher] = useState(null);
+  const [reason, setReason] = useState('');
+  const [badgeMessage, setBadgeMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [mail, setMail] = useState({ to: '', subject: '', message: '' });
+  const [mailMessage, setMailMessage] = useState('');
+
+  const lookup = async () => {
+    setBadgeMessage(''); setPublisher(null);
+    const res = await fetch(`/api/admin/publishers?email=${encodeURIComponent(email.trim())}`, { cache: 'no-store' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setBadgeMessage(body.error || 'Could not look up this email.'); return; }
+    setPublisher(body.publisher);
+    setMail((current) => ({ ...current, to: body.publisher.email }));
+  };
+
+  const change = async (action, badge) => {
+    const label = action === 'award' ? `award the ${BADGE_LABEL[badge]} badge to` : action === 'remove' ? 'remove the badge from' : 'restore the earned badge for';
+    if (!window.confirm(`Are you sure you want to ${label} ${publisher.email}? They will be emailed.`)) return;
+    setBusy(true); setBadgeMessage('');
+    const res = await fetch('/api/admin/publishers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: publisher.email, action, badge, reason }) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setBadgeMessage(body.error || 'Could not change the badge.'); return; }
+    setPublisher(body.publisher); setReason('');
+    setBadgeMessage(body.emailSent ? 'Saved. The user has been emailed.' : 'Saved, but the notification email could not be sent.');
+  };
+
+  const send = async () => {
+    setBusy(true); setMailMessage('');
+    const res = await fetch('/api/admin/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mail) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setMailMessage(body.error || 'Could not send the email.'); return; }
+    setMailMessage(`Sent to ${mail.to}.`); setMail((current) => ({ ...current, subject: '', message: '' }));
+  };
+
+  const badgeText = (value) => (value ? BADGE_LABEL[value] : 'None');
+  const overrideText = !publisher ? '' : publisher.badgeOverride === 'none' ? 'Removed by an administrator' : publisher.badgeOverride ? `Awarded by an administrator (${BADGE_LABEL[publisher.badgeOverride]})` : 'None: the earned badge applies';
+
+  return (
+    <div style={{ display: 'grid', gap: 20 }}>
+      <section style={cardStyle}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Badges</h2>
+        <p style={{ color: MUTED, marginTop: 0 }}>Award any badge, or remove one, including a badge the user earned. The user is emailed every time.</p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input style={inp} type="email" placeholder="Publisher email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') lookup(); }} />
+          <button style={{ ...miniBtn(GREEN), whiteSpace: 'nowrap' }} onClick={lookup} disabled={!email.includes('@')}>Look up</button>
+        </div>
+        {publisher && (
+          <div style={{ marginTop: 14 }}>
+            <p style={{ margin: '4px 0' }}><strong>{publisher.email}</strong> · {publisher.publishedPosts} published posts</p>
+            <p style={{ margin: '4px 0' }}>Current badge: <strong>{badgeText(publisher.effectiveBadge)}</strong> · Earned from posts: {badgeText(publisher.earnedBadge)}</p>
+            <p style={{ margin: '4px 0', color: MUTED }}>Administrator setting: {overrideText}</p>
+            <textarea style={{ ...inp, marginTop: 10, minHeight: 70 }} placeholder="Reason (optional, included in the email)" value={reason} onChange={(e) => setReason(e.target.value.slice(0, 500))} />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+              {['silver', 'bronze', 'gold'].map((badge) => (
+                <button key={badge} style={miniBtn('#b8860b')} disabled={busy} onClick={() => change('award', badge)}>Award {BADGE_LABEL[badge]}</button>
+              ))}
+              <button style={miniBtn(RED)} disabled={busy} onClick={() => change('remove')}>Remove badge</button>
+              {publisher.badgeOverride && <button style={miniBtn('#475467')} disabled={busy} onClick={() => change('restore')}>Restore earned badge</button>}
+            </div>
+          </div>
+        )}
+        {badgeMessage && <p style={{ marginBottom: 0 }}>{badgeMessage}</p>}
+      </section>
+
+      <section style={cardStyle}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Email a user</h2>
+        <p style={{ color: MUTED, marginTop: 0 }}>Sent with the Revlo email template. The subject starts with “Revlo.ng ·” and replies go to support@revlo.ng.</p>
+        <input style={inp} type="email" placeholder="Recipient email" value={mail.to} onChange={(e) => setMail({ ...mail, to: e.target.value })} />
+        <input style={{ ...inp, marginTop: 10 }} placeholder="Subject" value={mail.subject} maxLength={120} onChange={(e) => setMail({ ...mail, subject: e.target.value })} />
+        <textarea style={{ ...inp, marginTop: 10, minHeight: 160 }} placeholder="Message" value={mail.message} maxLength={5000} onChange={(e) => setMail({ ...mail, message: e.target.value })} />
+        <button style={btn(GREEN)} disabled={busy || !mail.to.includes('@') || mail.subject.trim().length < 2 || mail.message.trim().length < 2} onClick={send}>{busy ? 'Sending…' : 'Send email'}</button>
+        {mailMessage && <p style={{ marginBottom: 0 }}>{mailMessage}</p>}
+      </section>
     </div>
   );
 }

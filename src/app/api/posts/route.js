@@ -210,7 +210,9 @@ export async function POST(request) {
   const expires_at = expiryFor(duration);
   const settings = await getFeatureSettings();
   const postCountAfterPublish = publisherStatus.publishedPosts + 1;
-  const trustBadge = earnedBadge(postCountAfterPublish, settings);
+  // ORIGINAL (commented out 2026-09-29): ignored an administrator's badge award or removal.
+  // const trustBadge = earnedBadge(postCountAfterPublish, settings);
+  const trustBadge = earnedBadge(postCountAfterPublish, settings, publisherStatus.badgeOverride);
   let premiumBadge = publisherStatus.premiumActive;
   if (premium_payment_reference) {
     const { data: premiumIntent } = await supabaseAdmin.from('revlo_payment_intents').select('status,email,kind').eq('reference', premium_payment_reference).maybeSingle();

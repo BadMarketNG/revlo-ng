@@ -65,6 +65,39 @@ const TEMPLATES = [
     heading: 'Confirm your email to continue',
     note: 'Your email address and any evidence are visible only to authorised Revlo moderators.',
   },
+  // NOTE (2026-09-29): administrator badge changes and messages from the admin panel.
+  {
+    kind: 'badge-awarded',
+    match: /^You've been awarded the .* badge on Revlo\.ng/i,
+    accent: '#B8860B', tint: '#fbf6e6', icon: '🏅',
+    eyebrow: 'Badge awarded',
+    heading: 'You have a new Revlo badge',
+    note: 'Your badge appears on your posts so people know you are an established publisher.',
+  },
+  {
+    kind: 'badge-removed',
+    match: /^Your Revlo\.ng badge has been removed/i,
+    accent: '#6b7280', tint: '#f3f4f6', icon: '🏷️',
+    eyebrow: 'Badge update',
+    heading: 'Your badge has been removed',
+    note: 'If you think this is a mistake, reply to this email or contact support@revlo.ng.',
+  },
+  {
+    kind: 'badge-restored',
+    match: /^Your Revlo\.ng badge has been updated/i,
+    accent: '#1B5E20', tint: '#eef6ef', icon: '🔄',
+    eyebrow: 'Badge update',
+    heading: 'Your badge has been updated',
+    note: null,
+  },
+  {
+    kind: 'admin-message',
+    match: /^Revlo\.ng · /,
+    accent: '#1B5E20', tint: '#eef6ef', icon: '✉️',
+    eyebrow: 'Message from Revlo',
+    heading: null,
+    note: 'This message was sent by the Revlo.ng team. Reply to support@revlo.ng if you have questions.',
+  },
 ]
 
 const GENERIC = {
