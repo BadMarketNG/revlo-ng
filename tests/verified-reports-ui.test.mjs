@@ -126,10 +126,32 @@ test('eligible listings receive a private stable discovery order per browser ses
   const route = read('src/app/api/posts/route.js');
   const ordering = read('src/lib/feedOrder.mjs');
   assert.match(route, /request\.cookies\.get\(FEED_SESSION_COOKIE\)/);
+  assert.match(route, /const context = `\$\{duration\}:\$\{category \|\| 'all'\}`/);
   assert.match(route, /saltedSessionOrder\(data, feedSeed, context\)/);
   assert.match(route, /httpOnly: true/);
   assert.match(ordering, /createHash\('sha256'\)/);
   assert.match(ordering, /randomBytes\(32\)/);
+});
+
+test('administrator-managed categories remain ordered, validated, and salted independently', () => {
+  const api = read('src/app/api/categories/route.js');
+  const catalogue = read('src/lib/revloCategories.js');
+  const posts = read('src/app/api/posts/route.js');
+  const publicUi = read('public/revlo-categories.js');
+  const adminUi = read('src/app/revlongbm/page.js');
+  assert.match(catalogue, /from\('admin_log'\)/);
+  assert.match(catalogue, /category_create/);
+  assert.match(catalogue, /category_reorder/);
+  assert.match(catalogue, /category_delete/);
+  assert.match(catalogue, /slug: 'general'.*protected: true/);
+  assert.match(api, /getAdminSession\(\)/);
+  assert.match(api, /reassigned_to: 'general'/);
+  assert.match(api, /body\.order/);
+  assert.match(posts, /await isConfiguredCategory\(category\)/);
+  assert.match(publicUi, /selectionGeneration/);
+  assert.match(publicUi, /revlo-managed-categories/);
+  assert.match(adminUi, /\['categories', 'Categories'\]/);
+  assert.match(adminUi, /Delete “\$\{category\.label\}”/);
 });
 
 test('video posts lead with video and retain the header image as the second slide', () => {

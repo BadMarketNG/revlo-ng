@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { expiryFor, isValidDuration, isValidCategory } from '@/lib/util';
+import { expiryFor, isValidDuration } from '@/lib/util';
+import { isConfiguredCategory } from '@/lib/revloCategories';
 import { addAutomaticBlocks } from '@/lib/revloBlocklist';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,7 @@ export async function POST(request) {
     if (typeof title === 'string' && title.trim().length >= 2) update.title = title.trim();
     if (typeof description === 'string') update.description = description.slice(0, 5000);
     if (category !== undefined) {
-      if (!isValidCategory(category)) {
+      if (!await isConfiguredCategory(category)) {
         return NextResponse.json({ error: 'invalid category' }, { status: 400 });
       }
       update.category = category;

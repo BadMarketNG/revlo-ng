@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { makeUid, expiryFor, isValidDuration, isValidCategory, isEmail, verifyToken } from '@/lib/util';
+import { makeUid, expiryFor, isValidDuration, isEmail, verifyToken } from '@/lib/util';
+import { isConfiguredCategory } from '@/lib/revloCategories';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
@@ -35,7 +36,7 @@ export async function GET(request) {
   if (!isValidDuration(duration)) {
     return NextResponse.json({ error: 'invalid duration' }, { status: 400 });
   }
-  if (category && !isValidCategory(category)) {
+  if (category && !await isConfiguredCategory(category)) {
     return NextResponse.json({ error: 'invalid category' }, { status: 400 });
   }
 
@@ -118,7 +119,7 @@ export async function POST(request) {
   if (!isValidDuration(duration)) {
     return NextResponse.json({ error: 'valid duration required' }, { status: 400 });
   }
-  if (!isValidCategory(category)) {
+  if (!await isConfiguredCategory(category)) {
     return NextResponse.json({ error: 'invalid category' }, { status: 400 });
   }
   if (!['public', 'private'].includes(contact_visibility)) {

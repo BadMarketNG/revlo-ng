@@ -36,7 +36,7 @@ export async function GET() {
     } else {
       stats.active += 1;
       if (stats.byDuration[p.duration] !== undefined) stats.byDuration[p.duration] += 1;
-      if (stats.byCategory[p.category] !== undefined) stats.byCategory[p.category] += 1;
+      if (p.category) stats.byCategory[p.category] = (stats.byCategory[p.category] || 0) + 1;
     }
   }
 

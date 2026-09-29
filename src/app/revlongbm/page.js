@@ -17,6 +17,16 @@ const DUR_LABEL = { now: 'RIGHT NOW (24h)', '1m': '1 MONTH', '2m': '2 MONTHS', '
 const CAT_LABEL = { jobs: 'Jobs', rentals: 'Rentals', for_sale: 'For Sale', promotions: 'Promotions', general: 'General' };
 const CAT_COLOR = { jobs: '#60a5fa', rentals: '#c084fc', for_sale: '#fb923c', promotions: '#f472b6', general: '#94a3b8' };
 
+function useCategoryCatalogue() {
+  const [categories, setCategories] = useState(() => Object.entries(CAT_LABEL).map(([slug, label], index) => ({ slug, label, position: (index + 1) * 10 })));
+  useEffect(() => {
+    fetch('/api/categories', { cache: 'no-store' }).then((response) => response.json())
+      .then((body) => { if (Array.isArray(body.categories) && body.categories.length) setCategories(body.categories); })
+      .catch(() => {});
+  }, []);
+  return categories;
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(null); // null = checking
   const [tab, setTab] = useState('stats');
@@ -27,7 +37,7 @@ export default function AdminPage() {
     // The query string is an external browser value and is intentionally
     // synchronized once after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (['stats', 'reports', 'posts', 'emails', 'bm', 'features', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'posts', 'emails', 'bm', 'features', 'categories', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -97,7 +107,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -124,6 +134,7 @@ export default function AdminPage() {
       {tab === 'emails' && <Emails />}
       {tab === 'bm' && <BMLinks />}
       {tab === 'features' && <Features />}
+      {tab === 'categories' && <Categories />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
       <p style={{ marginTop: 40, fontSize: 12, color: MUTED, borderTop: `1px solid ${BORDER}`, paddingTop: 16 }}>
@@ -133,8 +144,83 @@ export default function AdminPage() {
   );
 }
 
+function Categories() {
+  const [rows, setRows] = useState(null);
+  const [newLabel, setNewLabel] = useState('');
+  const [drafts, setDrafts] = useState({});
+  const [message, setMessage] = useState('');
+  const load = useCallback(() => fetch('/api/categories', { cache: 'no-store' })
+    .then((response) => response.json())
+    .then((body) => {
+      setRows(body.categories || []);
+      setDrafts(Object.fromEntries((body.categories || []).map((category) => [category.slug, category.label])));
+    }), []);
+  useEffect(() => { load(); }, [load]);
+
+  const request = async (method, body) => {
+    setMessage('');
+    const response = await fetch('/api/categories', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'Could not update categories.');
+      return false;
+    }
+    setMessage('Categories updated.');
+    await load();
+    return true;
+  };
+
+  const create = async () => {
+    if (await request('POST', { label: newLabel })) setNewLabel('');
+  };
+  const rename = (slug) => request('PATCH', { slug, label: drafts[slug] });
+  const remove = (category) => {
+    if (!confirm(`Delete “${category.label}”? Existing posts will move to General.`)) return;
+    request('DELETE', { slug: category.slug });
+  };
+  const move = async (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= rows.length) return;
+    const order = rows.map((row) => row.slug);
+    [order[index], order[target]] = [order[target], order[index]];
+    await request('PATCH', { order });
+  };
+
+  if (!rows) return <p style={{ color: MUTED }}>Loading…</p>;
+  return <div style={{ display: 'grid', gap: 16 }}>
+    {message && <div style={{ ...cardStyle, color: message.includes('updated') ? GREEN : RED }}>{message}</div>}
+    <section style={cardStyle}>
+      <h2 style={{ color: TEXT, marginTop: 0 }}>Post categories</h2>
+      <p style={{ color: MUTED, lineHeight: 1.5 }}>Create, rename, delete, or reorder the categories shown to publishers and visitors. Deleting a category safely moves its existing posts to General.</p>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap', marginTop: 16 }}>
+        <input value={newLabel} maxLength={32} onChange={(event) => setNewLabel(event.target.value)} placeholder="New category name" style={{ ...inp, flex: '1 1 260px' }} />
+        <button type="button" onClick={create} disabled={newLabel.trim().length < 2} style={{ ...miniBtn(GREEN), opacity: newLabel.trim().length < 2 ? 0.55 : 1 }}>Add category</button>
+      </div>
+    </section>
+    <section style={{ ...cardStyle, display: 'grid', gap: 10 }}>
+      {rows.map((category, index) => <div key={category.slug} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px,1fr) auto', gap: 10, alignItems: 'center', border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12 }}>
+        <div>
+          <input value={drafts[category.slug] ?? category.label} maxLength={32} onChange={(event) => setDrafts((current) => ({ ...current, [category.slug]: event.target.value }))} style={inp} aria-label={`Rename ${category.label}`} />
+          <div style={{ color: MUTED, fontSize: 12, marginTop: 5 }}>Key: {category.slug}{category.protected ? ' · required fallback' : ''}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={() => move(index, -1)} disabled={index === 0} style={{ ...miniBtn('#475467'), opacity: index === 0 ? 0.45 : 1 }} aria-label={`Move ${category.label} earlier`}>↑</button>
+          <button type="button" onClick={() => move(index, 1)} disabled={index === rows.length - 1} style={{ ...miniBtn('#475467'), opacity: index === rows.length - 1 ? 0.45 : 1 }} aria-label={`Move ${category.label} later`}>↓</button>
+          <button type="button" onClick={() => rename(category.slug)} disabled={(drafts[category.slug] || '').trim() === category.label} style={{ ...miniBtn(BLUE), opacity: (drafts[category.slug] || '').trim() === category.label ? 0.5 : 1 }}>Rename</button>
+          <button type="button" onClick={() => remove(category)} disabled={category.protected} style={{ ...miniBtn(RED), opacity: category.protected ? 0.45 : 1 }}>Delete</button>
+        </div>
+      </div>)}
+    </section>
+  </div>;
+}
+
 function Stats() {
   const [s, setS] = useState(null);
+  const categories = useCategoryCatalogue();
   useEffect(() => { fetch('/api/admin/stats').then((r) => r.json()).then((d) => setS(d.stats)); }, []);
   if (!s) return <p style={{ color: MUTED }}>Loading…</p>;
   const card = (label, val, color = GREEN) => (
@@ -162,7 +248,7 @@ function Stats() {
         <>
           <h3 style={{ marginTop: 28, color: TEXT, fontSize: 15, textTransform: 'uppercase', letterSpacing: '1px' }}>Active posts by category</h3>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {Object.entries(s.byCategory).map(([k, v]) => card(CAT_LABEL[k] || k, v, CAT_COLOR[k] || GREEN))}
+            {Object.entries(s.byCategory).map(([k, v]) => card(categories.find((category) => category.slug === k)?.label || CAT_LABEL[k] || k, v, CAT_COLOR[k] || GREEN))}
           </div>
         </>
       )}
@@ -256,6 +342,7 @@ function AllPosts() {
   const [cat, setCat] = useState('all');
   const [editingUid, setEditingUid] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '', category: 'general' });
+  const categories = useCategoryCatalogue();
 
   const load = useCallback(() => { fetch('/api/admin/posts?all=1').then((r) => r.json()).then((d) => setRows(d.posts || [])); }, []);
   useEffect(() => { load(); }, [load]);
@@ -289,7 +376,7 @@ function AllPosts() {
     <div>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, email, uid, location…" style={{ ...inp, marginBottom: 12 }} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        {['all', 'jobs', 'rentals', 'for_sale', 'promotions', 'general'].map((c) => (
+        {['all', ...categories.map((category) => category.slug)].map((c) => (
           <button
             key={c}
             onClick={() => setCat(c)}
@@ -300,7 +387,7 @@ function AllPosts() {
               color: cat === c ? (CAT_COLOR[c] || GREEN) : MUTED,
             }}
           >
-            {c === 'all' ? 'All' : CAT_LABEL[c]}
+            {c === 'all' ? 'All' : categories.find((category) => category.slug === c)?.label || CAT_LABEL[c] || c}
           </button>
         ))}
       </div>
@@ -321,7 +408,7 @@ function AllPosts() {
                       <input value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} style={inp} placeholder="Title" />
                       <textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} style={{ ...inp, minHeight: 70, resize: 'vertical' }} placeholder="Description" />
                       <select value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} style={inp}>
-                        {Object.entries(CAT_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                        {categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
                       </select>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => saveEdit(p.uid)} style={miniBtn(GREEN)}>Save</button>
@@ -336,7 +423,7 @@ function AllPosts() {
                           <span style={{ color: MUTED, fontSize: 13 }}>{p.uid} · {p.location}</span>
                           {p.category && (
                             <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: CAT_COLOR[p.category] || MUTED, background: `${CAT_COLOR[p.category] || MUTED}1a`, borderRadius: 6, padding: '2px 8px' }}>
-                              {CAT_LABEL[p.category] || p.category}
+                              {categories.find((category) => category.slug === p.category)?.label || CAT_LABEL[p.category] || p.category}
                             </span>
                           )}
                           {p.deleted_at && <span style={{ marginLeft: 8, color: RED, fontSize: 12, fontWeight: 700 }}>DELETED</span>}
@@ -376,6 +463,7 @@ function Features() {
   const [imagePreview, setImagePreview] = useState('');
   const [creatingPromo, setCreatingPromo] = useState(false);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const categories = useCategoryCatalogue();
   const load = useCallback(() => fetch('/api/admin/features', { cache: 'no-store' }).then((r) => r.json()).then((d) => setSettings(d.settings)), []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
@@ -490,7 +578,7 @@ function Features() {
             <option value="header">Header advert — beside the post button</option>
           </select>
         </label>
-        <div style={{ display: 'flex', gap: 10 }}><select style={inp} value={promo.category} onChange={(e) => setPromo((p) => ({ ...p, category: e.target.value }))}><option value="">All categories</option>{Object.entries(CAT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><input style={inp} type="number" min="1" max="365" value={promo.days} onChange={(e) => setPromo((p) => ({ ...p, days: Number(e.target.value) }))} /></div>
+        <div style={{ display: 'flex', gap: 10 }}><select style={inp} value={promo.category} onChange={(e) => setPromo((p) => ({ ...p, category: e.target.value }))}><option value="">All categories</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}</select><input style={inp} type="number" min="1" max="365" value={promo.days} onChange={(e) => setPromo((p) => ({ ...p, days: Number(e.target.value) }))} /></div>
         <button onClick={createPromo} disabled={creatingPromo} style={{ ...miniBtn(BLUE), opacity: creatingPromo ? 0.65 : 1 }}>{creatingPromo ? (imageFile ? 'Uploading header image…' : 'Creating promotion…') : 'Create promotion'}</button>
       </div>
     </section>

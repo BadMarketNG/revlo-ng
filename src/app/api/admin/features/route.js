@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getFeatureSettings } from '@/lib/revloFeatures';
+import { isConfiguredCategory } from '@/lib/revloCategories';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export async function POST(request) {
       imageUrl = image.toString();
     } catch { return NextResponse.json({ error: 'Image URL must use HTTP or HTTPS.' }, { status: 400 }); }
   }
-  if (body.category && !['jobs','rentals','for_sale','promotions','general'].includes(body.category)) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
+  if (body.category && !await isConfiguredCategory(body.category)) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
   const placement = body.placement === 'header' ? 'header' : 'feed';
   const { data, error } = await supabaseAdmin.from('revlo_promotions').insert({
     title, description: String(body.description || '').slice(0, 500), image_url: imageUrl,
