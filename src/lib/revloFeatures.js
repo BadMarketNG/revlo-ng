@@ -69,3 +69,13 @@ export async function incrementPublisherPosts(email) {
   if (error) throw error;
   return data;
 }
+
+// ── Publish link allowance by badge (2026-09-29) ─────────────────────────────
+// Posts one emailed publish link can create. Badge links have no time limit;
+// normal links allow one post within 30 minutes.
+export const PUBLISH_LINK_ALLOWANCE = Object.freeze({ silver: 50, bronze: 100, gold: 200 });
+export const NORMAL_LINK_MINUTES = 30;
+
+export function publishLinkAllowance(trustBadge) {
+  return PUBLISH_LINK_ALLOWANCE[trustBadge] || 1;
+}

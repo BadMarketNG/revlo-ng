@@ -6,7 +6,10 @@
   const CREATE_LOCK_MS = 2 * 60 * 60 * 1000;
   const POST_ACTION_MIN_LOCK_MINUTES = 5;
   const POST_ACTION_MAX_LOCK_MINUTES = 10;
-  const CREATE_ALLOWED_CLICKS = 5;
+  // ORIGINAL (commented out 2026-09-29, Claude at the owner's request):
+  // const CREATE_ALLOWED_CLICKS = 5;
+  // NOTE: five clicks a minute locked genuine users out of posting for two hours.
+  const CREATE_ALLOWED_CLICKS = 30;
   const POST_ACTION_ALLOWED_CLICKS = 20;
 
   function postActionLockMs() {

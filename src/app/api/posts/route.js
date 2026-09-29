@@ -6,7 +6,7 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { addAutomaticBlocks, blockedResponse, findActiveBlock, normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
-import { claimPublishToken, recordPublishTokenPost, releasePublishToken } from '@/lib/publishToken';
+import { claimBadgeLinkUse, claimPublishToken, recordBadgeLinkPost, recordPublishTokenPost, releaseBadgeLinkUse, releasePublishToken } from '@/lib/publishToken';
 import { publicOrigin } from '@/lib/publicOrigin';
 import { markMagicLinkRedeemed } from '@/lib/magicLinkAudit';
 import { earnedBadge, getFeatureSettings, getPublisherStatus, incrementPublisherPosts } from '@/lib/revloFeatures';
@@ -182,8 +182,24 @@ export async function POST(request) {
     );
   }
 
+  // NOTE (2026-09-29): a badge link (payload.uses > 1) creates several posts
+  // with no time limit; each post claims one use. Normal links keep the
+  // original one-post claim below.
+  const badgeLinkLimit = Number.isInteger(publishClaim.uses) && publishClaim.uses > 1 ? publishClaim.uses : 0;
+  let badgeUse = null;
+  if (badgeLinkLimit) {
+    badgeUse = await claimBadgeLinkUse(publish_token, badgeLinkLimit);
+    if (badgeUse.error) return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
+    if (!badgeUse.ok) {
+      return NextResponse.json({ error: badgeUse.reason === 'used_up'
+        ? `This publish link has used all ${badgeLinkLimit} posts. Request a new link to keep posting.`
+        : 'This publish link was replaced by a newer one. Use the latest link we emailed you.' }, { status: 409 });
+    }
+  }
+  const releaseClaim = () => (badgeUse ? releaseBadgeLinkUse(badgeUse.useId) : releasePublishToken(publish_token));
+
   // One emailed link creates one post.
-  const claim = await claimPublishToken(publish_token, publishClaim.exp);
+  const claim = badgeUse ? { ok: true } : await claimPublishToken(publish_token, publishClaim.exp);
   if (claim.used) {
     return NextResponse.json({ error: 'This publish link has already been used. Request a new link for another post.' }, { status: 409 });
   }
@@ -204,7 +220,7 @@ export async function POST(request) {
   if (promo_payment_reference) {
     const { data: candidate } = await supabaseAdmin.from('revlo_payment_intents').select('*').eq('reference', promo_payment_reference).maybeSingle();
     if (!candidate || candidate.status !== 'paid' || candidate.email !== cleanEmail || candidate.kind !== 'promo' || candidate.post_uid || !settings.promotions_enabled) {
-      await releasePublishToken(publish_token).catch(() => {});
+      await releaseClaim().catch(() => {});
       return NextResponse.json({ error: 'Promotion payment has not been verified.' }, { status: 402 });
     }
     promotionIntent = candidate;
@@ -226,7 +242,7 @@ export async function POST(request) {
     const { data: claimedPromotion } = await supabaseAdmin.from('revlo_payment_intents')
       .update({ post_uid: uid }).eq('reference', promotionIntent.reference).is('post_uid', null).select('reference').maybeSingle();
     if (!claimedPromotion) {
-      await releasePublishToken(publish_token).catch(() => {});
+      await releaseClaim().catch(() => {});
       return NextResponse.json({ error: 'This promotion payment has already been used.' }, { status: 409 });
     }
   }
@@ -258,13 +274,19 @@ export async function POST(request) {
 
   if (error) {
     if (promotionIntent) await supabaseAdmin.from('revlo_payment_intents').update({ post_uid: null }).eq('reference', promotionIntent.reference).eq('post_uid', uid);
-    await releasePublishToken(publish_token).catch(() => {});
+    await releaseClaim().catch(() => {});
     console.error('[posts:POST]', error);
     return NextResponse.json({ error: 'failed to create post' }, { status: 500 });
   }
 
-  await recordPublishTokenPost(publish_token, data.uid).catch(() => {});
-  await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
+  if (badgeUse) {
+    await recordBadgeLinkPost(badgeUse.useId, data.uid).catch(() => {});
+    // A badge link counts as redeemed only once its last post is used.
+    if (badgeUse.remaining < 1) await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
+  } else {
+    await recordPublishTokenPost(publish_token, data.uid).catch(() => {});
+    await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
+  }
   await incrementPublisherPosts(cleanEmail).catch((e) => console.error('[publisherStats]', e));
   if (promotionIntent) {
     const endsAt = new Date(Date.now() + promotionIntent.promo_days * 86400000).toISOString();

@@ -41,3 +41,46 @@ export async function recordPublishTokenPost(token, postUid) {
     .update({ post_uid: postUid })
     .eq('token_hash', tokenHash(token));
 }
+
+// ── Badge publish links (2026-09-29) ─────────────────────────────────────────
+// Silver, Bronze and Gold publishers receive a link that creates several posts
+// and has no time limit (see supabase/migrations/20260929000003). The functions
+// above still handle the normal one-post, 30-minute link unchanged.
+
+export function publishTokenHash(token) {
+  return tokenHash(token);
+}
+
+// Claims one post from a badge link. Returns { ok, useId, remaining } or
+// { ok: false, reason: 'inactive' | 'used_up' } or { error: true }.
+export async function claimBadgeLinkUse(token, limit) {
+  const { data, error } = await supabaseAdmin.rpc('claim_revlo_publish_link_use', {
+    p_token_hash: tokenHash(token),
+    p_limit: limit,
+  });
+  if (error) {
+    console.error('[publish-link:claim]', error.code || error.message);
+    return { error: true };
+  }
+  return { ok: data?.ok === true, useId: data?.use_id ?? null, remaining: data?.remaining ?? 0, reason: data?.reason ?? null };
+}
+
+export async function releaseBadgeLinkUse(useId) {
+  if (useId) await supabaseAdmin.from('revlo_publish_link_uses').delete().eq('id', useId);
+}
+
+export async function recordBadgeLinkPost(useId, postUid) {
+  if (useId) await supabaseAdmin.from('revlo_publish_link_uses').update({ post_uid: postUid }).eq('id', useId);
+}
+
+// Posts left on a badge link, or null when the link was replaced or revoked.
+export async function badgeLinkRemaining(token, limit) {
+  const hash = tokenHash(token);
+  const [{ data: link, error: linkError }, { count, error: countError }] = await Promise.all([
+    supabaseAdmin.from('revlo_magic_link_events').select('expires_at').eq('token_hash', hash).maybeSingle(),
+    supabaseAdmin.from('revlo_publish_link_uses').select('id', { count: 'exact', head: true }).eq('token_hash', hash),
+  ]);
+  if (linkError || countError) throw new Error('publish link check unavailable');
+  if (!link || new Date(link.expires_at) <= new Date()) return null;
+  return Math.max(0, limit - (count || 0));
+}

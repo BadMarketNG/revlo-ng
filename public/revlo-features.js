@@ -139,9 +139,15 @@
     const posts = Number(state.publisher.publishedPosts) || 0;
     const rank = { silver: 1, bronze: 2, gold: 3 }[state.publisher.trustBadge] || 0;
     const tiers = [
-      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: 'Video posts and 2-month posts' },
-      { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: 'A stronger trust mark on every post' },
-      { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: '3-month posts and the top trust mark' },
+      // ORIGINAL (commented out 2026-09-29):
+      // { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: 'Video posts and 2-month posts' },
+      // { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: 'A stronger trust mark on every post' },
+      // { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: '3-month posts and the top trust mark' },
+      // NOTE: each badge now also gives a multi-post publish link with no time limit
+      // (src/lib/revloFeatures.js PUBLISH_LINK_ALLOWANCE). Without a badge, a link is one post within 30 minutes.
+      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: 'Video posts, 2-month posts, and publish links for 50 posts with no time limit' },
+      { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: 'A stronger trust mark on every post, and publish links for 100 posts with no time limit' },
+      { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: '3-month posts, the top trust mark, and publish links for 200 posts with no time limit' },
     ].map((tier, index) => ({ ...tier, earned: rank >= index + 1 || posts >= tier.posts }));
     const current = [...tiers].reverse().find((tier) => tier.earned);
     const next = tiers.find((tier) => !tier.earned);
@@ -188,6 +194,7 @@
     <div class="rv-body">
       <ul class="rv-ladder">${tiers.map((tier) => `<li class="${tier.earned ? 'rv-earned' : 'rv-locked'}"><img src="/badges/${tier.key}.svg" alt=""><span><strong>${tier.name} · ${Number(tier.posts).toLocaleString('en-NG')} posts</strong><small>Unlocks: ${tier.unlocks}</small></span><span class="rv-status">${tier.earned ? '✓ Earned' : `${Math.max(0, tier.posts - posts).toLocaleString('en-NG')} to go`}</span></li>`).join('')}</ul>
       <p class="rv-note">Every post you publish through an emailed Revlo link counts towards your badges. Earned badges appear on your posts so people know you're an established publisher.</p>
+      <p class="rv-note">Publish links: without a badge, each emailed link publishes one post and expires after 30 minutes. With a badge, one link publishes 50 (Silver), 100 (Bronze) or 200 (Gold) posts and does not expire with time. Requesting a new link cancels the previous one.</p>
       <div class="revlo-premium"><div class="revlo-badge-line"><img src="/badges/premium-green.svg" alt="Premium Green"><strong>Premium Green · ${money(s.premium_price_kobo)} for ${s.premium_days} days</strong></div><p>A paid green badge on all your posts for ${s.premium_days} days.</p></div>
       <div class="revlo-promo"><strong>Promote this post</strong><p>Rotates at the top and throughout every category every 20 seconds.</p><select aria-label="Promotion duration"></select> <button type="button">Pay & promote</button></div>
     </div>`;
