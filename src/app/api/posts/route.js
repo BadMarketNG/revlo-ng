@@ -108,6 +108,12 @@ export async function POST(request) {
   }
   // Up to five gallery photos, each uploaded through /api/upload to Revlo's own storage.
   const storagePrefix = `${(process.env.SUPABASE_URL || '').replace(/\/$/, '')}/storage/v1/object/public/${process.env.STORAGE_BUCKET || 'media'}/`;
+  // Every post needs its own header image and icon, uploaded to Revlo storage
+  // (publishers without photos pick a free sample in the post form).
+  const fromStorage = (value) => typeof value === 'string' && value.startsWith(storagePrefix) && value.length <= 500;
+  if (!fromStorage(header_url) || !fromStorage(thumb_url) || header_url === thumb_url) {
+    return NextResponse.json({ error: 'Add a header image and an icon — upload your own or pick a free sample.' }, { status: 422 });
+  }
   if (gallery != null && (!Array.isArray(gallery) || gallery.length > 5
       || gallery.some((item) => typeof item !== 'string' || !item.startsWith(storagePrefix) || item.length > 500))) {
     return NextResponse.json({ error: 'Add up to 5 photos uploaded through Revlo.' }, { status: 400 });
