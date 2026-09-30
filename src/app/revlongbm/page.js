@@ -552,7 +552,7 @@ const BAND_STYLE = {
   low: { label: 'Low', color: '#15803d', bg: '#f0fdf4' },
   insufficient: { label: 'Too few followers', color: '#667085', bg: '#f2f4f7' },
 };
-const SIGNAL_LABELS = { D: 'Same device as poster', I: 'Same IP as poster', C: 'Followers share IPs/devices', B: 'Follows in bursts (10 min)', S: 'Followers do nothing else', V: 'Fast growth for account age', Q: 'Many followers per post', A: 'New account' };
+const SIGNAL_LABELS = { D: 'Same device as poster', I: 'Same IP as poster', C: 'Followers share IPs/devices', B: 'Follows in bursts (10 min)', S: 'Followers do nothing else', V: 'Fast growth for account age', Q: 'Many followers per post', A: 'New account', E: 'Follower emails bounce or complain', R: 'Followers shared with another poster (ring)' };
 
 function Collusion() {
   const [rows, setRows] = useState(null);
@@ -606,7 +606,7 @@ function Collusion() {
               <tbody>{rows.map((r) => (
                 <tr key={r.poster} style={{ borderTop: `1px solid ${BORDER}` }}>
                   <td style={{ padding: 8, fontWeight: 700 }}>{r.poster}</td>
-                  <td>{r.score ?? '—'} {badge(r.band)}</td>
+                  <td>{r.score ?? '—'} {badge(r.band)}{r.ringPartners?.length > 0 && <span title="Shares 5+ followers with another poster" style={{ marginLeft: 6, color: '#7c3aed', fontSize: 12, fontWeight: 800 }}>ring</span>}</td>
                   <td>{r.fabricatedFollowers}</td>
                   <td>{r.cautions.length ? r.cautions.map((c) => <div key={c.id} style={{ whiteSpace: 'nowrap' }}>{new Date(c.cautioned_at).toLocaleDateString('en-GB')} · {c.level}{c.cleared_at ? ' (cleared)' : ''}</div>) : '—'}</td>
                   <td>{r.followers}</td><td>{r.posts}</td><td>{r.accountAgeDays} days</td><td>{r.followSpanHours} h</td>
@@ -643,16 +643,21 @@ function Collusion() {
                 </div>))}
             </div>
 
+            {detail.ringPartners?.length > 0 && (<>
+              <h3 style={{ fontSize: 15, marginBottom: 6 }}>Possible follow ring</h3>
+              <p style={{ color: MUTED, fontSize: 13, marginTop: 0 }}>Other posters followed by 5 or more of the same followers. Large overlaps suggest traded or bought follows.</p>
+              <ul style={{ marginTop: 0, fontSize: 13 }}>{detail.ringPartners.map((r) => <li key={r.poster}><button style={{ background: 'none', border: 0, padding: 0, color: '#1d4ed8', cursor: 'pointer', fontWeight: 700 }} onClick={() => open(r.poster)}>{r.poster}</button> · {r.sharedFollowers} shared followers ({Math.round(r.share * 100)}% of this poster&apos;s)</li>)}</ul>
+            </>)}
             <h3 style={{ fontSize: 15, marginBottom: 6 }}>Followers by IP address</h3>
             {detail.ipGroups.map((group) => (
               <details key={group.ip} open={group.count > 1 || group.posterUsedIp} style={{ border: `1px solid ${group.posterUsedIp ? RED : BORDER}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{group.ip} · {group.count} {group.count === 1 ? 'follower' : 'followers'}{group.posterUsedIp && <span style={{ color: RED }}> · poster also used this IP</span>}</summary>
                 <table style={{ width: '100%', fontSize: 12, marginTop: 6, borderCollapse: 'collapse' }}>
-                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th><th>Judged fabricated</th></tr></thead>
+                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th><th>Other flags</th><th>Judged fabricated</th></tr></thead>
                   <tbody>{group.followers.map((f) => (
                     <tr key={f.email} style={{ borderTop: `1px solid ${BORDER}` }}>
                       <td style={{ padding: '4px 0' }}>{f.email}</td><td>{new Date(f.followedAt).toLocaleString('en-GB')}</td><td>{f.confirmIp || '—'}</td>
-                      <td style={{ color: f.deviceMatch ? RED : undefined }}>{f.deviceMatch ? 'Yes' : 'No'}</td><td>{f.singlePurpose ? 'Yes' : 'No'}</td><td style={{ color: detail.score >= 80 && f.suspect ? RED : undefined }}>{detail.score >= 80 && f.suspect ? 'Yes' : 'No'}</td>
+                      <td style={{ color: f.deviceMatch ? RED : undefined }}>{f.deviceMatch ? 'Yes' : 'No'}</td><td>{f.singlePurpose ? 'Yes' : 'No'}</td><td style={{ color: RED }}>{[f.aliasOfPoster && 'Poster’s own inbox', f.sharedInbox && 'Same inbox as another follower', f.emailFailed && 'Email bounced/complained'].filter(Boolean).join(' · ') || '—'}</td><td style={{ color: detail.score >= 80 && f.suspect ? RED : undefined }}>{detail.score >= 80 && f.suspect ? 'Yes' : 'No'}</td>
                     </tr>))}
                   </tbody>
                 </table>

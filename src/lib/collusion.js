@@ -3,6 +3,7 @@ import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
 import { publicOrigin } from '@/lib/publicOrigin';
+import { canonicalInbox } from '@/lib/emailIdentity';
 
 // Collusion report (2026-09-30): estimates whether a poster's followers were
 // fabricated, for example by the poster following themselves with extra email
@@ -18,21 +19,33 @@ import { publicOrigin } from '@/lib/publicOrigin';
 //   V  velocity          1 - e^(-(n / max(1, account age days)) / 3)
 //   Q  followers/post    1 - e^(-(n / max(1, posts)) / 5)
 //   A  account youth     e^(-account age days / 14)
+//   E  email failures    share of followers whose address hard-bounced or
+//                        marked Revlo email as spam (from Amazon SES)
+//   R  follow ring       largest share of P's followers who also follow one
+//                        other poster (counted when 5+ followers overlap)
 //
-//   z = -4 + 3.0D + 2.5I + 1.5C + 1.5B + 1.5S + 1.0V + 1.0Q + 0.5A
+// E weighs heavily because following needs a confirmation click: an address
+// that later bounces was a real inbox that has since been deleted.
+// Added 2026-09-30: an address that reaches the poster's own inbox
+// (john+1@, j.o.h.n@gmail) counts in D, and followers sharing one inbox count
+// in C, using canonicalInbox() from src/lib/emailIdentity.js.
+//
+//   z = -4 + 3.0D + 2.5I + 1.5C + 1.5B + 1.5S + 1.0V + 1.0Q + 0.5A + 2.5E + 2.0R
 //   score = 100 / (1 + e^-z)     >= 80 likely fabricated, 50-79 review, < 50 low
 //
 // A genuine poster typically scores under 10; one person following themselves
 // from their own device and network scores above 95.
 //
 // Caution (2026-09-30): a follower counts as fabricated when the poster scores
-// 80+ AND the follower followed from the poster's own device, or is
-// single-purpose and shares the poster's IP or another follower's IP/device.
+// 80+ AND the follower followed from the poster's own device or inbox, shares
+// an inbox with another follower, has an address that bounced or complained,
+// or is single-purpose and shares the poster's IP or another follower's IP/device.
 // Each time that count reaches another multiple of CAUTION_THRESHOLD (10, 20,
 // 30, ...) the poster is emailed a caution, and sees a warning when creating a
 // post until an administrator clears it. Every caution is kept as history.
 
-export const WEIGHTS = Object.freeze({ D: 3.0, I: 2.5, C: 1.5, B: 1.5, S: 1.5, V: 1.0, Q: 1.0, A: 0.5 });
+export const WEIGHTS = Object.freeze({ D: 3.0, I: 2.5, C: 1.5, B: 1.5, S: 1.5, V: 1.0, Q: 1.0, A: 0.5, E: 2.5, R: 2.0 });
+const RING_MIN_OVERLAP = 5;
 export const BIAS = -4;
 export const MIN_FOLLOWERS = 3;
 export const CAUTION_THRESHOLD = 10;
@@ -64,7 +77,8 @@ async function loadData() {
     supabaseAdmin.from('revlo_activity_signals').select('kind,actor_email,subject_email,ip,device_id,created_at').limit(100000),
   ]);
   for (const result of [follows, posts, signals]) if (result.error) throw new Error('Collusion data is unavailable.');
-  return { follows: follows.data || [], posts: posts.data || [], signals: signals.data || [] };
+  const events = await supabaseAdmin.from('revlo_email_events').select('email,event_type').limit(100000);
+  return { follows: follows.data || [], posts: posts.data || [], signals: signals.data || [], events: events.data || [] };
 }
 
 // Only the rows one poster's score depends on: their follows, their followers'
@@ -75,17 +89,19 @@ async function loadPosterData(poster) {
   const people = [poster, ...new Set((own.data || []).map((row) => lower(row.follower_email)))];
   const chunks = [];
   for (let i = 0; i < people.length; i += 200) chunks.push(people.slice(i, i + 200));
-  const data = { follows: [], posts: [], signals: [] };
+  const data = { follows: [], posts: [], signals: [], events: [] };
   for (const chunk of chunks) {
-    const [follows, posts, signals] = await Promise.all([
+    const [follows, posts, signals, events] = await Promise.all([
       supabaseAdmin.from('follows').select('poster_email,follower_email,created_at').in('follower_email', chunk).limit(20000),
       supabaseAdmin.from('posts').select('poster_email,created_at,source_ip').in('poster_email', chunk).limit(20000),
       supabaseAdmin.from('revlo_activity_signals').select('kind,actor_email,subject_email,ip,device_id,created_at').in('actor_email', chunk).limit(50000),
+      supabaseAdmin.from('revlo_email_events').select('email,event_type').in('email', chunk).limit(20000),
     ]);
     for (const result of [follows, posts, signals]) if (result.error) throw new Error('Collusion data is unavailable.');
     data.follows.push(...(follows.data || []));
     data.posts.push(...(posts.data || []));
     data.signals.push(...(signals.data || []));
+    data.events.push(...(events.data || []));
   }
   return data;
 }
@@ -110,8 +126,12 @@ function analyse(poster, data, index) {
     const devices = new Set(own.map((s) => s.device_id).filter(Boolean));
     const followsCount = (index.followsByFollower.get(email) || []).length;
     const postsCount = (index.postsByPoster.get(email) || []).length;
+    const inbox = canonicalInbox(email);
     return {
       email,
+      inbox,
+      aliasOfPoster: inbox === canonicalInbox(poster),
+      emailFailed: (index.eventsByEmail.get(email) || []).length > 0,
       followedAt: row.created_at,
       requestIp: request?.ip ? String(request.ip) : null,
       confirmIp: confirm?.ip ? String(confirm.ip) : null,
@@ -128,25 +148,44 @@ function analyse(poster, data, index) {
   const tally = (key) => followers.reduce((map, f) => (f[key] ? map.set(f[key], (map.get(f[key]) || 0) + 1) : map), new Map());
   const ipCounts = tally('primaryIp');
   const deviceCounts = tally('primaryDevice');
+  const inboxCounts = tally('inbox');
   for (const f of followers) {
-    f.sharesWithFollowers = (ipCounts.get(f.primaryIp) || 0) > 1 || (deviceCounts.get(f.primaryDevice) || 0) > 1;
-    f.suspect = f.deviceMatch || (f.singlePurpose && (f.ipMatch || f.sharesWithFollowers));
+    f.sharedInbox = (inboxCounts.get(f.inbox) || 0) > 1;
+    f.sharesWithFollowers = (ipCounts.get(f.primaryIp) || 0) > 1 || (deviceCounts.get(f.primaryDevice) || 0) > 1 || f.sharedInbox;
+    f.suspect = f.deviceMatch || f.aliasOfPoster || f.sharedInbox || f.emailFailed
+      || (f.singlePurpose && (f.ipMatch || f.sharesWithFollowers));
   }
+
+  // Follow rings: other posters followed by many of the same followers.
+  const overlap = new Map();
+  for (const f of followers) {
+    for (const row of index.followsByFollower.get(f.email) || []) {
+      const other = lower(row.poster_email);
+      if (other !== poster) overlap.set(other, (overlap.get(other) || 0) + 1);
+    }
+  }
+  const ringPartners = [...overlap.entries()]
+    .filter(([, shared]) => shared >= RING_MIN_OVERLAP)
+    .map(([other, shared]) => ({ poster: other, sharedFollowers: shared, share: n ? round(shared / n) : 0 }))
+    .sort((a, b) => b.sharedFollowers - a.sharedFollowers)
+    .slice(0, 10);
 
   const times = followRows.map((r) => Date.parse(r.created_at)).filter(Number.isFinite).sort((a, b) => a - b);
   const burstCount = times.filter((t, i) => (i > 0 && t - times[i - 1] <= BURST_MS) || (i < times.length - 1 && times[i + 1] - t <= BURST_MS)).length;
   const gaps = times.slice(1).map((t, i) => t - times[i]).sort((a, b) => a - b);
 
   const s = n > 0 ? {
-    D: followers.filter((f) => f.deviceMatch).length / n,
+    D: followers.filter((f) => f.deviceMatch || f.aliasOfPoster).length / n,
     I: followers.filter((f) => f.ipMatch).length / n,
-    C: Math.max(concentration(followers.map((f) => f.primaryIp), n), concentration(followers.map((f) => f.primaryDevice), n)),
+    C: Math.max(concentration(followers.map((f) => f.primaryIp), n), concentration(followers.map((f) => f.primaryDevice), n), concentration(followers.map((f) => f.inbox), n)),
     B: burstCount / n,
     S: followers.filter((f) => f.singlePurpose).length / n,
     V: 1 - Math.exp(-(n / Math.max(1, ageDays)) / 3),
     Q: 1 - Math.exp(-(n / Math.max(1, postCount)) / 5),
     A: Math.exp(-ageDays / 14),
-  } : { D: 0, I: 0, C: 0, B: 0, S: 0, V: 0, Q: 0, A: 0 };
+    E: followers.filter((f) => f.emailFailed).length / n,
+    R: ringPartners.length ? Math.min(1, ringPartners[0].sharedFollowers / n) : 0,
+  } : { D: 0, I: 0, C: 0, B: 0, S: 0, V: 0, Q: 0, A: 0, E: 0, R: 0 };
   const z = BIAS + Object.entries(WEIGHTS).reduce((total, [key, weight]) => total + weight * s[key], 0);
   const score = n >= MIN_FOLLOWERS ? 100 / (1 + Math.exp(-z)) : null;
 
@@ -164,6 +203,7 @@ function analyse(poster, data, index) {
     score: score === null ? null : round(score, 1),
     band: score === null ? 'insufficient' : bandFor(score),
     fabricatedFollowers: score !== null && score >= 80 ? followers.filter((f) => f.suspect).length : 0,
+    ringPartners,
     followerDetails: followers,
   };
 }
@@ -180,6 +220,7 @@ function buildIndex(data) {
     followsByFollower: group(data.follows, 'follower_email'),
     postsByPoster: group(data.posts, 'poster_email'),
     signalsByActor: group(data.signals, 'actor_email'),
+    eventsByEmail: group(data.events || [], 'email'),
   };
 }
 
@@ -306,7 +347,7 @@ export async function removeAllFollows(posterEmail) {
 // Most suspicious first: same device as the poster, then same IP, then shared
 // with other followers, then single-purpose, then the most recent follow.
 function suspicionRank(f) {
-  return (f.deviceMatch ? 8 : 0) + (f.ipMatch ? 4 : 0) + (f.sharesWithFollowers ? 2 : 0) + (f.singlePurpose ? 1 : 0);
+  return ((f.deviceMatch || f.aliasOfPoster) ? 8 : 0) + (f.ipMatch ? 4 : 0) + (f.sharesWithFollowers ? 2 : 0) + (f.singlePurpose || f.emailFailed ? 1 : 0);
 }
 
 export function followersToRemove(followers, percent) {

@@ -26,16 +26,16 @@ export async function GET(request) {
       if (!isEmail(poster)) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
       const detail = await collusionDetail(poster);
       if (csv) {
-        const rows = [['ip_group', 'follower_email', 'followed_at', 'request_ip', 'confirm_ip', 'same_device_as_poster', 'same_ip_as_poster', 'single_purpose', 'shares_with_other_followers', 'judged_fabricated', 'follows_count', 'posts_count']];
-        for (const group of detail.ipGroups) for (const f of group.followers) rows.push([group.ip, f.email, f.followedAt, f.requestIp, f.confirmIp, f.deviceMatch, f.ipMatch, f.singlePurpose, f.sharesWithFollowers, detail.score >= 80 && f.suspect, f.followsCount, f.postsCount]);
+        const rows = [['ip_group', 'follower_email', 'followed_at', 'request_ip', 'confirm_ip', 'same_device_as_poster', 'same_ip_as_poster', 'single_purpose', 'shares_with_other_followers', 'poster_own_inbox', 'shared_inbox', 'email_failed', 'judged_fabricated', 'follows_count', 'posts_count']];
+        for (const group of detail.ipGroups) for (const f of group.followers) rows.push([group.ip, f.email, f.followedAt, f.requestIp, f.confirmIp, f.deviceMatch, f.ipMatch, f.singlePurpose, f.sharesWithFollowers, f.aliasOfPoster, f.sharedInbox, f.emailFailed, detail.score >= 80 && f.suspect, f.followsCount, f.postsCount]);
         return csvResponse(toCsv(rows), `revlo-collusion-${detail.poster}-${stamp}.csv`);
       }
       return NextResponse.json({ detail, weights: WEIGHTS, bias: BIAS });
     }
     const report = await collusionReport();
     if (csv) {
-      const rows = [['poster_email', 'score', 'band', 'fabricated_followers', 'cautions_sent', 'caution_dates', 'warning_active', 'followers', 'posts', 'account_age_days', 'follow_span_hours', 'median_gap_minutes', 'D_device', 'I_ip', 'C_concentration', 'B_burst', 'S_single_purpose', 'V_velocity', 'Q_followers_per_post', 'A_youth']];
-      for (const r of report) rows.push([r.poster, r.score, r.band, r.fabricatedFollowers, r.cautions.length, r.cautions.map((c) => `${c.cautioned_at.slice(0, 10)} (${c.level})`).join('; '), r.cautionActive, r.followers, r.posts, r.accountAgeDays, r.followSpanHours, r.medianGapMinutes, r.signals.D, r.signals.I, r.signals.C, r.signals.B, r.signals.S, r.signals.V, r.signals.Q, r.signals.A]);
+      const rows = [['poster_email', 'score', 'band', 'fabricated_followers', 'cautions_sent', 'caution_dates', 'warning_active', 'followers', 'posts', 'account_age_days', 'follow_span_hours', 'median_gap_minutes', 'D_device', 'I_ip', 'C_concentration', 'B_burst', 'S_single_purpose', 'V_velocity', 'Q_followers_per_post', 'A_youth', 'E_email_failures', 'R_follow_ring']];
+      for (const r of report) rows.push([r.poster, r.score, r.band, r.fabricatedFollowers, r.cautions.length, r.cautions.map((c) => `${c.cautioned_at.slice(0, 10)} (${c.level})`).join('; '), r.cautionActive, r.followers, r.posts, r.accountAgeDays, r.followSpanHours, r.medianGapMinutes, r.signals.D, r.signals.I, r.signals.C, r.signals.B, r.signals.S, r.signals.V, r.signals.Q, r.signals.A, r.signals.E, r.signals.R]);
       return csvResponse(toCsv(rows), `revlo-collusion-report-${stamp}.csv`);
     }
     return NextResponse.json({ report, weights: WEIGHTS, bias: BIAS });

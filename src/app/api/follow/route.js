@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { attachDeviceCookie, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { checkPosterForCaution } from '@/lib/collusion';
+import { canonicalInbox, sameInbox } from '@/lib/emailIdentity';
 import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
@@ -53,8 +54,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'following disabled for this poster' }, { status: 403 });
   }
 
-  if (follower === post.poster_email) {
+  // ORIGINAL (commented out 2026-09-30): only the exact same address was refused.
+  // if (follower === post.poster_email) {
+  //   return NextResponse.json({ error: 'cannot follow yourself' }, { status: 400 });
+  // }
+  // NOTE: an address that reaches the poster's inbox (john+1@, j.o.h.n@gmail) is the poster too,
+  // and one inbox may follow a poster only once, whatever spelling it uses.
+  if (sameInbox(follower, post.poster_email)) {
     return NextResponse.json({ error: 'cannot follow yourself' }, { status: 400 });
+  }
+  if (await inboxAlreadyFollows(post.poster_email, follower)) {
+    return NextResponse.json({ error: 'This inbox already follows this poster under another address.' }, { status: 409 });
   }
 
   const { count } = await supabaseAdmin
@@ -97,7 +107,8 @@ export async function GET(request) {
     .select('uid,poster_email,followable,expires_at')
     .eq('uid', pending.post_uid)
     .maybeSingle();
-  if (!post || !post.followable || new Date(post.expires_at) < new Date() || post.poster_email === pending.email) {
+  if (!post || !post.followable || new Date(post.expires_at) < new Date() || sameInbox(post.poster_email, pending.email)
+    || await inboxAlreadyFollows(post.poster_email, pending.email)) {
     return htmlResponse('This follow request is no longer available.', 410);
   }
   if (await findActiveBlock({ email: pending.email })) {
@@ -121,6 +132,13 @@ export async function GET(request) {
   // NOTE (2026-09-30): caution the poster automatically at 10 fabricated followers.
   await checkPosterForCaution(post.poster_email);
   return attachDeviceCookie(htmlResponse('Your follow request is confirmed.', 200), deviceId);
+}
+
+// True when another spelling of this follower's inbox already follows the poster.
+async function inboxAlreadyFollows(posterEmail, followerEmail) {
+  const inbox = canonicalInbox(followerEmail);
+  const { data } = await supabaseAdmin.from('follows').select('follower_email').eq('poster_email', posterEmail).limit(10000);
+  return (data || []).some((row) => row.follower_email !== followerEmail && canonicalInbox(row.follower_email) === inbox);
 }
 
 function htmlResponse(message, status) {
