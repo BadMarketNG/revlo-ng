@@ -25,13 +25,16 @@
     .rv-reason-field textarea{width:100%;box-sizing:border-box;min-height:74px;resize:vertical;border:1.5px solid #cfd8cc;border-radius:14px;padding:12px 14px;font:15px/1.45 system-ui;background:#fff;color:#1a1a1a}
     .rv-reason-field textarea:focus{outline:none;border-color:#2e7d32;box-shadow:0 0 0 3px rgba(46,125,50,.14)}
     .rv-reason-field .rv-count{text-align:right;font:11.5px system-ui;color:#8a948b;margin-top:3px}
-    .rv-why{margin:4px 0 12px;padding:12px 14px;border-radius:14px;background:#f3f8f1;border:1px solid #dde9da;font:14px/1.5 system-ui;color:#2b332c}
-    .rv-why-head{display:flex;align-items:center;gap:8px;font:800 12.5px/1 system-ui;letter-spacing:.02em;color:#2e5e32;text-transform:uppercase;margin-bottom:8px}
-    .rv-why-head span{background:#2e7d32;color:#fff;border-radius:999px;padding:3px 8px;font-size:11.5px;letter-spacing:0}
-    .rv-why-item{margin:0;padding:7px 0 7px 12px;border-left:3px solid #9fcca1}
-    .rv-why-item + .rv-why-item{margin-top:6px}
-    .rv-why-item small{display:block;color:#7b867c;font-size:11.5px;margin-top:2px}
-    .rv-why-more{margin-top:8px;border:0;background:none;color:#1b5e20;font:700 13px system-ui;cursor:pointer;padding:4px 0}
+    .rv-why{margin:0 0 10px;font:13.5px/1.45 system-ui;color:#2b332c;min-width:0}
+    .rv-why-head{display:flex;align-items:baseline;gap:6px;font:700 12.5px/1.4 system-ui;color:#2e5e32}
+    .rv-why-head .rv-why-more{margin-left:auto}
+    .rv-why-head span{color:#6b756c;font-weight:600}
+    .rv-why-line{display:flex;align-items:baseline;gap:8px;min-width:0}
+    .rv-why-line q{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic;color:#3b443c}
+    .rv-why-more{flex:none;border:0;background:none;color:#1b5e20;font:700 12.5px system-ui;cursor:pointer;padding:0;white-space:nowrap}
+    .rv-why-list{margin:4px 0 0;padding:0;list-style:none}
+    .rv-why-list li{padding:4px 0 4px 10px;border-left:2px solid #9fcca1;margin-top:4px;font-style:italic;color:#3b443c}
+    .rv-why-list small{display:block;font-style:normal;color:#7b867c;font-size:11px}
     .rv-alias{color:#1b5e20;font-weight:800;margin-right:5px}
     .rv-alias-field{margin:6px 0 12px}
     .rv-alias-field label{display:block;font:700 13px system-ui;color:#1f3b24;margin-bottom:5px}
@@ -129,6 +132,8 @@
       [...div.children].some((child) => /Auto-deletes when time runs out|Expiring soon/.test(child.textContent || '')));
   }
 
+  // Two lines when closed: "Why people follow (4)", then the newest note cut
+  // to one line with "Show more" beside it. Opening shows every note in full.
   function renderReasons(card, uid) {
     const data = reasons.get(uid);
     if (!data || !data.count || card.querySelector('.rv-why')) return;
@@ -138,38 +143,41 @@
     box.className = 'rv-why';
     const head = document.createElement('div');
     head.className = 'rv-why-head';
-    head.innerHTML = 'Why people follow <span></span>';
-    head.querySelector('span').textContent = data.count;
-    box.appendChild(head);
-    const item = (reason) => {
-      const p = document.createElement('p');
-      p.className = 'rv-why-item';
-      p.textContent = `“${reason.text}”`;
+    head.append('Why people follow ');
+    const count = document.createElement('span');
+    count.textContent = `(${data.count})`;
+    head.appendChild(count);
+    const line = document.createElement('div');
+    line.className = 'rv-why-line';
+    const first = document.createElement('q');
+    first.textContent = data.reasons[0].text;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rv-why-more';
+    button.textContent = 'Show more ▾';
+    button.setAttribute('aria-expanded', 'false');
+    line.append(first, button);
+    const list = document.createElement('ul');
+    list.className = 'rv-why-list';
+    list.hidden = true;
+    for (const reason of data.reasons) {
+      const li = document.createElement('li');
+      li.textContent = `“${reason.text}”`;
       const when = document.createElement('small');
       when.textContent = `A follower · ${ago(reason.at)}`;
-      p.appendChild(when);
-      return p;
-    };
-    box.appendChild(item(data.reasons[0]));
-    const rest = data.reasons.slice(1);
-    if (rest.length) {
-      const more = document.createElement('div');
-      more.hidden = true;
-      rest.forEach((reason) => more.appendChild(item(reason)));
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'rv-why-more';
-      const closed = `Show ${rest.length} more ${rest.length === 1 ? 'reason' : 'reasons'} ▾`;
-      button.textContent = closed;
-      button.setAttribute('aria-expanded', 'false');
-      button.addEventListener('click', (event) => {
-        event.stopPropagation();
-        more.hidden = !more.hidden;
-        button.textContent = more.hidden ? closed : 'Show less ▴';
-        button.setAttribute('aria-expanded', String(!more.hidden));
-      });
-      box.append(more, button);
+      li.appendChild(when);
+      list.appendChild(li);
     }
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const open = list.hidden;
+      list.hidden = !open;
+      first.hidden = open;
+      button.textContent = open ? 'Show less ▴' : 'Show more ▾';
+      button.setAttribute('aria-expanded', String(open));
+      if (open) head.appendChild(button); else line.appendChild(button);
+    });
+    box.append(head, line, list);
     footer.parentElement.insertBefore(box, footer);
   }
 
