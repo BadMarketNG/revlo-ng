@@ -98,7 +98,7 @@ const SECTIONS = [
     [
       'When you follow a publisher you can say why in a short note of up to 200 characters. Notes are shown publicly under that publisher\'s posts, without your email address.',
       'Notes must be your own honest experience. No links, email addresses, phone numbers, insults or promotions. Revlo may hide any note, and notes from fake follows are removed with them.',
-      'Publishers can choose an alias of 2 to 24 characters, shown before the city on their posts. Each alias belongs to one publisher and stays until they change or clear it on a later post.',
+      'Publishers can choose an alias of 2 to 24 characters, shown before the city on their posts. Each alias belongs to one publisher and stays until they change or clear it on a later post. An alias becomes available to others if its owner has not published for 6 months, or has been removed from Revlo.',
       'An alias must not pretend to be Revlo, a public body, a brand or another person, and must not contain contact details. Revlo may remove any alias that breaks these rules.',
     ]],
   ['Stay safe when you deal with people',

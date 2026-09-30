@@ -244,7 +244,7 @@
     box.className = 'rv-alias-field';
     box.innerHTML = `<label for="rv-alias">Your alias <span style="font-weight:500;color:#7b867c">(optional)</span></label>
       <input id="rv-alias" maxlength="${ALIAS_MAX}" autocomplete="nickname" placeholder="e.g. Billy">
-      <div class="rv-hint">Shown before your city, like “Billy Lagos, Nigeria”. It stays on all your posts until you change or clear it here. Each alias belongs to one publisher.</div>`;
+      <div class="rv-hint">Shown before your city, like “Billy Lagos, Nigeria”. It stays on all your posts until you change or clear it here. Each alias belongs to one publisher, and is freed for others after 6 months without a post.</div>`;
     const input = box.querySelector('input');
     const hint = box.querySelector('.rv-hint');
     const defaultHint = hint.textContent;

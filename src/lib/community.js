@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { normaliseEmail } from '@/lib/revloBlocklist';
+import { findActiveBlock, normaliseEmail } from '@/lib/revloBlocklist';
 
 // Follow reasons and poster aliases (2026-09-30).
 
@@ -54,10 +54,35 @@ export function cleanAlias(input) {
   return { value };
 }
 
-export async function aliasTakenByOther(alias, email) {
+// An alias is released for reuse when its owner has not published for
+// ALIAS_IDLE_DAYS, or their email has been blocked (removed) by Revlo.
+export const ALIAS_IDLE_DAYS = 183;
+
+async function aliasOwner(alias) {
   const { data } = await supabaseAdmin.from('revlo_publisher_stats').select('email').ilike('alias', alias.replace(/[\\%_]/g, (c) => `\\${c}`)).limit(1);
-  const owner = data?.[0]?.email;
-  return Boolean(owner) && normaliseEmail(owner) !== normaliseEmail(email);
+  return data?.[0]?.email ? normaliseEmail(data[0].email) : null;
+}
+
+async function ownerHasLapsed(owner) {
+  if (await findActiveBlock({ email: owner })) return true;
+  const { data } = await supabaseAdmin.from('posts').select('created_at').eq('poster_email', owner).order('created_at', { ascending: false }).limit(1);
+  const last = data?.[0]?.created_at ? Date.parse(data[0].created_at) : 0;
+  return !last || Date.now() - last > ALIAS_IDLE_DAYS * 86400000;
+}
+
+export async function aliasTakenByOther(alias, email) {
+  const owner = await aliasOwner(alias);
+  if (!owner || owner === normaliseEmail(email)) return false;
+  return !await ownerHasLapsed(owner);
+}
+
+// Frees a lapsed owner's alias so another publisher can take it.
+export async function releaseLapsedAlias(alias, email) {
+  const owner = await aliasOwner(alias);
+  if (!owner || owner === normaliseEmail(email) || !await ownerHasLapsed(owner)) return;
+  await supabaseAdmin.from('revlo_publisher_stats').update({ alias: null, updated_at: new Date().toISOString() }).eq('email', owner);
+  await supabaseAdmin.from('posts').update({ poster_alias: null }).eq('poster_email', owner);
+  await supabaseAdmin.from('admin_log').insert({ action: 'alias_released', target_uid: `publisher:${owner}`, detail: { alias, reason: 'inactive 6 months or blocked', taken_by: normaliseEmail(email) } });
 }
 
 export async function currentAlias(email) {
@@ -68,6 +93,7 @@ export async function currentAlias(email) {
 // Saves the alias and copies it onto all the publisher's live posts.
 export async function saveAlias(email, alias) {
   const cleanEmail = normaliseEmail(email);
+  if (alias) await releaseLapsedAlias(alias, cleanEmail);
   const { error } = await supabaseAdmin.from('revlo_publisher_stats')
     .upsert({ email: cleanEmail, alias, updated_at: new Date().toISOString() }, { onConflict: 'email' });
   if (error) return { error: error.code === '23505' ? 'taken' : 'failed' };
