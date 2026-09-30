@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 
 const GREEN = '#16803d';
@@ -107,7 +107,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -136,6 +136,7 @@ export default function AdminPage() {
       {tab === 'features' && <Features />}
       {tab === 'users' && <UsersAndEmail />}
       {tab === 'collusion' && <Collusion />}
+      {tab === 'marketing' && <Marketing />}
       {tab === 'categories' && <Categories />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
@@ -692,6 +693,200 @@ function Collusion() {
     </div>
   );
 }
+
+// NOTE (2026-09-30): email marketing. Admins write a campaign as plain text or
+// HTML (scripts are removed: email apps never run them), add images, preview it
+// in the "News & offers" template, send a test, then send to an audience.
+const EMPTY_CAMPAIGN = { id: null, subject: '', preheader: '', mode: 'text', body: '', audience: 'everyone' };
+const CAMPAIGN_STATUS = { draft: ['Draft', '#475467'], sending: ['Sending', '#b45309'], sent: ['Sent', '#15803d'], cancelled: ['Cancelled', '#b91c1c'] };
+
+function Marketing() {
+  const [data, setData] = useState(null);
+  const [draft, setDraft] = useState(EMPTY_CAMPAIGN);
+  const [preview, setPreview] = useState({ html: '', removed: [] });
+  const [testTo, setTestTo] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const bodyRef = useRef(null);
+  const fileRef = useRef(null);
+
+  const load = useCallback(() => {
+    fetch('/api/admin/marketing', { cache: 'no-store' }).then((r) => r.json()).then(setData).catch(() => setMessage('Could not load campaigns.'));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const post = async (payload) => {
+    const res = await fetch('/api/admin/marketing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Something went wrong.');
+    return body;
+  };
+
+  // Live preview, shortly after typing stops.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      post({ action: 'preview', ...draft }).then(setPreview).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [draft]);
+
+  const set = (key) => (e) => setDraft((d) => ({ ...d, [key]: e.target.value }));
+  const editable = !draft.id || (data?.campaigns || []).find((c) => c.id === draft.id)?.status === 'draft';
+
+  const save = async () => {
+    setBusy(true); setMessage('');
+    try {
+      const { campaign } = await post({ action: 'save', ...draft });
+      setDraft({ id: campaign.id, subject: campaign.subject, preheader: campaign.preheader || '', mode: campaign.mode, body: campaign.body, audience: campaign.audience });
+      setMessage('Draft saved.'); load();
+      return campaign;
+    } catch (error) { setMessage(error.message); return null; } finally { setBusy(false); }
+  };
+
+  const insertAtCursor = (text) => {
+    const el = bodyRef.current;
+    setDraft((d) => {
+      const at = el ? el.selectionStart : d.body.length;
+      return { ...d, body: `${d.body.slice(0, at)}${text}${d.body.slice(at)}` };
+    });
+  };
+
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true); setMessage('');
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/admin/marketing/image', { method: 'POST', body: form });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setMessage(body.error || 'Upload failed.'); return; }
+    insertAtCursor(draft.mode === 'html'
+      ? `\n<img src="${body.url}" alt="" style="display:block;width:100%;max-width:520px;height:auto;border-radius:10px;">\n`
+      : `\n\n${body.url}\n\n`);
+    setMessage('Image added where your cursor was.');
+  };
+
+  const test = async () => {
+    const campaign = await save();
+    if (!campaign) return;
+    setBusy(true);
+    try { await post({ action: 'test', id: campaign.id, to: testTo }); setMessage(`Test sent to ${testTo}.`); }
+    catch (error) { setMessage(error.message); } finally { setBusy(false); }
+  };
+
+  const runBatches = async (id) => {
+    for (;;) {
+      const { done, campaign } = await post({ action: 'batch', id });
+      setProgress(campaign);
+      if (done) break;
+    }
+  };
+
+  const send = async () => {
+    const campaign = await save();
+    if (!campaign) return;
+    const count = data?.counts?.[campaign.audience];
+    if (!window.confirm(`Send "${campaign.subject}" to ${count ?? 'every'} ${AUDIENCE_LABEL[campaign.audience]}? This cannot be undone.`)) return;
+    setBusy(true); setMessage('');
+    try {
+      const { total } = await post({ action: 'start', id: campaign.id });
+      setMessage(`Sending to ${total} people. Keep this page open until it finishes.`);
+      await runBatches(campaign.id);
+      setMessage('Campaign sent.');
+    } catch (error) { setMessage(error.message); } finally { setBusy(false); load(); }
+  };
+
+  const resume = async (id) => {
+    setBusy(true); setMessage('Resuming…');
+    try { await runBatches(id); setMessage('Campaign sent.'); } catch (error) { setMessage(error.message); } finally { setBusy(false); load(); }
+  };
+
+  const cancel = async (id) => {
+    if (!window.confirm('Stop this campaign? Emails already sent cannot be recalled.')) return;
+    try { await post({ action: 'cancel', id }); setMessage('Campaign cancelled.'); load(); } catch (error) { setMessage(error.message); }
+  };
+
+  const input = { width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: `1px solid ${BORDER}`, borderRadius: 8, font: 'inherit' };
+
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      <section style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>{draft.id ? 'Edit campaign' : 'New campaign'}</h2>
+          {draft.id && <button style={miniBtn('#475467')} onClick={() => { setDraft(EMPTY_CAMPAIGN); setMessage(''); }}>Start a new one</button>}
+        </div>
+        <p style={{ color: MUTED }}>Sent with Revlo&apos;s gold-and-green &quot;News &amp; offers&quot; template, with an unsubscribe link in every email. People who unsubscribed, bounced, marked Revlo as spam or are blocked are left out automatically. Scripts, forms and click handlers are removed from HTML: email apps never run JavaScript.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+            <label style={{ fontWeight: 700, fontSize: 13 }}>Subject<input style={input} maxLength={150} value={draft.subject} onChange={set('subject')} disabled={!editable} /></label>
+            <label style={{ fontWeight: 700, fontSize: 13 }}>Preview line <span style={{ fontWeight: 400, color: MUTED }}>(shown next to the subject in inboxes)</span><input style={input} maxLength={200} value={draft.preheader} onChange={set('preheader')} disabled={!editable} /></label>
+            <label style={{ fontWeight: 700, fontSize: 13 }}>Send to
+              <select style={input} value={draft.audience} onChange={set('audience')} disabled={!editable}>
+                {Object.entries(data?.audiences || {}).map(([key, label]) => <option key={key} value={key}>{label}{data?.counts?.[key] != null ? ` · ${data.counts[key]} people` : ''}</option>)}
+              </select>
+            </label>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {[['text', 'Plain text'], ['html', 'HTML']].map(([key, label]) => (
+                <button key={key} disabled={!editable} onClick={() => setDraft((d) => ({ ...d, mode: key }))} style={{ ...miniBtn(draft.mode === key ? GREEN : '#98a2b3') }}>{label}</button>
+              ))}
+              <button style={miniBtn('#1d4ed8')} disabled={busy || !editable} onClick={() => fileRef.current?.click()}>Add image</button>
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }} />
+            </div>
+            <textarea ref={bodyRef} value={draft.body} onChange={set('body')} disabled={!editable} rows={16}
+              placeholder={draft.mode === 'html' ? '<p>Hello from Revlo!</p>\n<p><a href="https://revlo.ng/app.html">See what is new</a></p>' : 'Write your message. Leave a blank line between paragraphs.\n\nLinks become clickable, and images you add appear where you put them.'}
+              style={{ ...input, fontFamily: draft.mode === 'html' ? 'ui-monospace, Menlo, monospace' : 'inherit', fontSize: 14, resize: 'vertical' }} />
+            {preview.removed?.length > 0 && <p style={{ color: '#b45309', fontSize: 13, margin: 0 }}>Removed before sending: {preview.removed.join(', ')}.</p>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button style={miniBtn('#475467')} disabled={busy || !editable} onClick={save}>Save draft</button>
+              <input style={{ ...input, width: 220 }} placeholder="Send a test to…" value={testTo} onChange={(e) => setTestTo(e.target.value)} />
+              <button style={miniBtn('#1d4ed8')} disabled={busy || !testTo} onClick={test}>Send test</button>
+              <button style={miniBtn(RED)} disabled={busy || !editable} onClick={send}>Send campaign</button>
+            </div>
+            {progress && progress.status === 'sending' && (
+              <div>
+                <div style={{ height: 8, background: '#eef2f6', borderRadius: 8 }}><div style={{ width: `${progress.total ? Math.round(((progress.sent + progress.failed + progress.skipped) / progress.total) * 100) : 0}%`, height: '100%', background: GREEN, borderRadius: 8 }} /></div>
+                <p style={{ fontSize: 13, color: MUTED }}>{progress.sent} sent · {progress.failed} failed · {progress.skipped} skipped of {progress.total}</p>
+              </div>
+            )}
+            {message && <p style={{ margin: 0 }}>{message}</p>}
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Preview</div>
+            <iframe title="Email preview" sandbox="" srcDoc={preview.html} style={{ width: '100%', height: 640, border: `1px solid ${BORDER}`, borderRadius: 10, background: '#fff' }} />
+          </div>
+        </div>
+      </section>
+
+      <section style={cardStyle}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Campaigns</h2>
+        {!data ? <p style={{ color: MUTED }}>Loading…</p> : data.campaigns.length === 0 ? <p style={{ color: MUTED }}>No campaigns yet.</p> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr style={{ textAlign: 'left', color: MUTED }}><th style={{ padding: 8 }}>Subject</th><th>Audience</th><th>Status</th><th>Sent</th><th>Failed</th><th>Skipped</th><th>Date</th><th></th></tr></thead>
+            <tbody>{data.campaigns.map((c) => {
+              const [label, color] = CAMPAIGN_STATUS[c.status] || [c.status, MUTED];
+              return (
+                <tr key={c.id} style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <td style={{ padding: 8, fontWeight: 700 }}>{c.subject}</td>
+                  <td>{c.audience}</td>
+                  <td style={{ color, fontWeight: 800 }}>{label}</td>
+                  <td>{c.sent}{c.total ? ` / ${c.total}` : ''}</td><td>{c.failed}</td><td>{c.skipped}</td>
+                  <td>{new Date(c.finished_at || c.started_at || c.created_at).toLocaleString('en-GB')}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button style={miniBtn('#1f2937')} onClick={() => { setDraft({ id: c.id, subject: c.subject, preheader: c.preheader || '', mode: c.mode, body: c.body, audience: c.audience }); setMessage(c.status === 'draft' ? '' : 'Sent campaigns are read-only. Start a new one to reuse the content.'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Open</button>
+                    {c.status === 'sending' && <> <button style={miniBtn(GREEN)} disabled={busy} onClick={() => resume(c.id)}>Resume</button></>}
+                    {(c.status === 'draft' || c.status === 'sending') && <> <button style={miniBtn(RED)} disabled={busy} onClick={() => cancel(c.id)}>Cancel</button></>}
+                  </td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
+const AUDIENCE_LABEL = { publishers: 'publishers', followers: 'followers', everyone: 'publishers and followers' };
 
 function Features() {
   const [settings, setSettings] = useState(null);

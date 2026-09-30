@@ -28,6 +28,8 @@ const SECTIONS = [
       'To process payments and apply Premium badges and promotions.',
       'To calculate publisher badges from the number of verified posts.',
       'To detect and prevent fraud, spam, scams and abuse, including blocking email addresses, domains and IP addresses (our legitimate interest in keeping Revlo safe).',
+      // NOTE (2026-09-30): email marketing.
+      'To send occasional news and offers about Revlo to people who have published or followed on Revlo (our legitimate interest in telling existing users about the service). Every such email is marked "News & offers" and has an unsubscribe link; once you unsubscribe we never send you marketing again. Emails you ask for, such as publish links and follow alerts, are not affected.',
       'To keep financial records and to comply with the law and lawful requests from authorities (legal obligation).',
       'We do not sell your personal data, and we do not use it for third-party advertising.',
     ]],
