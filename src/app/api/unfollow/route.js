@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,8 @@ export async function GET(request) {
     .delete()
     .eq('follower_email', email)
     .eq('poster_email', poster);
+  // NOTE (2026-09-29): unfollowing previously left the follower count unchanged.
+  await refreshPosterFollowerCounts(poster);
 
   return new NextResponse(
     `<html><body style="font-family:sans-serif;text-align:center;padding:40px">

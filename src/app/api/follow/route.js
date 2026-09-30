@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
@@ -104,9 +105,12 @@ export async function GET(request) {
   });
   if (error && error.code !== '23505') return htmlResponse('Could not confirm this follow request.', 500);
 
-  const { count } = await supabaseAdmin.from('follows').select('*', { count: 'exact', head: true })
-    .eq('poster_email', post.poster_email);
-  await supabaseAdmin.from('posts').update({ followers: count || 0 }).eq('uid', post.uid);
+  // ORIGINAL (commented out 2026-09-29): only the followed post's count was updated.
+  // const { count } = await supabaseAdmin.from('follows').select('*', { count: 'exact', head: true })
+  //   .eq('poster_email', post.poster_email);
+  // await supabaseAdmin.from('posts').update({ followers: count || 0 }).eq('uid', post.uid);
+  // NOTE: the count is the poster's, so all of their live posts are updated.
+  await refreshPosterFollowerCounts(post.poster_email);
   return htmlResponse('Your follow request is confirmed.', 200);
 }
 
