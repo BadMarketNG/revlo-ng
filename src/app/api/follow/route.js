@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { attachDeviceCookie, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
@@ -80,7 +81,10 @@ export async function POST(request) {
     return NextResponse.json({ error: 'failed to send confirmation' }, { status: 502 });
   }
 
-  return NextResponse.json({ ok: true, pending: true, followers: count || 0 });
+  // NOTE (2026-09-30): record network and device for collusion detection.
+  const deviceId = ensureDeviceId(request);
+  await recordSignal(request, { kind: 'follow_request', actorEmail: follower, subjectEmail: post.poster_email, postUid: uid, deviceId });
+  return attachDeviceCookie(NextResponse.json({ ok: true, pending: true, followers: count || 0 }), deviceId);
 }
 
 export async function GET(request) {
@@ -111,7 +115,9 @@ export async function GET(request) {
   // await supabaseAdmin.from('posts').update({ followers: count || 0 }).eq('uid', post.uid);
   // NOTE: the count is the poster's, so all of their live posts are updated.
   await refreshPosterFollowerCounts(post.poster_email);
-  return htmlResponse('Your follow request is confirmed.', 200);
+  const deviceId = ensureDeviceId(request);
+  await recordSignal(request, { kind: 'follow_confirm', actorEmail: pending.email, subjectEmail: post.poster_email, postUid: post.uid, deviceId });
+  return attachDeviceCookie(htmlResponse('Your follow request is confirmed.', 200), deviceId);
 }
 
 function htmlResponse(message, status) {

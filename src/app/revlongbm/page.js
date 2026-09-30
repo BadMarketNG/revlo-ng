@@ -107,7 +107,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -135,6 +135,7 @@ export default function AdminPage() {
       {tab === 'bm' && <BMLinks />}
       {tab === 'features' && <Features />}
       {tab === 'users' && <UsersAndEmail />}
+      {tab === 'collusion' && <Collusion />}
       {tab === 'categories' && <Categories />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
@@ -538,6 +539,117 @@ function UsersAndEmail() {
         <button style={btn(GREEN)} disabled={busy || !mail.to.includes('@') || mail.subject.trim().length < 2 || mail.message.trim().length < 2} onClick={send}>{busy ? 'Sending…' : 'Send email'}</button>
         {mailMessage && <p style={{ marginBottom: 0 }}>{mailMessage}</p>}
       </section>
+    </div>
+  );
+}
+
+// NOTE (2026-09-30): collusion report. Flags posters whose followers look
+// fabricated (see src/lib/collusion.js for the formula), with CSV export and
+// actions. Follower IP addresses are shown here to administrators only.
+const BAND_STYLE = {
+  likely_fabricated: { label: 'Likely fabricated', color: '#b91c1c', bg: '#fef2f2' },
+  review: { label: 'Review', color: '#b45309', bg: '#fffbeb' },
+  low: { label: 'Low', color: '#15803d', bg: '#f0fdf4' },
+  insufficient: { label: 'Too few followers', color: '#667085', bg: '#f2f4f7' },
+};
+const SIGNAL_LABELS = { D: 'Same device as poster', I: 'Same IP as poster', C: 'Followers share IPs/devices', B: 'Follows in bursts (10 min)', S: 'Followers do nothing else', V: 'Fast growth for account age', Q: 'Many followers per post', A: 'New account' };
+
+function Collusion() {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+  const [detail, setDetail] = useState(null);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => {
+    fetch('/api/admin/collusion', { cache: 'no-store' }).then((r) => r.json()).then((d) => { if (d.error) setError(d.error); else { setError(''); setRows(d.report); } }).catch(() => setError('Could not load the report.'));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const open = async (poster) => {
+    setMessage(''); setDetail({ loading: true, poster });
+    const d = await fetch(`/api/admin/collusion?poster=${encodeURIComponent(poster)}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ error: 'Could not load this poster.' }));
+    setDetail(d.error ? { error: d.error, poster } : d.detail);
+  };
+
+  const act = async (action) => {
+    const label = action === 'delete_posts' ? 'delete ALL posts by' : 'remove ALL follows of';
+    if (!window.confirm(`Are you sure you want to ${label} ${detail.poster}? This cannot be undone from here.`)) return;
+    setBusy(true); setMessage('');
+    const res = await fetch('/api/admin/collusion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster: detail.poster, action }) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    setMessage(res.ok ? `Done: ${body.affected} ${action === 'delete_posts' ? 'posts deleted' : 'follows removed'}.` : body.error || 'The action failed.');
+    if (res.ok) { load(); open(detail.poster); }
+  };
+
+  const badge = (band) => { const b = BAND_STYLE[band] || BAND_STYLE.low; return <span style={{ background: b.bg, color: b.color, borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 800 }}>{b.label}</span>; };
+
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      <section style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Collusion report</h2>
+          <a href="/api/admin/collusion?format=csv" style={{ ...miniBtn(GREEN), textDecoration: 'none' }}>Export report (CSV)</a>
+        </div>
+        <p style={{ color: MUTED }}>Posters with at least 3 followers, scored 0–100 for signs that followers were fabricated: the same device or network as the poster, followers sharing devices or networks, follows in bursts, followers who do nothing else, and fast growth on a new account with few posts. 80+ is likely fabricated, 50–79 needs review. Device and network signals are recorded from 30 September 2026 onward.</p>
+        {error && <p style={{ color: RED }}>{error}</p>}
+        {!rows ? <p style={{ color: MUTED }}>Loading…</p> : rows.length === 0 ? <p style={{ color: MUTED }}>No posters with 3 or more followers yet.</p> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr style={{ textAlign: 'left', color: MUTED }}><th style={{ padding: 8 }}>Poster</th><th>Score</th><th>Followers</th><th>Posts</th><th>Account age</th><th>Gained over</th><th></th></tr></thead>
+              <tbody>{rows.map((r) => (
+                <tr key={r.poster} style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <td style={{ padding: 8, fontWeight: 700 }}>{r.poster}</td>
+                  <td>{r.score ?? '—'} {badge(r.band)}</td>
+                  <td>{r.followers}</td><td>{r.posts}</td><td>{r.accountAgeDays} days</td><td>{r.followSpanHours} h</td>
+                  <td><button style={miniBtn('#1f2937')} onClick={() => open(r.poster)}>Open</button></td>
+                </tr>))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {detail && (
+        <section style={cardStyle}>
+          {detail.loading ? <p style={{ color: MUTED }}>Loading {detail.poster}…</p> : detail.error ? <p style={{ color: RED }}>{detail.error}</p> : (<>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{detail.poster} · {detail.score ?? '—'} {badge(detail.band)}</h2>
+              <a href={`/api/admin/collusion?poster=${encodeURIComponent(detail.poster)}&format=csv`} style={{ ...miniBtn(GREEN), textDecoration: 'none' }}>Export followers (CSV)</a>
+            </div>
+            <p style={{ color: MUTED }}>{detail.followers} followers · {detail.posts} posts · account {detail.accountAgeDays} days old · followers gained over {detail.followSpanHours} hours (median gap {detail.medianGapMinutes ?? '—'} min).</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 8 }}>
+              {Object.entries(detail.signals).map(([key, value]) => (
+                <div key={key} style={{ border: `1px solid ${BORDER}`, borderRadius: 8, padding: 8 }}>
+                  <div style={{ fontSize: 12, color: MUTED }}>{key} · {SIGNAL_LABELS[key]}</div>
+                  <div style={{ height: 6, background: '#eef2f6', borderRadius: 6, marginTop: 6 }}><div style={{ width: `${Math.round(value * 100)}%`, height: '100%', background: value > 0.6 ? RED : value > 0.3 ? '#d97706' : GREEN, borderRadius: 6 }} /></div>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{Math.round(value * 100)}%</div>
+                </div>))}
+            </div>
+
+            <h3 style={{ fontSize: 15, marginBottom: 6 }}>Followers by IP address</h3>
+            {detail.ipGroups.map((group) => (
+              <details key={group.ip} open={group.count > 1 || group.posterUsedIp} style={{ border: `1px solid ${group.posterUsedIp ? RED : BORDER}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{group.ip} · {group.count} {group.count === 1 ? 'follower' : 'followers'}{group.posterUsedIp && <span style={{ color: RED }}> · poster also used this IP</span>}</summary>
+                <table style={{ width: '100%', fontSize: 12, marginTop: 6, borderCollapse: 'collapse' }}>
+                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th></tr></thead>
+                  <tbody>{group.followers.map((f) => (
+                    <tr key={f.email} style={{ borderTop: `1px solid ${BORDER}` }}>
+                      <td style={{ padding: '4px 0' }}>{f.email}</td><td>{new Date(f.followedAt).toLocaleString('en-GB')}</td><td>{f.confirmIp || '—'}</td>
+                      <td style={{ color: f.deviceMatch ? RED : undefined }}>{f.deviceMatch ? 'Yes' : 'No'}</td><td>{f.singlePurpose ? 'Yes' : 'No'}</td>
+                    </tr>))}
+                  </tbody>
+                </table>
+              </details>))}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <button style={miniBtn(RED)} disabled={busy} onClick={() => act('delete_posts')}>Delete all posts by this user</button>
+              <button style={miniBtn('#b45309')} disabled={busy} onClick={() => act('remove_follows')}>Remove all their follows</button>
+            </div>
+            {message && <p>{message}</p>}
+          </>)}
+        </section>
+      )}
     </div>
   );
 }

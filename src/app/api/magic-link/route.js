@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { recordSignal } from '@/lib/activitySignals';
 import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
@@ -28,6 +29,8 @@ export async function POST(request) {
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return silentEmailSuccess();
   const ipLimited = await requireRateLimit({ action: 'magic-link:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
   if (ipLimited) return ipLimited;
+  // NOTE (2026-09-30): the publisher's network and device, for collusion detection.
+  await recordSignal(request, { kind: 'publish_link', actorEmail: cleanEmail, subjectEmail: cleanEmail });
 
   // NOTE (2026-09-29): Silver, Bronze and Gold publishers get a badge link that
   // creates 50, 100 or 200 posts with no time limit. Everyone else continues

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { attachDeviceCookie, deviceIdFrom, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { makeUid, expiryFor, isValidDuration, isEmail, verifyToken } from '@/lib/util';
 import { isConfiguredCategory } from '@/lib/revloCategories';
@@ -63,6 +64,8 @@ export async function GET(request) {
   const feedSeed = isFeedSessionSeed(existingSeed) ? existingSeed : createFeedSessionSeed();
   const context = `${duration}:${category || 'all'}`;
   const response = NextResponse.json({ posts: saltedSessionOrder(data, feedSeed, context) });
+  // NOTE (2026-09-30): give every visitor a device cookie early so later follows and posts can be linked.
+  if (!deviceIdFrom(request)) attachDeviceCookie(response, ensureDeviceId(request));
   if (feedSeed !== existingSeed) {
     response.cookies.set(FEED_SESSION_COOKIE, feedSeed, {
       httpOnly: true,
@@ -303,7 +306,9 @@ export async function POST(request) {
     );
   }
 
-  return NextResponse.json({ post: data }, { status: 201 });
+  const deviceId = ensureDeviceId(request);
+  await recordSignal(request, { kind: 'post', actorEmail: cleanEmail, subjectEmail: cleanEmail, postUid: data.uid, deviceId });
+  return attachDeviceCookie(NextResponse.json({ post: data }, { status: 201 }), deviceId);
 }
 
 async function notifyFollowers(posterEmail, post) {
