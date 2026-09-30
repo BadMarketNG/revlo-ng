@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
-import { BIAS, WEIGHTS, collusionDetail, collusionReport, deleteAllPosts, removeAllFollows, toCsv } from '@/lib/collusion';
+import { BIAS, WEIGHTS, clearCaution, collusionDetail, collusionReport, deleteAllPosts, removeAllFollows, toCsv } from '@/lib/collusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,16 +26,16 @@ export async function GET(request) {
       if (!isEmail(poster)) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
       const detail = await collusionDetail(poster);
       if (csv) {
-        const rows = [['ip_group', 'follower_email', 'followed_at', 'request_ip', 'confirm_ip', 'same_device_as_poster', 'same_ip_as_poster', 'single_purpose', 'follows_count', 'posts_count']];
-        for (const group of detail.ipGroups) for (const f of group.followers) rows.push([group.ip, f.email, f.followedAt, f.requestIp, f.confirmIp, f.deviceMatch, f.ipMatch, f.singlePurpose, f.followsCount, f.postsCount]);
+        const rows = [['ip_group', 'follower_email', 'followed_at', 'request_ip', 'confirm_ip', 'same_device_as_poster', 'same_ip_as_poster', 'single_purpose', 'shares_with_other_followers', 'judged_fabricated', 'follows_count', 'posts_count']];
+        for (const group of detail.ipGroups) for (const f of group.followers) rows.push([group.ip, f.email, f.followedAt, f.requestIp, f.confirmIp, f.deviceMatch, f.ipMatch, f.singlePurpose, f.sharesWithFollowers, detail.score >= 80 && f.suspect, f.followsCount, f.postsCount]);
         return csvResponse(toCsv(rows), `revlo-collusion-${detail.poster}-${stamp}.csv`);
       }
       return NextResponse.json({ detail, weights: WEIGHTS, bias: BIAS });
     }
     const report = await collusionReport();
     if (csv) {
-      const rows = [['poster_email', 'score', 'band', 'followers', 'posts', 'account_age_days', 'follow_span_hours', 'median_gap_minutes', 'D_device', 'I_ip', 'C_concentration', 'B_burst', 'S_single_purpose', 'V_velocity', 'Q_followers_per_post', 'A_youth']];
-      for (const r of report) rows.push([r.poster, r.score, r.band, r.followers, r.posts, r.accountAgeDays, r.followSpanHours, r.medianGapMinutes, r.signals.D, r.signals.I, r.signals.C, r.signals.B, r.signals.S, r.signals.V, r.signals.Q, r.signals.A]);
+      const rows = [['poster_email', 'score', 'band', 'fabricated_followers', 'cautions_sent', 'caution_dates', 'warning_active', 'followers', 'posts', 'account_age_days', 'follow_span_hours', 'median_gap_minutes', 'D_device', 'I_ip', 'C_concentration', 'B_burst', 'S_single_purpose', 'V_velocity', 'Q_followers_per_post', 'A_youth']];
+      for (const r of report) rows.push([r.poster, r.score, r.band, r.fabricatedFollowers, r.cautions.length, r.cautions.map((c) => `${c.cautioned_at.slice(0, 10)} (${c.level})`).join('; '), r.cautionActive, r.followers, r.posts, r.accountAgeDays, r.followSpanHours, r.medianGapMinutes, r.signals.D, r.signals.I, r.signals.C, r.signals.B, r.signals.S, r.signals.V, r.signals.Q, r.signals.A]);
       return csvResponse(toCsv(rows), `revlo-collusion-report-${stamp}.csv`);
     }
     return NextResponse.json({ report, weights: WEIGHTS, bias: BIAS });
@@ -44,7 +44,7 @@ export async function GET(request) {
   }
 }
 
-// POST /api/admin/collusion { poster, action: 'delete_posts' | 'remove_follows' }
+// POST /api/admin/collusion { poster, action: 'delete_posts' | 'remove_follows' | 'clear_caution' }
 export async function POST(request) {
   const admin = await getAdminSession();
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -55,6 +55,7 @@ export async function POST(request) {
     let affected;
     if (body.action === 'delete_posts') affected = await deleteAllPosts(poster);
     else if (body.action === 'remove_follows') affected = await removeAllFollows(poster);
+    else if (body.action === 'clear_caution') affected = await clearCaution(poster, admin);
     else return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
     await supabaseAdmin.from('admin_log').insert({
       action: `collusion_${body.action}`,

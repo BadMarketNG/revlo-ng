@@ -572,13 +572,13 @@ function Collusion() {
   };
 
   const act = async (action) => {
-    const label = action === 'delete_posts' ? 'delete ALL posts by' : 'remove ALL follows of';
+    const label = action === 'delete_posts' ? 'delete ALL posts by' : action === 'clear_caution' ? 'clear the caution (and its post warning) for' : 'remove ALL follows of';
     if (!window.confirm(`Are you sure you want to ${label} ${detail.poster}? This cannot be undone from here.`)) return;
     setBusy(true); setMessage('');
     const res = await fetch('/api/admin/collusion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster: detail.poster, action }) });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    setMessage(res.ok ? `Done: ${body.affected} ${action === 'delete_posts' ? 'posts deleted' : 'follows removed'}.` : body.error || 'The action failed.');
+    setMessage(res.ok ? (action === 'clear_caution' ? 'Warning cleared. A new caution is still sent at the next 10 fabricated followers.' : `Done: ${body.affected} ${action === 'delete_posts' ? 'posts deleted' : 'follows removed'}.`) : body.error || 'The action failed.');
     if (res.ok) { load(); open(detail.poster); }
   };
 
@@ -591,16 +591,19 @@ function Collusion() {
           <h2 style={{ margin: 0, fontSize: 18 }}>Collusion report</h2>
           <a href="/api/admin/collusion?format=csv" style={{ ...miniBtn(GREEN), textDecoration: 'none' }}>Export report (CSV)</a>
         </div>
+        <p style={{ color: MUTED }}>Posters are emailed a caution automatically every time another 10 followers are judged fabricated (10, 20, 30…), and are warned when they create a post. A follower is judged fabricated when the poster scores 80+ and the follower used the poster&apos;s device, or does nothing else and shares the poster&apos;s or another follower&apos;s network or device.</p>
         <p style={{ color: MUTED }}>Posters with at least 3 followers, scored 0–100 for signs that followers were fabricated: the same device or network as the poster, followers sharing devices or networks, follows in bursts, followers who do nothing else, and fast growth on a new account with few posts. 80+ is likely fabricated, 50–79 needs review. Device and network signals are recorded from 30 September 2026 onward.</p>
         {error && <p style={{ color: RED }}>{error}</p>}
         {!rows ? <p style={{ color: MUTED }}>Loading…</p> : rows.length === 0 ? <p style={{ color: MUTED }}>No posters with 3 or more followers yet.</p> : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead><tr style={{ textAlign: 'left', color: MUTED }}><th style={{ padding: 8 }}>Poster</th><th>Score</th><th>Followers</th><th>Posts</th><th>Account age</th><th>Gained over</th><th></th></tr></thead>
+              <thead><tr style={{ textAlign: 'left', color: MUTED }}><th style={{ padding: 8 }}>Poster</th><th>Score</th><th>Fabricated</th><th>Cautions sent</th><th>Followers</th><th>Posts</th><th>Account age</th><th>Gained over</th><th></th></tr></thead>
               <tbody>{rows.map((r) => (
                 <tr key={r.poster} style={{ borderTop: `1px solid ${BORDER}` }}>
                   <td style={{ padding: 8, fontWeight: 700 }}>{r.poster}</td>
                   <td>{r.score ?? '—'} {badge(r.band)}</td>
+                  <td>{r.fabricatedFollowers}</td>
+                  <td>{r.cautions.length ? r.cautions.map((c) => <div key={c.id} style={{ whiteSpace: 'nowrap' }}>{new Date(c.cautioned_at).toLocaleDateString('en-GB')} · {c.level}{c.cleared_at ? ' (cleared)' : ''}</div>) : '—'}</td>
                   <td>{r.followers}</td><td>{r.posts}</td><td>{r.accountAgeDays} days</td><td>{r.followSpanHours} h</td>
                   <td><button style={miniBtn('#1f2937')} onClick={() => open(r.poster)}>Open</button></td>
                 </tr>))}
@@ -617,7 +620,15 @@ function Collusion() {
               <h2 style={{ margin: 0, fontSize: 18 }}>{detail.poster} · {detail.score ?? '—'} {badge(detail.band)}</h2>
               <a href={`/api/admin/collusion?poster=${encodeURIComponent(detail.poster)}&format=csv`} style={{ ...miniBtn(GREEN), textDecoration: 'none' }}>Export followers (CSV)</a>
             </div>
-            <p style={{ color: MUTED }}>{detail.followers} followers · {detail.posts} posts · account {detail.accountAgeDays} days old · followers gained over {detail.followSpanHours} hours (median gap {detail.medianGapMinutes ?? '—'} min).</p>
+            {detail.cautions.length > 0 && (
+              <div style={{ background: '#fffbeb', color: '#92400e', borderRadius: 8, padding: '8px 10px' }}>
+                <strong>{detail.cautions.length} {detail.cautions.length === 1 ? 'caution' : 'cautions'} sent{detail.cautionActive ? ' · the poster sees a warning when creating posts' : ' · warning cleared'}</strong>
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13 }}>
+                  {detail.cautions.map((c) => <li key={c.id}>{new Date(c.cautioned_at).toLocaleString('en-GB')} · at {c.level} fabricated followers (score {c.score}){c.email_sent ? '' : ' · email failed to send'}{c.cleared_at ? ` · cleared ${new Date(c.cleared_at).toLocaleDateString('en-GB')}` : ''}</li>)}
+                </ul>
+              </div>
+            )}
+            <p style={{ color: MUTED }}>{detail.fabricatedFollowers} of {detail.followers} followers judged fabricated · {detail.followers} followers · {detail.posts} posts · account {detail.accountAgeDays} days old · followers gained over {detail.followSpanHours} hours (median gap {detail.medianGapMinutes ?? '—'} min).</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 8 }}>
               {Object.entries(detail.signals).map(([key, value]) => (
                 <div key={key} style={{ border: `1px solid ${BORDER}`, borderRadius: 8, padding: 8 }}>
@@ -632,11 +643,11 @@ function Collusion() {
               <details key={group.ip} open={group.count > 1 || group.posterUsedIp} style={{ border: `1px solid ${group.posterUsedIp ? RED : BORDER}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{group.ip} · {group.count} {group.count === 1 ? 'follower' : 'followers'}{group.posterUsedIp && <span style={{ color: RED }}> · poster also used this IP</span>}</summary>
                 <table style={{ width: '100%', fontSize: 12, marginTop: 6, borderCollapse: 'collapse' }}>
-                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th></tr></thead>
+                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th><th>Judged fabricated</th></tr></thead>
                   <tbody>{group.followers.map((f) => (
                     <tr key={f.email} style={{ borderTop: `1px solid ${BORDER}` }}>
                       <td style={{ padding: '4px 0' }}>{f.email}</td><td>{new Date(f.followedAt).toLocaleString('en-GB')}</td><td>{f.confirmIp || '—'}</td>
-                      <td style={{ color: f.deviceMatch ? RED : undefined }}>{f.deviceMatch ? 'Yes' : 'No'}</td><td>{f.singlePurpose ? 'Yes' : 'No'}</td>
+                      <td style={{ color: f.deviceMatch ? RED : undefined }}>{f.deviceMatch ? 'Yes' : 'No'}</td><td>{f.singlePurpose ? 'Yes' : 'No'}</td><td style={{ color: detail.score >= 80 && f.suspect ? RED : undefined }}>{detail.score >= 80 && f.suspect ? 'Yes' : 'No'}</td>
                     </tr>))}
                   </tbody>
                 </table>
@@ -645,6 +656,7 @@ function Collusion() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               <button style={miniBtn(RED)} disabled={busy} onClick={() => act('delete_posts')}>Delete all posts by this user</button>
               <button style={miniBtn('#b45309')} disabled={busy} onClick={() => act('remove_follows')}>Remove all their follows</button>
+              {detail.cautionActive && <button style={miniBtn('#475467')} disabled={busy} onClick={() => act('clear_caution')}>Clear caution</button>}
             </div>
             {message && <p>{message}</p>}
           </>)}

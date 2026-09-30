@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { attachDeviceCookie, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
+import { checkPosterForCaution } from '@/lib/collusion';
 import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
@@ -117,6 +118,8 @@ export async function GET(request) {
   await refreshPosterFollowerCounts(post.poster_email);
   const deviceId = ensureDeviceId(request);
   await recordSignal(request, { kind: 'follow_confirm', actorEmail: pending.email, subjectEmail: post.poster_email, postUid: post.uid, deviceId });
+  // NOTE (2026-09-30): caution the poster automatically at 10 fabricated followers.
+  await checkPosterForCaution(post.poster_email);
   return attachDeviceCookie(htmlResponse('Your follow request is confirmed.', 200), deviceId);
 }
 

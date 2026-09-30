@@ -63,6 +63,33 @@
     if (input) mount(input);
   }
 
-  new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
+  // Collusion caution (2026-09-30): when the signed-in publisher has been
+  // cautioned for fabricated followers, show the warning in the "New post"
+  // window. The caution comes from the publish-link check, so only the holder
+  // of a valid link for that email ever sees it.
+  style.textContent += `
+    .revlo-caution{margin:0 0 14px;padding:11px 13px;border-radius:10px;background:#fff7ed;border:1px solid #f5c38b;border-left:5px solid #c2410c;color:#7c2d12;font:13px/1.5 system-ui}
+    .revlo-caution strong{display:block;font-size:14px;margin-bottom:3px;color:#9a3412}
+  `;
+  function publisherCaution() {
+    try { return JSON.parse(sessionStorage.getItem('revlo_publisher'))?.caution || null; } catch { return null; }
+  }
+  function scanCaution() {
+    const caution = publisherCaution();
+    if (!caution?.message) return;
+    const heading = [...document.querySelectorAll('h1,h2,h3')].find((h) => h.textContent.trim() === 'New post');
+    const scope = heading?.closest('[role="dialog"]') || heading?.parentElement?.parentElement;
+    if (!scope || scope.querySelector('.revlo-caution')) return;
+    const box = document.createElement('div');
+    box.className = 'revlo-caution';
+    box.setAttribute('role', 'alert');
+    const title = document.createElement('strong');
+    title.textContent = 'Caution: suspected fake followers';
+    box.append(title, document.createTextNode(caution.message));
+    heading.insertAdjacentElement('afterend', box);
+  }
+
+  new MutationObserver(() => { scan(); scanCaution(); }).observe(document.documentElement, { childList: true, subtree: true });
   scan();
+  scanCaution();
 })();

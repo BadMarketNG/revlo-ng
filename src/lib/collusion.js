@@ -1,5 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
+import { sendEmail } from '@/lib/email';
+import { wrapEmail } from '@/lib/emailTemplate';
+import { publicOrigin } from '@/lib/publicOrigin';
 
 // Collusion report (2026-09-30): estimates whether a poster's followers were
 // fabricated, for example by the poster following themselves with extra email
@@ -21,10 +24,19 @@ import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 //
 // A genuine poster typically scores under 10; one person following themselves
 // from their own device and network scores above 95.
+//
+// Caution (2026-09-30): a follower counts as fabricated when the poster scores
+// 80+ AND the follower followed from the poster's own device, or is
+// single-purpose and shares the poster's IP or another follower's IP/device.
+// Each time that count reaches another multiple of CAUTION_THRESHOLD (10, 20,
+// 30, ...) the poster is emailed a caution, and sees a warning when creating a
+// post until an administrator clears it. Every caution is kept as history.
 
 export const WEIGHTS = Object.freeze({ D: 3.0, I: 2.5, C: 1.5, B: 1.5, S: 1.5, V: 1.0, Q: 1.0, A: 0.5 });
 export const BIAS = -4;
 export const MIN_FOLLOWERS = 3;
+export const CAUTION_THRESHOLD = 10;
+export const CAUTION_MESSAGE = 'Our checks found that many of your followers appear to come from your own device or network, or from accounts that do nothing else on Revlo. Using extra email addresses to follow yourself misleads the community and is not allowed. Continued activity like this can lead to your posts being removed.';
 const BURST_MS = 10 * 60 * 1000;
 const DAY_MS = 86400000;
 
@@ -53,6 +65,29 @@ async function loadData() {
   ]);
   for (const result of [follows, posts, signals]) if (result.error) throw new Error('Collusion data is unavailable.');
   return { follows: follows.data || [], posts: posts.data || [], signals: signals.data || [] };
+}
+
+// Only the rows one poster's score depends on: their follows, their followers'
+// other follows, and posts and signals by the poster and their followers.
+async function loadPosterData(poster) {
+  const own = await supabaseAdmin.from('follows').select('poster_email,follower_email,created_at').eq('poster_email', poster).limit(5000);
+  if (own.error) throw new Error('Collusion data is unavailable.');
+  const people = [poster, ...new Set((own.data || []).map((row) => lower(row.follower_email)))];
+  const chunks = [];
+  for (let i = 0; i < people.length; i += 200) chunks.push(people.slice(i, i + 200));
+  const data = { follows: [], posts: [], signals: [] };
+  for (const chunk of chunks) {
+    const [follows, posts, signals] = await Promise.all([
+      supabaseAdmin.from('follows').select('poster_email,follower_email,created_at').in('follower_email', chunk).limit(20000),
+      supabaseAdmin.from('posts').select('poster_email,created_at,source_ip').in('poster_email', chunk).limit(20000),
+      supabaseAdmin.from('revlo_activity_signals').select('kind,actor_email,subject_email,ip,device_id,created_at').in('actor_email', chunk).limit(50000),
+    ]);
+    for (const result of [follows, posts, signals]) if (result.error) throw new Error('Collusion data is unavailable.');
+    data.follows.push(...(follows.data || []));
+    data.posts.push(...(posts.data || []));
+    data.signals.push(...(signals.data || []));
+  }
+  return data;
 }
 
 function analyse(poster, data, index) {
@@ -90,6 +125,14 @@ function analyse(poster, data, index) {
     };
   });
 
+  const tally = (key) => followers.reduce((map, f) => (f[key] ? map.set(f[key], (map.get(f[key]) || 0) + 1) : map), new Map());
+  const ipCounts = tally('primaryIp');
+  const deviceCounts = tally('primaryDevice');
+  for (const f of followers) {
+    f.sharesWithFollowers = (ipCounts.get(f.primaryIp) || 0) > 1 || (deviceCounts.get(f.primaryDevice) || 0) > 1;
+    f.suspect = f.deviceMatch || (f.singlePurpose && (f.ipMatch || f.sharesWithFollowers));
+  }
+
   const times = followRows.map((r) => Date.parse(r.created_at)).filter(Number.isFinite).sort((a, b) => a - b);
   const burstCount = times.filter((t, i) => (i > 0 && t - times[i - 1] <= BURST_MS) || (i < times.length - 1 && times[i + 1] - t <= BURST_MS)).length;
   const gaps = times.slice(1).map((t, i) => t - times[i]).sort((a, b) => a - b);
@@ -120,6 +163,7 @@ function analyse(poster, data, index) {
     z: round(z, 2),
     score: score === null ? null : round(score, 1),
     band: score === null ? 'insufficient' : bandFor(score),
+    fabricatedFollowers: score !== null && score >= 80 ? followers.filter((f) => f.suspect).length : 0,
     followerDetails: followers,
   };
 }
@@ -143,9 +187,10 @@ function buildIndex(data) {
 export async function collusionReport() {
   const data = await loadData();
   const index = buildIndex(data);
+  const cautions = await allCautions();
   return [...index.followsByPoster.keys()]
     .filter((poster) => index.followsByPoster.get(poster).length >= MIN_FOLLOWERS)
-    .map((poster) => { const { followerDetails, ...row } = analyse(poster, data, index); return row; })
+    .map((poster) => { const { followerDetails, ...row } = analyse(poster, data, index); const history = cautions.get(poster) || []; return { ...row, cautions: history, cautionActive: history.some((c) => !c.cleared_at) }; })
     .sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 }
 
@@ -163,7 +208,81 @@ export async function collusionDetail(posterEmail) {
   const ipGroups = [...byIp.entries()]
     .map(([ip, followers]) => ({ ip, count: followers.length, posterUsedIp: followers.some((f) => f.ipMatch), followers }))
     .sort((a, b) => b.count - a.count);
-  return { ...result, ipGroups };
+  const history = await cautionHistory(result.poster);
+  return { ...result, ipGroups, cautions: history, cautionActive: history.some((c) => !c.cleared_at) };
+}
+
+// Every caution, newest first, grouped by poster.
+async function allCautions() {
+  const { data } = await supabaseAdmin.from('revlo_collusion_cautions').select('*').order('cautioned_at', { ascending: false }).limit(20000);
+  const map = new Map();
+  for (const row of data || []) {
+    if (!map.has(row.email)) map.set(row.email, []);
+    map.get(row.email).push(row);
+  }
+  return map;
+}
+
+export async function cautionHistory(email) {
+  const { data } = await supabaseAdmin.from('revlo_collusion_cautions').select('*').eq('email', lower(email)).order('cautioned_at', { ascending: false });
+  return data || [];
+}
+
+// What the poster sees when creating a post (only returned with a valid publish link).
+export async function cautionForPublisher(email) {
+  try {
+    const { data } = await supabaseAdmin.from('revlo_collusion_cautions').select('level,cautioned_at')
+      .eq('email', lower(email)).is('cleared_at', null).order('cautioned_at', { ascending: false }).limit(1);
+    const latest = data?.[0];
+    return latest ? { message: CAUTION_MESSAGE, since: latest.cautioned_at, fabricatedFollowers: latest.level } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Called after each confirmed follow. Scores the poster and sends a caution
+// each time the fabricated-follower count reaches another multiple of 10.
+export async function checkPosterForCaution(posterEmail) {
+  const poster = lower(posterEmail);
+  try {
+    const data = await loadPosterData(poster);
+    const result = analyse(poster, data, buildIndex(data));
+    const level = Math.floor(result.fabricatedFollowers / CAUTION_THRESHOLD) * CAUTION_THRESHOLD;
+    if (level < CAUTION_THRESHOLD) return null;
+    const { data: highest } = await supabaseAdmin.from('revlo_collusion_cautions').select('level')
+      .eq('email', poster).order('level', { ascending: false }).limit(1);
+    if ((highest?.[0]?.level || 0) >= level) return null; // this multiple of 10 was already cautioned
+    const inserted = await supabaseAdmin.from('revlo_collusion_cautions')
+      .insert({ email: poster, level, fabricated_followers: result.fabricatedFollowers, score: result.score })
+      .select('id').maybeSingle();
+    if (inserted.error || !inserted.data) return null; // another request got there first
+    const count = level === CAUTION_THRESHOLD ? 'a caution' : `caution number ${level / CAUTION_THRESHOLD}`;
+    const delivery = await sendEmail({
+      to: poster,
+      subject: 'A caution about your Revlo.ng followers',
+      html: wrapEmail(`<p>This is ${count} about your followers. Our checks now judge <strong>${result.fabricatedFollowers} of your followers</strong> to be fabricated.</p><p>${CAUTION_MESSAGE}</p><p>Followers on Revlo should be real people who chose to follow you. If you believe this is a mistake, reply to this email and our team will review it.</p><p><a href="${publicOrigin()}/rules">Read the Revlo rules</a></p>`),
+      headers: { 'Reply-To': 'support@revlo.ng' },
+    });
+    await supabaseAdmin.from('revlo_collusion_cautions').update({ email_sent: delivery?.ok === true }).eq('id', inserted.data.id);
+    await supabaseAdmin.from('admin_log').insert({
+      action: 'collusion_caution',
+      target_uid: `publisher:${poster}`,
+      detail: { level, fabricated_followers: result.fabricatedFollowers, score: result.score, email_sent: delivery?.ok === true, automatic: true },
+    });
+    return result;
+  } catch (error) {
+    console.error('[collusion-caution]', error?.message || error);
+    return null;
+  }
+}
+
+// Removes the post warning. History is kept; the next multiple of 10 still cautions.
+export async function clearCaution(posterEmail, admin) {
+  const { data, error } = await supabaseAdmin.from('revlo_collusion_cautions')
+    .update({ cleared_at: new Date().toISOString(), cleared_by: admin?.email || admin?.sub || null })
+    .eq('email', lower(posterEmail)).is('cleared_at', null).select('id');
+  if (error) throw new Error('Could not clear the caution.');
+  return data?.length || 0;
 }
 
 const escapeLike = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);

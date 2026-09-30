@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { recordSignal } from '@/lib/activitySignals';
+import { cautionForPublisher } from '@/lib/collusion';
 import { isEmail, signToken, verifyToken } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplate';
@@ -183,5 +184,9 @@ export async function GET(request) {
   if (used) return NextResponse.json({ valid: false, used: true }, { status: 410 });
   await markMagicLinkOpened(token);
   if (await findActiveBlock({ email: payload.email, ip: requestIp(request) })) return NextResponse.json({ valid: false }, { status: 400 });
-  return NextResponse.json({ valid: true, email: payload.email, publisher: await getPublisherStatus(payload.email), publishLink: { limit, remaining: limit > 1 ? remaining : 1 } });
+  // ORIGINAL (commented out 2026-09-30): no collusion caution in the publisher status.
+  // return NextResponse.json({ valid: true, email: payload.email, publisher: await getPublisherStatus(payload.email), publishLink: { limit, remaining: limit > 1 ? remaining : 1 } });
+  // NOTE: the caution is only returned to someone holding a valid publish link for this email.
+  const publisher = { ...(await getPublisherStatus(payload.email)), caution: await cautionForPublisher(payload.email) };
+  return NextResponse.json({ valid: true, email: payload.email, publisher, publishLink: { limit, remaining: limit > 1 ? remaining : 1 } });
 }
