@@ -83,6 +83,16 @@ const SECTIONS = [
       'Trying to game badges (for example with fake or duplicate posts) will lead to the badge being removed and the account blocked.',
       'Revlo may remove any badge from a publisher who breaks these rules.',
     ]],
+  // NOTE (2026-09-30): rule for the collusion report and automatic cautions (src/lib/collusion.js).
+  ['Followers must be real',
+    [
+      'Only follow a publisher with your own email address, because you genuinely want their updates. Do not follow yourself, and do not create or use extra email addresses to follow yourself or anyone else.',
+      'Do not ask, pay or arrange for fake follows to make a publisher look more popular or trustworthy than they are.',
+      'Revlo checks follows automatically for signs that they were fabricated, such as follows made from the publisher\'s own device or network, many follows arriving together, and followers who do nothing else on Revlo.',
+      'Each time our checks judge another 10 of a publisher\'s followers to be fabricated, we email them a caution and show a warning when they create a post.',
+      'Our team reviews these cases and may remove fabricated follows, remove posts, remove badges or block the publisher.',
+      `If you believe you were cautioned by mistake, reply to the caution email or write to ${CONTACT_EMAIL}.`,
+    ]],
   ['Stay safe when you deal with people',
     [
       'Meet in busy public places and bring someone with you. Inspect items and properties in person before paying.',

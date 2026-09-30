@@ -2,7 +2,9 @@
 // switcher, numbered sections and the site footer.
 
 export const CONTACT_EMAIL = 'support@revlo.ng';
-export const LAST_UPDATED = '28 September 2026';
+// ORIGINAL (commented out 2026-09-30): export const LAST_UPDATED = '28 September 2026';
+// NOTE: Rules gained "Followers must be real" and Privacy the cookie disclosure on 30 September 2026.
+export const LAST_UPDATED = '30 September 2026';
 
 const G = '#1B5E20';
 const INK = '#141414';
