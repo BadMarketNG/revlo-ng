@@ -260,7 +260,7 @@ export async function checkPosterForCaution(posterEmail) {
     const delivery = await sendEmail({
       to: poster,
       subject: 'A caution about your Revlo.ng followers',
-      html: wrapEmail(`<p>This is ${count} about your followers. Our checks now judge <strong>${result.fabricatedFollowers} of your followers</strong> to be fabricated.</p><p>${CAUTION_MESSAGE}</p><p>Followers on Revlo should be real people who chose to follow you. If you believe this is a mistake, reply to this email and our team will review it.</p><p><a href="${publicOrigin()}/rules">Read the Revlo rules</a></p>`),
+      html: wrapEmail(`<p>This is ${count} about your Revlo followers: <strong>${result.fabricatedFollowers} of them</strong> appear to be fabricated.</p><p>${CAUTION_MESSAGE}</p><p>Followers on Revlo should be real people who chose to follow you. If you believe this is a mistake, reply to this email and our team will review it.</p><p><a href="${publicOrigin()}/rules">Read the Revlo rules</a></p>`),
       headers: { 'Reply-To': 'support@revlo.ng' },
     });
     await supabaseAdmin.from('revlo_collusion_cautions').update({ email_sent: delivery?.ok === true }).eq('id', inserted.data.id);
