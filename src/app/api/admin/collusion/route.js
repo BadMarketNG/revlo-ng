@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
-import { BIAS, WEIGHTS, clearCaution, collusionDetail, collusionReport, deleteAllPosts, removeAllFollows, toCsv } from '@/lib/collusion';
+import { BIAS, WEIGHTS, clearCaution, removeFollowerPercentage, collusionDetail, collusionReport, deleteAllPosts, removeAllFollows, toCsv } from '@/lib/collusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +44,7 @@ export async function GET(request) {
   }
 }
 
-// POST /api/admin/collusion { poster, action: 'delete_posts' | 'remove_follows' | 'clear_caution' }
+// POST /api/admin/collusion { poster, action: 'delete_posts' | 'remove_follows' | 'remove_percent' | 'clear_caution', percent? }
 export async function POST(request) {
   const admin = await getAdminSession();
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -53,14 +53,22 @@ export async function POST(request) {
   const poster = String(body.poster).trim().toLowerCase();
   try {
     let affected;
+    let extra = {};
     if (body.action === 'delete_posts') affected = await deleteAllPosts(poster);
     else if (body.action === 'remove_follows') affected = await removeAllFollows(poster);
     else if (body.action === 'clear_caution') affected = await clearCaution(poster, admin);
+    else if (body.action === 'remove_percent') {
+      const pct = Number(body.percent);
+      if (!Number.isInteger(pct) || pct < 1 || pct > 100) return NextResponse.json({ error: 'Enter a whole percentage from 1 to 100.' }, { status: 400 });
+      const outcome = await removeFollowerPercentage(poster, body.percent);
+      affected = outcome.removed;
+      extra = { percent: outcome.percent, followers_before: outcome.of, removed_followers: outcome.emails.slice(0, 1000) };
+    }
     else return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
     await supabaseAdmin.from('admin_log').insert({
       action: `collusion_${body.action}`,
       target_uid: `publisher:${poster}`,
-      detail: { affected, reason: typeof body.reason === 'string' ? body.reason.slice(0, 500) : null, administrator: admin.email || admin.sub || null },
+      detail: { affected, ...extra, reason: typeof body.reason === 'string' ? body.reason.slice(0, 500) : null, administrator: admin.email || admin.sub || null },
     });
     return NextResponse.json({ ok: true, affected });
   } catch (error) {

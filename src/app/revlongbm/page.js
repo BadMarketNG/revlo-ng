@@ -560,6 +560,7 @@ function Collusion() {
   const [detail, setDetail] = useState(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [percent, setPercent] = useState('50');
   const load = useCallback(() => {
     fetch('/api/admin/collusion', { cache: 'no-store' }).then((r) => r.json()).then((d) => { if (d.error) setError(d.error); else { setError(''); setRows(d.report); } }).catch(() => setError('Could not load the report.'));
   }, []);
@@ -571,14 +572,18 @@ function Collusion() {
     setDetail(d.error ? { error: d.error, poster } : d.detail);
   };
 
+  const pct = Number(percent);
+  const pctValid = Number.isInteger(pct) && pct >= 1 && pct <= 100;
+  const removeCount = detail?.followers && pctValid ? Math.min(detail.followers, Math.ceil((detail.followers * pct) / 100)) : 0;
+
   const act = async (action) => {
-    const label = action === 'delete_posts' ? 'delete ALL posts by' : action === 'clear_caution' ? 'clear the caution (and its post warning) for' : 'remove ALL follows of';
+    const label = action === 'delete_posts' ? 'delete ALL posts by' : action === 'clear_caution' ? 'clear the caution (and its post warning) for' : action === 'remove_percent' ? `remove ${removeCount} of ${detail.followers} followers (${pct}%, most suspicious first) from` : 'remove ALL follows of';
     if (!window.confirm(`Are you sure you want to ${label} ${detail.poster}? This cannot be undone from here.`)) return;
     setBusy(true); setMessage('');
-    const res = await fetch('/api/admin/collusion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster: detail.poster, action }) });
+    const res = await fetch('/api/admin/collusion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster: detail.poster, action, percent: pct }) });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    setMessage(res.ok ? (action === 'clear_caution' ? 'Warning cleared. A new caution is still sent at the next 10 fabricated followers.' : `Done: ${body.affected} ${action === 'delete_posts' ? 'posts deleted' : 'follows removed'}.`) : body.error || 'The action failed.');
+    setMessage(res.ok ? (action === 'clear_caution' ? 'Warning cleared. A new caution is still sent at the next 10 fabricated followers.' : action === 'remove_percent' ? `Done: ${body.affected} followers removed. The list is in the admin log.` : `Done: ${body.affected} ${action === 'delete_posts' ? 'posts deleted' : 'follows removed'}.`) : body.error || 'The action failed.');
     if (res.ok) { load(); open(detail.poster); }
   };
 
@@ -656,8 +661,15 @@ function Collusion() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               <button style={miniBtn(RED)} disabled={busy} onClick={() => act('delete_posts')}>Delete all posts by this user</button>
               <button style={miniBtn('#b45309')} disabled={busy} onClick={() => act('remove_follows')}>Remove all their follows</button>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '3px 6px' }}>
+                <label htmlFor="collusion-percent" style={{ fontSize: 12, fontWeight: 700 }}>Remove</label>
+                <input id="collusion-percent" type="number" min="1" max="100" step="1" value={percent} onChange={(e) => setPercent(e.target.value)} style={{ width: 64, padding: '4px 6px', border: `1px solid ${BORDER}`, borderRadius: 6 }} />
+                <span style={{ fontSize: 12 }}>% of followers</span>
+                <button style={miniBtn('#9a3412')} disabled={busy || !pctValid || removeCount === 0} onClick={() => act('remove_percent')}>Remove {removeCount}</button>
+              </span>
               {detail.cautionActive && <button style={miniBtn('#475467')} disabled={busy} onClick={() => act('clear_caution')}>Clear caution</button>}
             </div>
+            <p style={{ color: MUTED, fontSize: 12 }}>Removing a percentage takes the most suspicious followers first: same device as the poster, then same IP, then shared with other followers, then followers who do nothing else, then the most recent. Export the followers CSV first if you may need the evidence.</p>
             {message && <p>{message}</p>}
           </>)}
         </section>

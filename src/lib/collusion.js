@@ -303,6 +303,40 @@ export async function removeAllFollows(posterEmail) {
   return data?.length || 0;
 }
 
+// Most suspicious first: same device as the poster, then same IP, then shared
+// with other followers, then single-purpose, then the most recent follow.
+function suspicionRank(f) {
+  return (f.deviceMatch ? 8 : 0) + (f.ipMatch ? 4 : 0) + (f.sharesWithFollowers ? 2 : 0) + (f.singlePurpose ? 1 : 0);
+}
+
+export function followersToRemove(followers, percent) {
+  const count = Math.min(followers.length, Math.ceil((followers.length * percent) / 100));
+  return [...followers]
+    .sort((a, b) => suspicionRank(b) - suspicionRank(a) || Date.parse(b.followedAt) - Date.parse(a.followedAt))
+    .slice(0, count);
+}
+
+// Removes the given percentage (1-100) of a poster's followers, most
+// suspicious first, and returns who was removed for the admin log.
+export async function removeFollowerPercentage(posterEmail, percent) {
+  const poster = lower(posterEmail);
+  const pct = Number(percent);
+  if (!Number.isFinite(pct) || pct < 1 || pct > 100) throw new Error('Enter a percentage from 1 to 100.');
+  const data = await loadPosterData(poster);
+  const result = analyse(poster, data, buildIndex(data));
+  const chosen = followersToRemove(result.followerDetails, pct);
+  const emails = chosen.map((f) => f.email);
+  let removed = 0;
+  for (let i = 0; i < emails.length; i += 200) {
+    const { data: rows, error } = await supabaseAdmin.from('follows').delete()
+      .ilike('poster_email', escapeLike(poster)).in('follower_email', emails.slice(i, i + 200)).select('id');
+    if (error) throw new Error('Could not remove the followers.');
+    removed += rows?.length || 0;
+  }
+  await refreshPosterFollowerCounts(poster);
+  return { removed, of: result.followers, percent: pct, emails };
+}
+
 const csvCell = (value) => {
   let text = value === null || value === undefined ? '' : String(value);
   if (/^[=+\-@]/.test(text)) text = `'${text}`; // stop spreadsheets treating the cell as a formula
