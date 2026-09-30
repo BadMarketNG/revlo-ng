@@ -40,7 +40,7 @@ export async function getPublisherStatus(email) {
   const settings = await getFeatureSettings();
   const now = new Date().toISOString();
   const [{ data: stats }, { data: premium }] = await Promise.all([
-    supabaseAdmin.from('revlo_publisher_stats').select('published_posts,badge_override').eq('email', cleanEmail).maybeSingle(),
+    supabaseAdmin.from('revlo_publisher_stats').select('published_posts,badge_override,alias').eq('email', cleanEmail).maybeSingle(),
     supabaseAdmin.from('revlo_premium_badges').select('active_until').eq('email', cleanEmail).gt('active_until', now).maybeSingle(),
   ]);
   const publishedPosts = stats?.published_posts || 0;
@@ -50,6 +50,8 @@ export async function getPublisherStatus(email) {
     trustBadge,
     // NOTE (2026-09-29): exposed so new posts and the admin panel respect administrator overrides.
     badgeOverride: stats?.badge_override || null,
+    // NOTE (2026-09-30): the publisher's public alias, pre-filled in the post form.
+    alias: stats?.alias || null,
     earnedTrustBadge: earnedBadge(publishedPosts, settings),
     premiumActive: Boolean(premium),
     premiumUntil: premium?.active_until || null,

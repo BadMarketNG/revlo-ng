@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
-import { BIAS, WEIGHTS, clearCaution, removeFollowerPercentage, collusionDetail, collusionReport, deleteAllPosts, removeAllFollows, toCsv } from '@/lib/collusion';
+import { BIAS, WEIGHTS, clearCaution, removeFollowerPercentage, setReasonHidden, collusionDetail, collusionReport, deleteAllPosts, removeAllFollows, toCsv } from '@/lib/collusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +26,8 @@ export async function GET(request) {
       if (!isEmail(poster)) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
       const detail = await collusionDetail(poster);
       if (csv) {
-        const rows = [['ip_group', 'follower_email', 'followed_at', 'request_ip', 'confirm_ip', 'same_device_as_poster', 'same_ip_as_poster', 'single_purpose', 'shares_with_other_followers', 'poster_own_inbox', 'shared_inbox', 'email_failed', 'judged_fabricated', 'follows_count', 'posts_count']];
-        for (const group of detail.ipGroups) for (const f of group.followers) rows.push([group.ip, f.email, f.followedAt, f.requestIp, f.confirmIp, f.deviceMatch, f.ipMatch, f.singlePurpose, f.sharesWithFollowers, f.aliasOfPoster, f.sharedInbox, f.emailFailed, detail.score >= 80 && f.suspect, f.followsCount, f.postsCount]);
+        const rows = [['ip_group', 'follower_email', 'followed_at', 'request_ip', 'confirm_ip', 'same_device_as_poster', 'same_ip_as_poster', 'single_purpose', 'shares_with_other_followers', 'poster_own_inbox', 'shared_inbox', 'email_failed', 'judged_fabricated', 'follows_count', 'posts_count', 'follow_reason', 'reason_hidden']];
+        for (const group of detail.ipGroups) for (const f of group.followers) rows.push([group.ip, f.email, f.followedAt, f.requestIp, f.confirmIp, f.deviceMatch, f.ipMatch, f.singlePurpose, f.sharesWithFollowers, f.aliasOfPoster, f.sharedInbox, f.emailFailed, detail.score >= 80 && f.suspect, f.followsCount, f.postsCount, f.reason, f.reasonHidden]);
         return csvResponse(toCsv(rows), `revlo-collusion-${detail.poster}-${stamp}.csv`);
       }
       return NextResponse.json({ detail, weights: WEIGHTS, bias: BIAS });
@@ -57,6 +57,11 @@ export async function POST(request) {
     if (body.action === 'delete_posts') affected = await deleteAllPosts(poster);
     else if (body.action === 'remove_follows') affected = await removeAllFollows(poster);
     else if (body.action === 'clear_caution') affected = await clearCaution(poster, admin);
+    else if (body.action === 'hide_reason' || body.action === 'show_reason') {
+      if (!isEmail(body.follower)) return NextResponse.json({ error: 'Choose a follower.' }, { status: 400 });
+      affected = await setReasonHidden(poster, body.follower, body.action === 'hide_reason');
+      extra = { follower: String(body.follower).trim().toLowerCase() };
+    }
     else if (body.action === 'remove_percent') {
       const pct = Number(body.percent);
       if (!Number.isInteger(pct) || pct < 1 || pct > 100) return NextResponse.json({ error: 'Enter a whole percentage from 1 to 100.' }, { status: 400 });

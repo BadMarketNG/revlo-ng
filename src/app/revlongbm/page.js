@@ -576,6 +576,15 @@ function Collusion() {
   const pctValid = Number.isInteger(pct) && pct >= 1 && pct <= 100;
   const removeCount = detail?.followers && pctValid ? Math.min(detail.followers, Math.ceil((detail.followers * pct) / 100)) : 0;
 
+  const toggleReason = async (follower, hide) => {
+    setBusy(true); setMessage('');
+    const res = await fetch('/api/admin/collusion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poster: detail.poster, follower, action: hide ? 'hide_reason' : 'show_reason' }) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    setMessage(res.ok ? (hide ? 'Note hidden from the public.' : 'Note shown again.') : body.error || 'The action failed.');
+    if (res.ok) open(detail.poster);
+  };
+
   const act = async (action) => {
     const label = action === 'delete_posts' ? 'delete ALL posts by' : action === 'clear_caution' ? 'clear the caution (and its post warning) for' : action === 'remove_percent' ? `remove ${removeCount} of ${detail.followers} followers (${pct}%, most suspicious first) from` : 'remove ALL follows of';
     if (!window.confirm(`Are you sure you want to ${label} ${detail.poster}? This cannot be undone from here.`)) return;
@@ -653,11 +662,12 @@ function Collusion() {
               <details key={group.ip} open={group.count > 1 || group.posterUsedIp} style={{ border: `1px solid ${group.posterUsedIp ? RED : BORDER}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{group.ip} · {group.count} {group.count === 1 ? 'follower' : 'followers'}{group.posterUsedIp && <span style={{ color: RED }}> · poster also used this IP</span>}</summary>
                 <table style={{ width: '100%', fontSize: 12, marginTop: 6, borderCollapse: 'collapse' }}>
-                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th><th>Other flags</th><th>Judged fabricated</th></tr></thead>
+                  <thead><tr style={{ textAlign: 'left', color: MUTED }}><th>Follower</th><th>Followed</th><th>Confirm IP</th><th>Same device</th><th>Does nothing else</th><th>Other flags</th><th>Judged fabricated</th><th>Public note</th></tr></thead>
                   <tbody>{group.followers.map((f) => (
                     <tr key={f.email} style={{ borderTop: `1px solid ${BORDER}` }}>
                       <td style={{ padding: '4px 0' }}>{f.email}</td><td>{new Date(f.followedAt).toLocaleString('en-GB')}</td><td>{f.confirmIp || '—'}</td>
                       <td style={{ color: f.deviceMatch ? RED : undefined }}>{f.deviceMatch ? 'Yes' : 'No'}</td><td>{f.singlePurpose ? 'Yes' : 'No'}</td><td style={{ color: RED }}>{[f.aliasOfPoster && 'Poster’s own inbox', f.sharedInbox && 'Same inbox as another follower', f.emailFailed && 'Email bounced/complained'].filter(Boolean).join(' · ') || '—'}</td><td style={{ color: detail.score >= 80 && f.suspect ? RED : undefined }}>{detail.score >= 80 && f.suspect ? 'Yes' : 'No'}</td>
+                      <td style={{ maxWidth: 260 }}>{f.reason ? <><span style={{ textDecoration: f.reasonHidden ? 'line-through' : 'none', color: f.reasonHidden ? MUTED : undefined }}>“{f.reason}”</span> <button style={{ ...miniBtn(f.reasonHidden ? GREEN : '#475467'), padding: '2px 8px', fontSize: 11 }} disabled={busy} onClick={() => toggleReason(f.email, !f.reasonHidden)}>{f.reasonHidden ? 'Show' : 'Hide'}</button></> : '—'}</td>
                     </tr>))}
                   </tbody>
                 </table>

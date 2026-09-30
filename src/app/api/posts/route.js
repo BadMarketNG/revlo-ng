@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { aliasTakenByOther, cleanAlias, currentAlias, saveAlias } from '@/lib/community';
 import { attachDeviceCookie, deviceIdFrom, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { makeUid, expiryFor, isValidDuration, isEmail, verifyToken } from '@/lib/util';
@@ -21,8 +22,12 @@ import {
 export const dynamic = 'force-dynamic';
 
 // Columns safe to expose publicly (poster_email is HIDDEN).
+// ORIGINAL (commented out 2026-09-30):
+// const PUBLIC_COLS =
+//   'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
+// NOTE: poster_alias is the publisher's chosen public alias, shown before the city.
 const PUBLIC_COLS =
-  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
+  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,poster_alias,created_at,expires_at';
 
 // A post's duration is how long it stays live from publication. Every post
 // appears under "Right now" for its first 24 hours, then moves to the tab for
@@ -145,6 +150,13 @@ export async function POST(request) {
   }
 
   const cleanEmail = normaliseEmail(poster_email);
+  // NOTE (2026-09-30): poster_alias — absent keeps the current alias, '' removes it, text sets it.
+  const aliasProvided = body && Object.prototype.hasOwnProperty.call(body, 'poster_alias');
+  const aliasInput = aliasProvided ? cleanAlias(body.poster_alias) : null;
+  if (aliasInput?.error) return NextResponse.json({ error: aliasInput.error }, { status: 400 });
+  if (aliasInput?.value && await aliasTakenByOther(aliasInput.value, cleanEmail)) {
+    return NextResponse.json({ error: `The alias "${aliasInput.value}" is already taken. Please choose another.` }, { status: 409 });
+  }
   // Publishing requires the emailed magic link, issued for this exact address.
   const publishClaim = verifyToken(publish_token);
   if (!publishClaim || publishClaim.action !== 'publish' || publishClaim.email !== cleanEmail) {
@@ -273,6 +285,7 @@ export async function POST(request) {
       expires_at,
       trust_badge: trustBadge,
       premium_badge: premiumBadge,
+      poster_alias: aliasProvided ? aliasInput.value : await currentAlias(cleanEmail),
     })
     .select(PUBLIC_COLS)
     .single();
@@ -293,6 +306,13 @@ export async function POST(request) {
     await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
   }
   await incrementPublisherPosts(cleanEmail).catch((e) => console.error('[publisherStats]', e));
+  if (aliasProvided) {
+    const saved = await saveAlias(cleanEmail, aliasInput.value).catch(() => ({ error: 'failed' }));
+    if (saved.error) {
+      await supabaseAdmin.from('posts').update({ poster_alias: await currentAlias(cleanEmail) }).eq('uid', data.uid);
+      data.poster_alias = await currentAlias(cleanEmail);
+    }
+  }
   if (promotionIntent) {
     const endsAt = new Date(Date.now() + promotionIntent.promo_days * 86400000).toISOString();
     await supabaseAdmin.from('revlo_promotions').insert({ post_uid: data.uid, category: null, source: 'user', ends_at: endsAt, payment_reference: promotionIntent.reference });

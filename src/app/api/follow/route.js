@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cleanReason } from '@/lib/community';
 import { attachDeviceCookie, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { checkPosterForCaution } from '@/lib/collusion';
 import { canonicalInbox, sameInbox } from '@/lib/emailIdentity';
@@ -28,6 +29,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
   }
   const { uid, follower_email } = body || {};
+  // NOTE (2026-09-30): optional public note on why they follow, shown under the poster's posts.
+  const reason = cleanReason(body?.reason);
+  if (reason.error) return NextResponse.json({ error: reason.error }, { status: 400 });
 
   if (!uid) return NextResponse.json({ error: 'uid required' }, { status: 400 });
   if (!isEmail(follower_email))
@@ -75,7 +79,7 @@ export async function POST(request) {
   const base = publicOrigin();
   let pending;
   try {
-    pending = await createPendingPublicAction({ action: 'follow', postUid: uid, email: follower, sourceIp });
+    pending = await createPendingPublicAction({ action: 'follow', postUid: uid, email: follower, message: reason.value, sourceIp });
   } catch {
     return NextResponse.json({ error: 'follow verification is temporarily unavailable' }, { status: 503 });
   }
@@ -118,6 +122,7 @@ export async function GET(request) {
   const { error } = await supabaseAdmin.from('follows').insert({
     poster_email: post.poster_email,
     follower_email: pending.email,
+    reason: cleanReason(pending.message).value || null,
   });
   if (error && error.code !== '23505') return htmlResponse('Could not confirm this follow request.', 500);
 

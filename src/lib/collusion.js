@@ -72,7 +72,7 @@ function concentration(values, n) {
 
 async function loadData() {
   const [follows, posts, signals] = await Promise.all([
-    supabaseAdmin.from('follows').select('poster_email,follower_email,created_at').limit(50000),
+    supabaseAdmin.from('follows').select('poster_email,follower_email,created_at,reason,reason_hidden').limit(50000),
     supabaseAdmin.from('posts').select('poster_email,created_at,source_ip').limit(50000),
     supabaseAdmin.from('revlo_activity_signals').select('kind,actor_email,subject_email,ip,device_id,created_at').limit(100000),
   ]);
@@ -84,7 +84,7 @@ async function loadData() {
 // Only the rows one poster's score depends on: their follows, their followers'
 // other follows, and posts and signals by the poster and their followers.
 async function loadPosterData(poster) {
-  const own = await supabaseAdmin.from('follows').select('poster_email,follower_email,created_at').eq('poster_email', poster).limit(5000);
+  const own = await supabaseAdmin.from('follows').select('poster_email,follower_email,created_at,reason,reason_hidden').eq('poster_email', poster).limit(5000);
   if (own.error) throw new Error('Collusion data is unavailable.');
   const people = [poster, ...new Set((own.data || []).map((row) => lower(row.follower_email)))];
   const chunks = [];
@@ -133,6 +133,8 @@ function analyse(poster, data, index) {
       aliasOfPoster: inbox === canonicalInbox(poster),
       emailFailed: (index.eventsByEmail.get(email) || []).length > 0,
       followedAt: row.created_at,
+      reason: row.reason || null,
+      reasonHidden: Boolean(row.reason_hidden),
       requestIp: request?.ip ? String(request.ip) : null,
       confirmIp: confirm?.ip ? String(confirm.ip) : null,
       primaryIp: request?.ip ? String(request.ip) : confirm?.ip ? String(confirm.ip) : null,
@@ -318,6 +320,14 @@ export async function checkPosterForCaution(posterEmail) {
 }
 
 // Removes the post warning. History is kept; the next multiple of 10 still cautions.
+// Hides (or shows again) one follower's public note about a poster.
+export async function setReasonHidden(posterEmail, followerEmail, hidden) {
+  const { data, error } = await supabaseAdmin.from('follows').update({ reason_hidden: Boolean(hidden) })
+    .ilike('poster_email', escapeLike(lower(posterEmail))).ilike('follower_email', escapeLike(lower(followerEmail))).select('id');
+  if (error) throw new Error('Could not update the note.');
+  return data?.length || 0;
+}
+
 export async function clearCaution(posterEmail, admin) {
   const { data, error } = await supabaseAdmin.from('revlo_collusion_cautions')
     .update({ cleared_at: new Date().toISOString(), cleared_by: admin?.email || admin?.sub || null })

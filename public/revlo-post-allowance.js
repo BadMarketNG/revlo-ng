@@ -89,6 +89,15 @@
     heading.insertAdjacentElement('afterend', box);
   }
 
+  // Follow reasons and poster aliases (2026-09-30) live in their own script,
+  // loaded from here so public/app.html does not need to change.
+  if (!document.querySelector('script[src="/revlo-community.js"]')) {
+    const community = document.createElement('script');
+    community.src = '/revlo-community.js';
+    community.defer = true;
+    document.head.appendChild(community);
+  }
+
   new MutationObserver(() => { scan(); scanCaution(); }).observe(document.documentElement, { childList: true, subtree: true });
   scan();
   scanCaution();
