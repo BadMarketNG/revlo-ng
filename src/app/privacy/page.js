@@ -46,6 +46,8 @@ const SECTIONS = [
       'Supabase: database and file storage.',
       'Vercel: website hosting and delivery.',
       'Amazon Web Services (Amazon SES): sending emails.',
+      // NOTE (2026-09-30): Cloudflare Turnstile.
+      'Cloudflare (Turnstile): the security check on the follow, contact, report and publish forms, which confirms a person rather than an automated program is using them.',
       'Paystack: processing payments.',
     ],
     'We may also disclose data where the law requires it, to respond to valid requests from the Nigeria Police Force, courts or regulators, or to protect people from fraud or harm. Some providers store data outside Nigeria. Where they do, we rely on the safeguards the NDPA allows for cross-border transfers.',
@@ -60,7 +62,7 @@ const SECTIONS = [
   ['Browser storage',
     // ORIGINAL (commented out 2026-09-30): no longer accurate once the feed and security cookies below are set.
     // 'Revlo does not use advertising or tracking cookies. We use your browser\'s local and session storage for the app to work: your publish session, view counting, the online-visitor count and interface preferences. Administrator sign-in uses a secure cookie that only Revlo staff receive. Clearing your browser data removes these items.',
-    'Revlo does not use advertising cookies. We use your browser\'s local and session storage for the app to work: your publish session, view counting, the online-visitor count and interface preferences. We also set two first-party cookies: one that keeps the order of the feed steady during your visit, and a random device identifier used only to protect the community against fake follows and abuse. When you follow a poster, request a publish link or publish, we record that identifier with your network (IP) address, and we keep a note when email we send to your address bounces or is marked as spam; only Revlo administrators can see these records. Administrator sign-in uses a secure cookie that only Revlo staff receive. Clearing your browser data removes these items.',
+    'Revlo does not use advertising cookies. We use your browser\'s local and session storage for the app to work: your publish session, view counting, the online-visitor count and interface preferences. We also set three first-party cookies: one that keeps the order of the feed steady during your visit, a random device identifier used only to protect the community against fake follows and abuse, and a 30-minute security-check pass after you complete the Cloudflare check. When you follow a poster, request a publish link or publish, we record that identifier with your network (IP) address, and we keep a note when email we send to your address bounces or is marked as spam; only Revlo administrators can see these records. Administrator sign-in uses a secure cookie that only Revlo staff receive. Clearing your browser data removes these items.',
   ],
   ['Your rights',
     [

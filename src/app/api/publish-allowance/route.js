@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireHuman } from '@/lib/turnstile';
 import { isEmail } from '@/lib/util';
 import { normaliseEmail, requestIp } from '@/lib/revloBlocklist';
 import { requireRateLimit } from '@/lib/security';
@@ -11,6 +12,9 @@ export const dynamic = 'force-dynamic';
 // Badges are already public on posts, so this reveals nothing new; it is
 // rate limited per network to stop bulk lookups.
 export async function GET(request) {
+  // NOTE (2026-09-30): Cloudflare Turnstile — requires the browser's security check (see src/lib/turnstile.js).
+  const notHuman = requireHuman(request);
+  if (notHuman) return notHuman;
   const email = new URL(request.url).searchParams.get('email');
   if (!isEmail(email)) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
   const limited = await requireRateLimit({ action: 'publish-allowance:ip:15m', key: requestIp(request), limit: 20, windowSeconds: 900 });

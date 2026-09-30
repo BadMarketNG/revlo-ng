@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireHuman } from '@/lib/turnstile';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
 import { sendEmail } from '@/lib/email';
@@ -16,6 +17,9 @@ export const dynamic = 'force-dynamic';
 // POST /api/contact { uid, from_email, message }
 // Relays a message to the poster. The poster's email is never exposed to the sender.
 export async function POST(request) {
+  // NOTE (2026-09-30): Cloudflare Turnstile — requires the browser's security check (see src/lib/turnstile.js).
+  const notHuman = requireHuman(request);
+  if (notHuman) return notHuman;
   const sourceIp = requestIp(request);
   let body;
   try {

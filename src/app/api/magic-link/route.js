@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireHuman } from '@/lib/turnstile';
 import { recordSignal } from '@/lib/activitySignals';
 import { cautionForPublisher } from '@/lib/collusion';
 import { isEmail, signToken, verifyToken } from '@/lib/util';
@@ -16,6 +17,9 @@ export const dynamic = 'force-dynamic';
 
 // POST /api/magic-link { email }  -> emails a short-lived publish link.
 export async function POST(request) {
+  // NOTE (2026-09-30): Cloudflare Turnstile — requires the browser's security check (see src/lib/turnstile.js).
+  const notHuman = requireHuman(request);
+  if (notHuman) return notHuman;
   const sourceIp = requestIp(request);
   let body;
   try {

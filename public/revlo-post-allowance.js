@@ -91,6 +91,13 @@
 
   // Follow reasons and poster aliases (2026-09-30) live in their own script,
   // loaded from here so public/app.html does not need to change.
+  // Cloudflare Turnstile (2026-09-30), loaded the same way.
+  if (!document.querySelector('script[src="/revlo-turnstile.js"]')) {
+    const turnstile = document.createElement('script');
+    turnstile.src = '/revlo-turnstile.js';
+    turnstile.defer = true;
+    document.head.appendChild(turnstile);
+  }
   if (!document.querySelector('script[src="/revlo-community.js"]')) {
     const community = document.createElement('script');
     community.src = '/revlo-community.js';

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { requireHuman } from '@/lib/turnstile';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
@@ -156,6 +157,9 @@ async function submitReport(request) {
 }
 
 export async function POST(request) {
+  // NOTE (2026-09-30): Cloudflare Turnstile — requires the browser's security check (see src/lib/turnstile.js).
+  const notHuman = requireHuman(request);
+  if (notHuman) return notHuman;
   const type = request.headers.get('content-type') || '';
   if (type.includes('multipart/form-data')) return submitReport(request);
   let body;

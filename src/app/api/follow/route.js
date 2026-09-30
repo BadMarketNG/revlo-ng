@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireHuman } from '@/lib/turnstile';
 import { cleanReason } from '@/lib/community';
 import { attachDeviceCookie, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { checkPosterForCaution } from '@/lib/collusion';
@@ -21,6 +22,9 @@ export const dynamic = 'force-dynamic';
 // POST /api/follow { uid, follower_email }
 // Follows the poster behind a post (keyed on hidden poster_email).
 export async function POST(request) {
+  // NOTE (2026-09-30): Cloudflare Turnstile — requires the browser's security check (see src/lib/turnstile.js).
+  const notHuman = requireHuman(request);
+  if (notHuman) return notHuman;
   const sourceIp = requestIp(request);
   let body;
   try {
