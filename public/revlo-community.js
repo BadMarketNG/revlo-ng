@@ -16,6 +16,8 @@
   const imageAlias = new Map(); // image URL -> alias, for enlarged views outside the card
   const reasons = new Map(); // post uid -> { count, reasons }
   const requested = new Set();
+  let currentTags = [];
+  let suspendedUntil = 0;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -42,6 +44,23 @@
     .rv-alias-field input:focus{outline:none;border-color:#2e7d32}
     .rv-alias-field .rv-hint{font:12px/1.45 system-ui;color:#6b756c;margin-top:5px}
     .rv-alias-field .rv-hint.rv-bad{color:#b42318}
+    .rv-follower-name{border:0;background:none;padding:0;color:#1b5e20;font:700 11.5px system-ui;text-decoration:underline;cursor:pointer;font-style:normal}
+    .rv-cf-back{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+    .rv-cf{width:100%;max-width:440px;background:#fffdf5;border-radius:22px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.3);font:15px/1.45 system-ui;color:#1a1a1a}
+    .rv-cf h2{margin:0 0 6px;font-size:21px}.rv-cf p{margin:0 0 12px;color:#555;font-size:14px}
+    .rv-cf input,.rv-cf textarea{width:100%;box-sizing:border-box;border:1.5px solid #cfd8cc;border-radius:14px;padding:12px 14px;font:15px system-ui;margin-bottom:10px;background:#fff}
+    .rv-cf label.rv-robot{display:flex;align-items:center;gap:10px;border:1.5px solid #cfd8cc;border-radius:14px;padding:12px 14px;margin-bottom:10px}
+    .rv-cf .rv-cf-actions{display:flex;gap:8px}.rv-cf button{border:0;border-radius:14px;padding:12px 16px;font:800 15px system-ui;cursor:pointer}
+    .rv-cf .rv-send{flex:1;background:#1b5e20;color:#fff}.rv-cf .rv-send:disabled{opacity:.5}.rv-cf .rv-cancel{background:#eef1ec;color:#333}
+    .rv-cf .rv-cf-msg{margin-top:10px;font-weight:600}
+    .rv-tags-field{margin:6px 0 12px}.rv-tags-field label{display:block;font:700 13px system-ui;color:#1f3b24;margin-bottom:5px}
+    .rv-tags-box{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1.5px solid #d5dcd6;border-radius:14px;padding:6px 8px;background:#fff;max-width:420px}
+    .rv-tags-box span{background:#eef6ef;color:#1b5e20;border-radius:999px;padding:4px 8px;font:700 12.5px system-ui}
+    .rv-tags-box span button{border:0;background:none;color:#1b5e20;cursor:pointer;margin-left:4px;font-weight:800}
+    .rv-tags-box input{border:0;outline:none;flex:1;min-width:110px;font:14px system-ui;padding:5px}
+    .rv-rule-note{margin:4px 0 12px;padding:10px 12px;border-radius:12px;background:#fff8e6;border:1px solid #f1d58a;color:#6b4e00;font:13px/1.45 system-ui}
+    .rv-suspended{margin:0 0 14px;padding:12px 14px;border-radius:12px;background:#fdecea;border:1px solid #f3b4ad;border-left:5px solid #b42318;color:#7a1a12;font:14px/1.5 system-ui}
+    .rv-suspended strong{display:block;font-size:15px}
     .rv-wm{position:absolute;right:14px;bottom:16px;z-index:3;pointer-events:none;user-select:none;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.52);color:#fff;font:800 15px/1 system-ui;letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(2px)}
     .rv-wm.rv-wm-sm{right:4px;bottom:4px;padding:3px 6px;font-size:10px}
   `;
@@ -65,15 +84,24 @@
         if (url === '/api/follow') {
           const note = document.querySelector('.rv-reason-field textarea');
           if (note && note.value.trim()) body.reason = note.value.trim();
+          // NOTE (2026-10-01): the follower's own alias, so the poster can contact them.
+          const followerAlias = document.querySelector('.rv-reason-field input');
+          if (followerAlias && followerAlias.value.trim()) body.follower_alias = followerAlias.value.trim();
         } else {
           const alias = document.querySelector('.rv-alias-field input');
           if (alias) body.poster_alias = alias.value.trim();
+          if (document.querySelector('.rv-tags-field')) body.tags = [...currentTags];
         }
         init = { ...init, body: JSON.stringify(body) };
       } catch {}
     }
     const response = await previousFetch(input, init);
     try {
+      // NOTE (2026-10-01): a suspended publisher gets a countdown in the post window.
+      if ((url === '/api/magic-link' || url === '/api/posts') && response.status === 403) {
+        const data = await response.clone().json();
+        if (data?.suspended_until) { suspendedUntil = Date.parse(data.suspended_until); setTimeout(scan, 0); }
+      }
       if ((url.startsWith('/api/posts?') || url === '/api/posts') && response.ok) {
         const data = await response.clone().json();
         for (const post of data.posts || (data.post ? [data.post] : [])) aliases.set(post.uid, post.poster_alias || '');
@@ -102,7 +130,10 @@
     box.innerHTML = `<label for="rv-reason">What made you follow? <span style="font-weight:500;color:#7b867c">(optional)</span></label>
       <p class="rv-hint">Share a few words about why this poster is worth following. Your note appears under their posts to help others decide. Your email is never shown.</p>
       <textarea id="rv-reason" maxlength="${REASON_MAX}" placeholder="e.g. Honest seller, quick to reply and the prices were fair."></textarea>
-      <div class="rv-count">0 / ${REASON_MAX}</div>`;
+      <div class="rv-count">0 / ${REASON_MAX}</div>
+      <label for="rv-follower-alias" style="margin-top:10px">Your alias <span style="font-weight:500;color:#7b867c">(optional)</span></label>
+      <p class="rv-hint">Add the alias you publish under so this poster can send you messages. Followers without an alias cannot be contacted.</p>
+      <input id="rv-follower-alias" maxlength="24" autocomplete="nickname" placeholder="e.g. Billy" style="width:100%;box-sizing:border-box;border:1.5px solid #cfd8cc;border-radius:14px;padding:11px 14px;font:15px system-ui;background:#fff">`;
     const area = box.querySelector('textarea');
     area.addEventListener('input', () => { box.querySelector('.rv-count').textContent = `${area.value.length} / ${REASON_MAX}`; });
     email.insertAdjacentElement('afterend', box);
@@ -150,7 +181,9 @@
     const line = document.createElement('div');
     line.className = 'rv-why-line';
     const first = document.createElement('q');
-    first.textContent = data.reasons[0].text;
+    // NOTE (2026-10-01): entries may be alias-only (no note).
+    const firstNote = data.reasons.find((r) => r.text) || data.reasons[0];
+    first.textContent = firstNote.text || `${firstNote.alias} follows`;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'rv-why-more';
@@ -162,9 +195,20 @@
     list.hidden = true;
     for (const reason of data.reasons) {
       const li = document.createElement('li');
-      li.textContent = `“${reason.text}”`;
+      li.textContent = reason.text ? `“${reason.text}”` : 'Follows this publisher';
       const when = document.createElement('small');
-      when.textContent = `A follower · ${ago(reason.at)}`;
+      if (reason.alias) {
+        // The poster clicks a follower's alias to message them.
+        const who = document.createElement('button');
+        who.type = 'button';
+        who.className = 'rv-follower-name';
+        who.textContent = reason.alias;
+        who.title = `Message ${reason.alias} (post creator only)`;
+        who.addEventListener('click', (event) => { event.stopPropagation(); openContactFollower(uid, reason.alias); });
+        when.append(who, ` · ${ago(reason.at)}`);
+      } else {
+        when.textContent = `A follower · ${ago(reason.at)}`;
+      }
       li.appendChild(when);
       list.appendChild(li);
     }
@@ -240,6 +284,126 @@
     });
   }
 
+  // Contact a follower (2026-10-01): the post creator enters the email they
+  // published with; Revlo emails them a link to confirm, then sends the message.
+  function openContactFollower(uid, alias) {
+    const back = document.createElement('div');
+    back.className = 'rv-cf-back';
+    back.innerHTML = `<div class="rv-cf" role="dialog" aria-modal="true" aria-labelledby="rv-cf-title">
+      <h2 id="rv-cf-title"></h2>
+      <p>Only the person who created this post can message its followers. Enter the email you published with; we will email you a link to confirm, then deliver your message with your email so they can reply.</p>
+      <input type="email" placeholder="Email you used to create this post" autocomplete="email">
+      <textarea rows="4" maxlength="2000" placeholder="Your message"></textarea>
+      <label class="rv-robot"><input type="checkbox" style="width:18px;height:18px;margin:0"><span>I'm not a robot</span></label>
+      <div class="rv-cf-actions"><button type="button" class="rv-cancel">Cancel</button><button type="button" class="rv-send" disabled>Verify email to send</button></div>
+      <div class="rv-cf-msg" role="status"></div></div>`;
+    back.querySelector('#rv-cf-title').textContent = `Message ${alias}`;
+    const [email, text] = [back.querySelector('input[type="email"]'), back.querySelector('textarea')];
+    const robot = back.querySelector('.rv-robot input');
+    const send = back.querySelector('.rv-send');
+    const msg = back.querySelector('.rv-cf-msg');
+    const sync = () => { send.disabled = !(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()) && text.value.trim().length >= 2 && robot.checked); };
+    [email, text].forEach((el) => el.addEventListener('input', sync));
+    robot.addEventListener('change', sync);
+    const close = () => back.remove();
+    back.addEventListener('click', (event) => { if (event.target === back) close(); });
+    back.querySelector('.rv-cancel').addEventListener('click', close);
+    send.addEventListener('click', async () => {
+      send.disabled = true; msg.style.color = '#333'; msg.textContent = 'Sending…';
+      try {
+        const res = await window.fetch('/api/contact-follower', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid, follower_alias: alias, from_email: email.value.trim(), message: text.value.trim() }) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Could not send.');
+        msg.style.color = '#1b5e20';
+        msg.textContent = `Check ${email.value.trim()} for a link to confirm. Your message to ${alias} is sent once you confirm.`;
+      } catch (error) {
+        msg.style.color = '#b42318'; msg.textContent = error.message; sync();
+      }
+    });
+    document.body.appendChild(back);
+    email.focus();
+  }
+
+  const BADGE_TAGS = { gold: 'tags_gold', silver: 'tags_silver', bronze: 'tags_bronze' };
+  function tagAllowance() {
+    const p = publisher() || {};
+    const settings = p.settings || {};
+    let promoted = false;
+    try { promoted = Boolean(localStorage.getItem('revlo_promo_reference') || sessionStorage.getItem('revlo_promo_reference')); } catch {}
+    const key = promoted ? 'tags_promoted' : (BADGE_TAGS[p.trustBadge] || 'tags_normal');
+    const fallback = { tags_normal: 1, tags_bronze: 2, tags_silver: 3, tags_gold: 4, tags_promoted: 5 }[key];
+    return Number.isFinite(settings[key]) ? settings[key] : fallback;
+  }
+
+  // Search tags in the New post form, limited by badge.
+  function mountTagsField(after) {
+    if (after.parentElement.querySelector('.rv-tags-field')) return;
+    const limit = tagAllowance();
+    const box = document.createElement('div');
+    box.className = 'rv-tags-field';
+    box.innerHTML = `<label>Search tags <span style="font-weight:500;color:#7b867c">(up to ${limit})</span></label>
+      <div class="rv-tags-box"><input maxlength="24" placeholder="Type a tag and press Enter"></div>
+      <div class="rv-hint" style="font:12px/1.45 system-ui;color:#6b756c;margin-top:5px">Tags help people find your post in search. Badges let you add more tags.</div>`;
+    const wrap = box.querySelector('.rv-tags-box');
+    const input = wrap.querySelector('input');
+    const draw = () => {
+      wrap.querySelectorAll('span').forEach((el) => el.remove());
+      currentTags.forEach((tag, i) => {
+        const chip = document.createElement('span');
+        chip.textContent = `#${tag}`;
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', `Remove ${tag}`);
+        x.addEventListener('click', () => { currentTags.splice(i, 1); draw(); });
+        chip.appendChild(x);
+        wrap.insertBefore(chip, input);
+      });
+      input.disabled = currentTags.length >= limit;
+      input.placeholder = input.disabled ? 'Tag limit reached' : 'Type a tag and press Enter';
+    };
+    const add = () => {
+      const tag = input.value.trim().replace(/^#+/, '').toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}-]/gu, '');
+      if (tag.length >= 2 && !currentTags.includes(tag) && currentTags.length < limit) currentTags.push(tag.slice(0, 24));
+      input.value = ''; draw();
+    };
+    input.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); add(); } });
+    input.addEventListener('blur', () => { if (input.value.trim()) add(); });
+    currentTags = [];
+    draw();
+    after.insertAdjacentElement('afterend', box);
+  }
+
+  // Reminder that contact details are not allowed in posts.
+  function mountRuleNote(after) {
+    if (after.parentElement.querySelector('.rv-rule-note')) return;
+    const note = document.createElement('div');
+    note.className = 'rv-rule-note';
+    note.innerHTML = '<strong>No contact details in posts.</strong> Phone numbers, email addresses, links, WhatsApp and social media handles are not allowed. Posts that include them are removed. People reach you safely through the Contact button.';
+    after.insertAdjacentElement('afterend', note);
+  }
+
+  // Suspension countdown in the Create a post / New post windows.
+  function renderSuspension() {
+    if (!suspendedUntil || suspendedUntil <= Date.now()) { document.querySelectorAll('.rv-suspended').forEach((el) => el.remove()); return; }
+    const heading = headingIn('Create a post') || headingIn('New post');
+    if (!heading) return;
+    let banner = heading.parentElement.querySelector('.rv-suspended');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'rv-suspended';
+      banner.setAttribute('role', 'alert');
+      heading.insertAdjacentElement('afterend', banner);
+    }
+    const left = Math.max(0, suspendedUntil - Date.now());
+    const d = Math.floor(left / 86400000), h = Math.floor(left / 3600000) % 24, m = Math.floor(left / 60000) % 60, s = Math.floor(left / 1000) % 60;
+    const text = `You can post again in ${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s.`;
+    if (banner.dataset.text !== text) {
+      banner.dataset.text = text;
+      banner.innerHTML = '<strong>This email is suspended</strong>';
+      banner.append(`${text} While suspended you cannot publish, follow or contact followers.`);
+    }
+  }
+  setInterval(renderSuspension, 1000);
+
   // 3. Alias field in the New post form
   function mountAliasField() {
     const heading = headingIn('New post');
@@ -273,6 +437,8 @@
       }, 400);
     });
     section.insertAdjacentElement('afterend', box);
+    mountTagsField(box);
+    mountRuleNote(box.parentElement.querySelector('.rv-tags-field') || box);
   }
 
   function scan() {

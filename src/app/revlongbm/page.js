@@ -107,7 +107,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -137,6 +137,7 @@ export default function AdminPage() {
       {tab === 'users' && <UsersAndEmail />}
       {tab === 'collusion' && <Collusion />}
       {tab === 'marketing' && <Marketing />}
+      {tab === 'moderation' && <Moderation />}
       {tab === 'categories' && <Categories />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
@@ -886,6 +887,88 @@ function Marketing() {
     </div>
   );
 }
+// NOTE (2026-10-01): moderation — posts auto-flagged for contact details, and
+// email suspensions (no posting, following or contacting followers).
+function Moderation() {
+  const [data, setData] = useState(null);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ email: '', days: '', reason: '' });
+  const load = useCallback(() => {
+    fetch('/api/admin/moderation', { cache: 'no-store' }).then((r) => r.json()).then((d) => { if (d.error) setMessage(d.error); else setData(d); }).catch(() => setMessage('Could not load moderation.'));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const post = async (payload, confirmText) => {
+    if (confirmText && !window.confirm(confirmText)) return null;
+    setBusy(true); setMessage('');
+    const res = await fetch('/api/admin/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setMessage(body.error || 'The action failed.'); return null; }
+    load();
+    return body;
+  };
+  const days = form.days || data?.defaultDays || 10;
+  const suspend = async (email, reason) => {
+    const target = email || form.email;
+    const result = await post({ action: 'suspend', email: target, days: Number(days), reason: reason ?? form.reason }, `Suspend ${target} for ${days} days? They will be emailed, and cannot post, follow or contact followers until it ends.`);
+    if (result) { setMessage(`Suspended ${target} for ${days} days.${result.emailSent ? ' They have been emailed.' : ' The email could not be sent.'}`); setForm({ email: '', days: '', reason: '' }); }
+  };
+  const highlight = (text, matches) => {
+    let out = [String(text || '')];
+    for (const m of matches || []) {
+      out = out.flatMap((part) => typeof part !== 'string' ? [part] : part.split(m.value).flatMap((piece, i, arr) => i < arr.length - 1 ? [piece, <mark key={`${m.value}-${i}-${piece.length}`} style={{ background: '#fee2e2', color: RED, fontWeight: 700 }}>{m.value}</mark>] : [piece]));
+    }
+    return out;
+  };
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      {message && <div style={{ ...cardStyle, color: message.startsWith('Suspended') || message.includes('removed') ? GREEN : RED }}>{message}</div>}
+      <section style={cardStyle}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Posts with contact details</h2>
+        <p style={{ color: MUTED }}>New posts are checked automatically for phone numbers, email addresses, links, WhatsApp/Telegram mentions and social handles. Prices and sizes can look like numbers, so each one waits here for a decision. Removing a post emails the publisher to explain why.</p>
+        {!data ? <p style={{ color: MUTED }}>Loading…</p> : data.flags.length === 0 ? <p style={{ color: MUTED }}>Nothing to review.</p> : data.flags.map((flag) => (
+          <div key={flag.id} style={{ border: `1px solid ${BORDER}`, borderRadius: 10, padding: 12, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <strong>{flag.post?.title || flag.post_uid} <span style={{ color: MUTED, fontWeight: 400 }}>· {flag.post_uid} · {flag.poster_email}</span></strong>
+              <span style={{ color: MUTED, fontSize: 12 }}>{new Date(flag.created_at).toLocaleString('en-GB')}{flag.post?.deleted_at ? ' · already removed' : ''}</span>
+            </div>
+            <p style={{ margin: '8px 0', whiteSpace: 'pre-wrap', fontSize: 14 }}>{highlight(`${flag.post?.title || ''}\n${flag.post?.description || ''}${flag.post?.tags?.length ? `\nTags: ${flag.post.tags.join(', ')}` : ''}`, flag.matches)}</p>
+            <p style={{ margin: '0 0 8px', fontSize: 13, color: RED }}>Found: {(flag.matches || []).map((m) => `${m.kind} “${m.value}”`).join(' · ')}</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={miniBtn(RED)} disabled={busy} onClick={async () => { if (await post({ action: 'remove_post', flagId: flag.id }, 'Remove this post and email the publisher?')) setMessage('Post removed and the publisher emailed.'); }}>Remove post</button>
+              <button style={miniBtn('#475467')} disabled={busy} onClick={() => post({ action: 'dismiss', flagId: flag.id })}>Dismiss (no contact details)</button>
+              <button style={miniBtn('#b45309')} disabled={busy} onClick={() => suspend(flag.poster_email, 'Contact details in a post')}>Suspend publisher ({days} days)</button>
+            </div>
+          </div>
+        ))}
+      </section>
+      <section style={cardStyle}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Suspensions</h2>
+        <p style={{ color: MUTED }}>A suspended email cannot publish, follow or contact followers. They are emailed when suspended and see a countdown when they try to post. The default length is set under Badges &amp; Promos.</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+          <input placeholder="Email address" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} style={{ ...inp, width: 240 }} />
+          <input type="number" min="1" placeholder={`${data?.defaultDays || 10}`} value={form.days} onChange={(e) => setForm((f) => ({ ...f, days: e.target.value }))} style={{ ...inp, width: 90 }} aria-label="Days" />
+          <span style={{ color: MUTED, fontSize: 13 }}>days</span>
+          <input placeholder="Reason (included in the email)" value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} style={{ ...inp, width: 280 }} />
+          <button style={miniBtn('#b45309')} disabled={busy || !form.email} onClick={() => suspend()}>Suspend</button>
+        </div>
+        {!data ? null : data.suspensions.length === 0 ? <p style={{ color: MUTED }}>No active suspensions.</p> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr style={{ textAlign: 'left', color: MUTED }}><th style={{ padding: 6 }}>Email</th><th>Until</th><th>Reason</th><th>By</th><th></th></tr></thead>
+            <tbody>{data.suspensions.map((s) => (
+              <tr key={s.id} style={{ borderTop: `1px solid ${BORDER}` }}>
+                <td style={{ padding: 6, fontWeight: 700 }}>{s.email}</td><td>{new Date(s.until).toLocaleString('en-GB')}</td><td>{s.reason || '—'}</td><td>{s.created_by || '—'}</td>
+                <td><button style={miniBtn(GREEN)} disabled={busy} onClick={async () => { if (await post({ action: 'lift', email: s.email }, `Lift the suspension on ${s.email}?`)) setMessage(`Suspension on ${s.email} lifted.`); }}>Lift</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
+
 const AUDIENCE_LABEL = { publishers: 'publishers', followers: 'followers', everyone: 'publishers and followers' };
 
 function Features() {
@@ -959,11 +1042,12 @@ function Features() {
     setImagePreview('');
     setFileInputKey((key) => key + 1);
   };
-  const number = (field, label, suffix = '') => (
+  // NOTE (2026-10-01): optional minimum, so tag and follower-contact limits can be 0.
+  const number = (field, label, suffix = '', min = 1) => (
     <label style={{ display: 'grid', gap: 6, color: SUBTLE, fontSize: 13, fontWeight: 700 }}>
       {label}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input type="number" min="1" value={settings[field]} onChange={(e) => setSettings((s) => ({ ...s, [field]: Number(e.target.value) }))} style={inp} />
+        <input type="number" min={min} value={settings[field] ?? ''} onChange={(e) => setSettings((s) => ({ ...s, [field]: Number(e.target.value) }))} style={inp} />
         {suffix && <span style={{ color: MUTED }}>{suffix}</span>}
       </div>
     </label>
@@ -977,6 +1061,14 @@ function Features() {
         {number('silver_posts', 'Silver posts')}{number('bronze_posts', 'Bronze posts')}{number('gold_posts', 'Gold posts')}
         {number('normal_link_posts', 'Posts per link (no badge)')}{number('silver_link_posts', 'Silver posts per link')}{number('bronze_link_posts', 'Bronze posts per link')}{number('gold_link_posts', 'Gold posts per link')}
         {number('premium_min_posts', 'Green eligibility posts')}{number('premium_price_kobo', 'Green price', 'kobo')}{number('premium_days', 'Green validity', 'days')}
+      </div>
+    </section>
+    <section style={cardStyle}>
+      <h2 style={{ color: TEXT, marginTop: 0 }}>Search tags, follower contact and suspensions</h2>
+      <p style={{ color: MUTED }}>Search tags a publisher may add to each post, by badge (a promoted post gets the promoted number). Followers a publisher without a badge may contact from each post; Bronze can contact half of their contactable followers, and Silver, Gold and paying publishers can contact all of them. Suspension days is the default offered when suspending an email. Saved with the button below.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 14 }}>
+        {number('tags_normal', 'Tags (no badge)', '', 0)}{number('tags_bronze', 'Tags (Bronze)', '', 0)}{number('tags_silver', 'Tags (Silver)', '', 0)}{number('tags_gold', 'Tags (Gold)', '', 0)}{number('tags_promoted', 'Tags (promoted post)', '', 0)}
+        {number('normal_follower_contacts', 'Followers contactable per post (no badge)', '', 0)}{number('suspension_default_days', 'Default suspension', 'days')}
       </div>
     </section>
     <section style={cardStyle}>

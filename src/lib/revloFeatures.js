@@ -16,6 +16,14 @@ export const DEFAULT_FEATURE_SETTINGS = Object.freeze({
   promo_price_per_day_kobo: 100000,
   promo_min_days: 1,
   promo_max_days: 30,
+  // NOTE (2026-10-01): follower contact, suspension and search-tag limits.
+  normal_follower_contacts: 1,
+  suspension_default_days: 10,
+  tags_normal: 1,
+  tags_bronze: 2,
+  tags_silver: 3,
+  tags_gold: 4,
+  tags_promoted: 5,
 });
 
 export async function getFeatureSettings() {
@@ -77,6 +85,12 @@ export function publicSettings(settings) {
     promo_price_per_day_kobo: settings.promo_price_per_day_kobo,
     promo_min_days: settings.promo_min_days,
     promo_max_days: settings.promo_max_days,
+    normal_follower_contacts: settings.normal_follower_contacts,
+    tags_normal: settings.tags_normal,
+    tags_bronze: settings.tags_bronze,
+    tags_silver: settings.tags_silver,
+    tags_gold: settings.tags_gold,
+    tags_promoted: settings.tags_promoted,
   };
 }
 

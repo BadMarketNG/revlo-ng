@@ -15,6 +15,16 @@ export async function PATCH(request) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json().catch(() => ({}));
   // NOTE (2026-09-29): silver/bronze/gold_link_posts are the posts one publish link allows per badge.
+  // NOTE (2026-10-01): follower contact, suspension and tag limits may be 0 (tags, contacts) or more.
+  const zeroAllowed = ['normal_follower_contacts', 'tags_normal', 'tags_bronze', 'tags_silver', 'tags_gold', 'tags_promoted'];
+  for (const field of [...zeroAllowed, 'suspension_default_days']) {
+    if (body[field] === undefined) continue;
+    const value = Math.floor(Number(body[field]));
+    const max = field === 'suspension_default_days' ? 3650 : field === 'normal_follower_contacts' ? 100000 : 20;
+    const min = zeroAllowed.includes(field) ? 0 : 1;
+    if (!Number.isFinite(value) || value < min || value > max) return NextResponse.json({ error: `invalid ${field}` }, { status: 400 });
+    body[`__${field}`] = value;
+  }
   const integerFields = ['silver_posts','bronze_posts','gold_posts','premium_min_posts','premium_price_kobo','premium_days','promo_price_per_day_kobo','promo_min_days','promo_max_days','normal_link_posts','silver_link_posts','bronze_link_posts','gold_link_posts'];
   const update = { updated_at: new Date().toISOString() };
   for (const field of integerFields) {
@@ -25,6 +35,7 @@ export async function PATCH(request) {
     }
   }
   if (body.promotions_enabled !== undefined) update.promotions_enabled = Boolean(body.promotions_enabled);
+  for (const field of [...zeroAllowed, 'suspension_default_days']) if (body[`__${field}`] !== undefined) update[field] = body[`__${field}`];
   const merged = { ...(await getFeatureSettings()), ...update };
   if (!(merged.silver_posts < merged.bronze_posts && merged.bronze_posts < merged.gold_posts)) return NextResponse.json({ error: 'Badge thresholds must increase from Silver to Bronze to Gold.' }, { status: 400 });
   if (['normal_link_posts', 'silver_link_posts', 'bronze_link_posts', 'gold_link_posts'].some((field) => merged[field] > 1000)) return NextResponse.json({ error: 'A publish link can allow at most 1,000 posts.' }, { status: 400 });

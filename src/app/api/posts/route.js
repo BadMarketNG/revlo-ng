@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { aliasTakenByOther, cleanAlias, currentAlias, saveAlias } from '@/lib/community';
+import { cleanTags, flagPostForContactInfo, requireNotSuspended, tagLimit } from '@/lib/moderation';
 import { attachDeviceCookie, deviceIdFrom, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { makeUid, expiryFor, isValidDuration, isEmail, verifyToken } from '@/lib/util';
@@ -27,7 +28,7 @@ export const dynamic = 'force-dynamic';
 //   'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
 // NOTE: poster_alias is the publisher's chosen public alias, shown before the city.
 const PUBLIC_COLS =
-  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,poster_alias,created_at,expires_at';
+  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,poster_alias,tags,created_at,expires_at';
 
 // A post's duration is how long it stays live from publication. Every post
 // appears under "Right now" for its first 24 hours, then moves to the tab for
@@ -59,12 +60,16 @@ export async function GET(request) {
     : query.eq('duration', duration).lte('created_at', firstDayStart);
   if (category) query = query.eq('category', category);
 
-  const { data, error } = await query;
+  // ORIGINAL (commented out 2026-10-01): const { data, error } = await query;
+  const { data: rows, error } = await query;
 
   if (error) {
     console.error('[posts:GET]', error);
     return NextResponse.json({ error: 'failed to load posts' }, { status: 500 });
   }
+  // NOTE: search tags are shown as #hashtags after the description, which also
+  // makes them findable by the feed's search box.
+  const data = (rows || []).map((post) => (post.tags?.length ? { ...post, description: `${post.description || ''}\n\n${post.tags.map((tag) => `#${tag}`).join(' ')}` } : post));
   const existingSeed = request.cookies.get(FEED_SESSION_COOKIE)?.value;
   const feedSeed = isFeedSessionSeed(existingSeed) ? existingSeed : createFeedSessionSeed();
   const context = `${duration}:${category || 'all'}`;
@@ -163,6 +168,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Open the publish link we emailed you to continue.' }, { status: 401 });
   }
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
+  // NOTE (2026-10-01): suspended publishers cannot publish.
+  const suspended = await requireNotSuspended(cleanEmail, 'publish new posts');
+  if (suspended) return suspended;
   const publisherStatus = await getPublisherStatus(cleanEmail);
   if (media_type === 'video' && !publisherStatus.videoEligible) {
     return NextResponse.json({ error: `Video unlocks with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
@@ -243,6 +251,14 @@ export async function POST(request) {
     promotionIntent = candidate;
   }
 
+  // NOTE (2026-10-01): search tags, limited by badge (promoted posts get the most).
+  const tagInput = cleanTags(body?.tags);
+  const allowedTags = tagLimit({ badge: publisherStatus.trustBadge, promoted: Boolean(promotionIntent) }, settings);
+  if (tagInput.error || tagInput.value.length > allowedTags) {
+    await releaseClaim().catch(() => {});
+    return NextResponse.json({ error: tagInput.error || `You can add up to ${allowedTags} search ${allowedTags === 1 ? 'tag' : 'tags'} to this post.` }, { status: 400 });
+  }
+
   // Generate a unique uid (retry on rare collision)
   let uid = makeUid();
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -285,6 +301,7 @@ export async function POST(request) {
       expires_at,
       trust_badge: trustBadge,
       premium_badge: premiumBadge,
+      tags: tagInput.value,
       poster_alias: aliasProvided ? aliasInput.value : await currentAlias(cleanEmail),
     })
     .select(PUBLIC_COLS)
@@ -306,6 +323,8 @@ export async function POST(request) {
     await markMagicLinkRedeemed(publish_token, data.uid).catch(() => {});
   }
   await incrementPublisherPosts(cleanEmail).catch((e) => console.error('[publisherStats]', e));
+  // NOTE (2026-10-01): posts with phone numbers, emails, links or handles go to admin review.
+  await flagPostForContactInfo({ ...data, poster_email: cleanEmail, description: String(description) }).catch((e) => console.error('[post-flags]', e));
   if (aliasProvided) {
     const saved = await saveAlias(cleanEmail, aliasInput.value).catch(() => ({ error: 'failed' }));
     if (saved.error) {

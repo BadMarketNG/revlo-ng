@@ -4,6 +4,8 @@ import { cleanReason } from '@/lib/community';
 import { attachDeviceCookie, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
 import { checkPosterForCaution } from '@/lib/collusion';
 import { canonicalInbox, sameInbox } from '@/lib/emailIdentity';
+import { cleanAlias, currentAlias } from '@/lib/community';
+import { requireNotSuspended } from '@/lib/moderation';
 import { refreshPosterFollowerCounts } from '@/lib/followerCounts';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isEmail } from '@/lib/util';
@@ -36,11 +38,19 @@ export async function POST(request) {
   // NOTE (2026-09-30): optional public note on why they follow, shown under the poster's posts.
   const reason = cleanReason(body?.reason);
   if (reason.error) return NextResponse.json({ error: reason.error }, { status: 400 });
+  // NOTE (2026-10-01): optional follower alias (the alias they publish under).
+  // It is checked against their account only after they confirm by email, so
+  // this form never reveals which email owns an alias. Only followers with an
+  // alias can be contacted by the poster.
+  const followerAlias = cleanAlias(body?.follower_alias);
+  if (followerAlias.error) return NextResponse.json({ error: followerAlias.error }, { status: 400 });
 
   if (!uid) return NextResponse.json({ error: 'uid required' }, { status: 400 });
   if (!isEmail(follower_email))
     return NextResponse.json({ error: 'valid follower_email required' }, { status: 400 });
   const follower = normaliseEmail(follower_email);
+  const suspended = await requireNotSuspended(follower, 'follow publishers');
+  if (suspended) return suspended;
   if (await findActiveBlock({ email: follower, ip: sourceIp })) {
     return silentEmailSuccess({ pending: true, followers: 0 });
   }
@@ -83,7 +93,10 @@ export async function POST(request) {
   const base = publicOrigin();
   let pending;
   try {
-    pending = await createPendingPublicAction({ action: 'follow', postUid: uid, email: follower, message: reason.value, sourceIp });
+    // ORIGINAL (commented out 2026-10-01): message: reason.value
+    // NOTE: the message now carries the note and the alias as JSON.
+    const followMessage = reason.value || followerAlias.value ? JSON.stringify({ reason: reason.value, alias: followerAlias.value }) : null;
+    pending = await createPendingPublicAction({ action: 'follow', postUid: uid, email: follower, message: followMessage, sourceIp });
   } catch {
     return NextResponse.json({ error: 'follow verification is temporarily unavailable' }, { status: 503 });
   }
@@ -122,11 +135,24 @@ export async function GET(request) {
   if (await findActiveBlock({ email: pending.email })) {
     return htmlResponse('Your follow request is confirmed.', 200);
   }
+  if (await requireNotSuspended(pending.email)) return htmlResponse('This email is suspended on Revlo, so the follow was not added.', 403);
 
+  // The message is JSON { reason, alias } (2026-10-01) or, from older links, the note alone.
+  let followData = { reason: pending.message, alias: null };
+  try { if (pending.message?.startsWith('{')) followData = JSON.parse(pending.message); } catch {}
+  const registeredAlias = followData.alias ? await currentAlias(pending.email) : null;
+  const aliasMatches = Boolean(registeredAlias) && registeredAlias.toLowerCase() === String(followData.alias).toLowerCase();
+  // ORIGINAL (commented out 2026-10-01):
+  // const { error } = await supabaseAdmin.from('follows').insert({
+  //   poster_email: post.poster_email,
+  //   follower_email: pending.email,
+  //   reason: cleanReason(pending.message).value || null,
+  // });
   const { error } = await supabaseAdmin.from('follows').insert({
     poster_email: post.poster_email,
     follower_email: pending.email,
-    reason: cleanReason(pending.message).value || null,
+    reason: cleanReason(followData.reason).value || null,
+    follower_alias: aliasMatches ? registeredAlias : null,
   });
   if (error && error.code !== '23505') return htmlResponse('Could not confirm this follow request.', 500);
 
@@ -140,7 +166,10 @@ export async function GET(request) {
   await recordSignal(request, { kind: 'follow_confirm', actorEmail: pending.email, subjectEmail: post.poster_email, postUid: post.uid, deviceId });
   // NOTE (2026-09-30): caution the poster automatically at 10 fabricated followers.
   await checkPosterForCaution(post.poster_email);
-  return attachDeviceCookie(htmlResponse('Your follow request is confirmed.', 200), deviceId);
+  const aliasNote = followData.alias && !aliasMatches
+    ? ` Your alias "${String(followData.alias).replace(/[<>&"]/g, '')}" was not added because it is not the alias you publish under, so the poster cannot contact you.`
+    : '';
+  return attachDeviceCookie(htmlResponse(`Your follow request is confirmed.${aliasNote}`, 200), deviceId);
 }
 
 // True when another spelling of this follower's inbox already follows the poster.

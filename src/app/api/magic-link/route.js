@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireNotSuspended } from '@/lib/moderation';
 import { requireHuman } from '@/lib/turnstile';
 import { recordSignal } from '@/lib/activitySignals';
 import { cautionForPublisher } from '@/lib/collusion';
@@ -31,6 +32,9 @@ export async function POST(request) {
   if (!isEmail(email))
     return NextResponse.json({ error: 'valid email required' }, { status: 400 });
   const cleanEmail = normaliseEmail(email);
+  // NOTE (2026-10-01): a suspended publisher gets the end date for the countdown.
+  const suspended = await requireNotSuspended(cleanEmail, 'publish new posts');
+  if (suspended) return suspended;
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return silentEmailSuccess();
   const ipLimited = await requireRateLimit({ action: 'magic-link:ip:15m', key: sourceIp, limit: 5, windowSeconds: 900 });
   if (ipLimited) return ipLimited;

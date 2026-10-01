@@ -25,12 +25,17 @@ export async function reasonsForPosts(uids) {
   const posters = [...new Set(posterOf.values())];
   const byPoster = new Map(posters.map((p) => [p, []]));
   if (posters.length) {
-    const { data: follows } = await supabaseAdmin.from('follows').select('poster_email,reason,created_at')
-      .in('poster_email', posters).not('reason', 'is', null).eq('reason_hidden', false)
+    // ORIGINAL (commented out 2026-10-01): only follows with a note were listed.
+    // NOTE: follows with an alias are listed too (aliases are public), so the
+    // poster can contact them; hidden notes are left out but the alias stays.
+    const { data: follows } = await supabaseAdmin.from('follows').select('poster_email,reason,reason_hidden,follower_alias,created_at')
+      .in('poster_email', posters).or('reason.not.is.null,follower_alias.not.is.null')
       .order('created_at', { ascending: false }).limit(2000);
     for (const row of follows || []) {
+      const text = row.reason && !row.reason_hidden ? row.reason : null;
+      if (!text && !row.follower_alias) continue;
       const list = byPoster.get(normaliseEmail(row.poster_email));
-      if (list) list.push({ text: row.reason, at: row.created_at });
+      if (list) list.push({ text, alias: row.follower_alias || null, at: row.created_at });
     }
   }
   const result = {};

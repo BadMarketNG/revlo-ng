@@ -100,6 +100,22 @@ const SECTIONS = [
       'Notes must be your own honest experience. No links, email addresses, phone numbers, insults or promotions. Revlo may hide any note, and notes from fake follows are removed with them.',
       'Publishers can choose an alias of 2 to 24 characters, shown before the city on their posts. Each alias belongs to one publisher and stays until they change or clear it on a later post. An alias becomes available to others if its owner has not published for 6 months, or has been removed from Revlo.',
       'An alias must not pretend to be Revlo, a public body, a brand or another person, and must not contain contact details. Revlo may remove any alias that breaks these rules.',
+      // NOTE (2026-10-01): contacting followers.
+      'When you follow a publisher you can also add the alias you publish under. Only followers who add their alias can be messaged by that publisher; leave it out if you do not want to be contacted.',
+      'A publisher can message followers who added an alias by selecting their alias and confirming the email they published with. Without a badge a publisher can message 1 follower per post (or the number Revlo sets), Bronze publishers half of their contactable followers, and Silver, Gold and paying publishers all of them. Messages must not be spam or harassment.',
+    ]],
+  // NOTE (2026-10-01): contact details, search tags and suspensions.
+  ['No contact details in posts',
+    [
+      'Posts must not include phone numbers, email addresses, website links, WhatsApp or Telegram details, or social media handles, including disguised versions such as "zero eight zero" or "name (at) gmail". People reach you through Revlo\'s verified Contact button, which keeps your details private.',
+      'Revlo checks new posts automatically and our team reviews any that appear to include contact details. Posts that do are removed, and the publisher is emailed.',
+      'Search tags help people find your post. Without a badge you can add 1 tag per post, Bronze 2, Silver 3, Gold 4 and promoted posts 5 (Revlo may change these numbers). Tags follow the same rules as posts.',
+    ]],
+  ['Suspensions',
+    [
+      'Revlo may suspend an email address for breaking these rules, by default for 10 days (Revlo may set a different length). You are emailed when this happens.',
+      'While suspended you cannot publish posts, follow publishers or message your followers. The post window shows how long is left, and the suspension ends automatically.',
+      `If you believe a suspension is a mistake, reply to the suspension email or write to ${CONTACT_EMAIL}.`,
     ]],
   ['Stay safe when you deal with people',
     [
