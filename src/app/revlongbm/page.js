@@ -107,7 +107,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -138,6 +138,7 @@ export default function AdminPage() {
       {tab === 'collusion' && <Collusion />}
       {tab === 'marketing' && <Marketing />}
       {tab === 'moderation' && <Moderation />}
+      {tab === 'email-log' && <EmailLog />}
       {tab === 'categories' && <Categories />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
@@ -964,6 +965,81 @@ function Moderation() {
             ))}</tbody>
           </table>
         )}
+      </section>
+    </div>
+  );
+}
+
+// NOTE (2026-10-01): every email Revlo sends, with search, filters, ordering,
+// CSV export and deletion. Contents are not stored.
+const EMPTY_LOG_FILTERS = { status: '', q: '', from: '', to: '', sort: 'newest' };
+const logQuery = (filters, extra = {}) => new URLSearchParams(Object.entries({ ...filters, ...extra }).filter(([, value]) => value)).toString();
+function EmailLog() {
+  const [filters, setFilters] = useState(EMPTY_LOG_FILTERS);
+  const [applied, setApplied] = useState(EMPTY_LOG_FILTERS);
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => {
+    fetch(`/api/admin/email-log?${logQuery(applied, { page: String(page) })}`, { cache: 'no-store' })
+      .then((r) => r.json()).then((d) => { if (d.error) setMessage(d.error); else { setData(d); setSelected(new Set()); } })
+      .catch(() => setMessage('Could not load the email log.'));
+  }, [applied, page]);
+  useEffect(() => { load(); }, [load]);
+  const set = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }));
+  const remove = async (payload, text) => {
+    if (!window.confirm(text)) return;
+    setBusy(true); setMessage('');
+    const res = await fetch('/api/admin/email-log', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    setMessage(res.ok ? `Deleted ${body.deleted} ${body.deleted === 1 ? 'entry' : 'entries'}.` : body.error || 'Could not delete.');
+    if (res.ok) load();
+  };
+  const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const small = { ...inp, width: 'auto', padding: '8px 10px', fontSize: 13 };
+  const statusColor = { sent: GREEN, failed: RED, skipped: MUTED };
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <section style={cardStyle}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Email log</h2>
+        <p style={{ color: MUTED }}>Every email Revlo sends: publish links, follow and contact confirmations, cautions, suspensions and marketing. Contents are not stored. BadMarket and RRSource emails are in their admin panel under Admin+ &rarr; Email Log.</p>
+        <form onSubmit={(e) => { e.preventDefault(); setPage(1); setApplied(filters); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}>
+          <input style={{ ...small, width: 240 }} placeholder="Email address or subject" value={filters.q} onChange={set('q')} aria-label="Search" />
+          <select style={small} value={filters.status} onChange={set('status')} aria-label="Status"><option value="">All statuses</option><option value="sent">Sent</option><option value="failed">Failed</option><option value="skipped">Skipped</option></select>
+          <input type="date" style={small} value={filters.from} onChange={set('from')} aria-label="From date" />
+          <input type="date" style={small} value={filters.to} onChange={set('to')} aria-label="To date" />
+          <select style={small} value={filters.sort} onChange={set('sort')} aria-label="Order"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select>
+          <button type="submit" style={miniBtn('#1f2937')}>Apply</button>
+          <button type="button" style={miniBtn('#98a2b3')} onClick={() => { setFilters(EMPTY_LOG_FILTERS); setApplied(EMPTY_LOG_FILTERS); setPage(1); }}>Reset</button>
+        </form>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
+          <a href={`/api/admin/email-log?${logQuery(applied, { format: 'csv' })}`} style={{ ...miniBtn(GREEN), textDecoration: 'none' }}>Export matching (CSV)</a>
+          <button style={miniBtn(RED)} disabled={busy || selected.size === 0} onClick={() => remove({ ids: [...selected] }, `Delete ${selected.size} selected entries? This cannot be undone.`)}>Delete selected ({selected.size})</button>
+          <button style={miniBtn(RED)} disabled={busy || !data?.total} onClick={() => remove({ filter: applied, confirm: true }, `Delete all ${data?.total || 0} entries matching the filters? This cannot be undone. Export first if you need a copy.`)}>Delete all matching ({data?.total || 0})</button>
+          {message && <span style={{ fontSize: 13 }}>{message}</span>}
+        </div>
+      </section>
+      <section style={{ ...cardStyle, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr style={{ textAlign: 'left', color: MUTED }}>
+            <th style={{ padding: 6 }}><input type="checkbox" aria-label="Select all on this page" checked={Boolean(data?.rows.length) && data.rows.every((r) => selected.has(r.id))} onChange={(e) => setSelected(e.target.checked ? new Set(data.rows.map((r) => r.id)) : new Set())} /></th>
+            <th>Sent</th><th>To</th><th>Subject</th><th>Status</th></tr></thead>
+          <tbody>{!data ? <tr><td colSpan={5} style={{ padding: 8, color: MUTED }}>Loading…</td></tr> : data.rows.length === 0 ? <tr><td colSpan={5} style={{ padding: 8, color: MUTED }}>No emails match.</td></tr> : data.rows.map((r) => (
+            <tr key={r.id} style={{ borderTop: `1px solid ${BORDER}` }}>
+              <td style={{ padding: 6 }}><input type="checkbox" aria-label={`Select email to ${r.to_email}`} checked={selected.has(r.id)} onChange={(e) => setSelected((cur) => { const next = new Set(cur); if (e.target.checked) next.add(r.id); else next.delete(r.id); return next; })} /></td>
+              <td style={{ whiteSpace: 'nowrap', color: MUTED }}>{new Date(r.created_at).toLocaleString('en-GB')}</td>
+              <td style={{ fontWeight: 700 }}>{r.to_email}</td><td>{r.subject}</td>
+              <td style={{ color: statusColor[r.status], fontWeight: 700 }} title={r.error || ''}>{r.status}{r.error ? `: ${r.error.slice(0, 50)}` : ''}</td>
+            </tr>))}</tbody>
+        </table>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, fontSize: 13 }}>
+          <button style={miniBtn('#475467')} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
+          <span>Page {page} of {pages} · {data?.total || 0} emails</span>
+          <button style={miniBtn('#475467')} disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Next</button>
+        </div>
       </section>
     </div>
   );

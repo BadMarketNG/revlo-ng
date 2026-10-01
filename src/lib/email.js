@@ -41,7 +41,28 @@ function signedRequest(path, payload) {
 
 // Send an email. If SES isn't configured, we log and no-op so the app still
 // works in development without email set up.
+// NOTE (2026-10-01): every send is recorded in revlo_email_log (no bodies) for the admin Email log.
 export async function sendEmail({ to, subject, html, headers }) {
+  const result = await sendEmailUnlogged({ to, subject, html, headers });
+  await logEmailSend(to, subject, result);
+  return result;
+}
+
+async function logEmailSend(to, subject, result) {
+  try {
+    const { supabaseAdmin } = await import('@/lib/supabaseAdmin');
+    const status = result?.ok ? 'sent' : result?.skipped ? 'skipped' : 'failed';
+    await supabaseAdmin.from('revlo_email_log').insert([].concat(to).map((address) => ({
+      to_email: String(address).slice(0, 320), subject: String(subject || '').slice(0, 300), status,
+      error: result?.error ? String(result.error).slice(0, 500) : null, message_id: result?.id || null,
+    })));
+  } catch (error) {
+    console.error('[email-log] could not record send:', error?.message || error);
+  }
+}
+
+// ORIGINAL name (renamed 2026-10-01): export async function sendEmail({ to, subject, html, headers }) {
+async function sendEmailUnlogged({ to, subject, html, headers }) {
   if (!configured) {
     console.log('[email:skipped] SES is not configured. Would send:', { to, subject });
     return { skipped: true };
