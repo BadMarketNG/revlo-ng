@@ -38,3 +38,14 @@ test('feed images are found and BBC thumbnails are enlarged', async () => {
   assert.equal(itemImage('<item><img src="http://insecure.ng/a.jpg"></item>'), null);
   assert.equal(ogImage('<meta property="og:image" content="https://punchng.com/x.jpg" />'), 'https://punchng.com/x.jpg');
 });
+
+test('Jooble jobs are normalised without their description', async () => {
+  const { fromJooble } = await import('../src/lib/partnerFeed.mjs');
+  const job = fromJooble({ id: 7, title: '<b>Sales</b> Officer', company: 'Acme &amp; Co', location: 'Lagos', salary: '', snippet: 'long text', link: 'https://jooble.org/desc/7', updated: '2026-10-01T09:00:00' });
+  assert.equal(job.title, 'Sales Officer · Acme & Co');
+  assert.equal(job.source, 'Jooble');
+  assert.equal(job.location, 'Lagos');
+  assert.equal(job.salary, null);
+  assert.equal('snippet' in job, false);
+  assert.equal(fromJooble({ title: 'x', link: 'http://insecure' }), null);
+});

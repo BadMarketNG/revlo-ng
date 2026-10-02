@@ -5,7 +5,10 @@
 //   jobs     BOQQS jobs API (free, no key; terms: credit "via BOQQS", link to the job, drop expired)
 //   general  Nigerian news headlines from publishers' public RSS feeds: headline, source and link only
 //
-// Further sources (Jooble/Careerjet jobs, affiliate shops, eBay) plug in as more adapters.
+//   jobs     Jooble REST API (key in JOOBLE_API_KEY; 500-request allowance, so called at most every 6 hours;
+//            links go through Jooble's own job link, as their API intends)
+//
+// Further sources (Careerjet jobs, affiliate shops, eBay) plug in as more adapters.
 
 export const USER_AGENT = 'Revlo.ng partner listings (https://revlo.ng; support@revlo.ng)';
 
@@ -98,6 +101,26 @@ export function fromBoqqs(job) {
     salary: job.salary?.display || null,
     publishedAt: job.postedAt || null,
     expiresAt: job.expiresAt || null,
+  };
+}
+
+/** Normalises a Jooble job (title, employer, place and salary only; the description is not kept). */
+export function fromJooble(job) {
+  const url = String(job?.link || '');
+  const title = decodeText(job?.title);
+  if (!title || !/^https:\/\//.test(url)) return null;
+  const updated = Date.parse(job.updated) || null;
+  return {
+    id: `jooble:${job.id ?? url}`,
+    category: 'jobs',
+    kind: 'job',
+    title: [title, decodeText(job.company)].filter(Boolean).join(' · ').slice(0, 180),
+    source: 'Jooble',
+    url,
+    location: decodeText(job.location) || 'Nigeria',
+    salary: decodeText(job.salary) || null,
+    publishedAt: updated ? new Date(updated).toISOString() : null,
+    expiresAt: null,
   };
 }
 
