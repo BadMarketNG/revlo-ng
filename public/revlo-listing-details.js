@@ -11,7 +11,7 @@
   // structured fields (body.details, body.booking), which the server saves for filters and bookings.
 
   const state = { price: '', condition: '', date: '', start: '', end: '', venue: '', rent: '', rent_period: 'year', property: '', bathrooms: '', furnishing: '',
-    book: true, book_viewing: true, book_call: true, book_days: [1, 2, 3, 4, 5, 6], book_from: '10:00', book_to: '17:00', book_slot: '30' };
+    book: false, bookTouched: false, book_viewing: true, book_call: true, book_days: [1, 2, 3, 4, 5, 6], book_from: '10:00', book_to: '17:00', book_slot: '30' };
   const PROPERTY = { room: 'Room in a shared flat', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office space' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
   const style = document.createElement('style');
@@ -81,7 +81,7 @@
         }
         const details = structured(body.category);
         if (details) body.details = details;
-        if (state.book && (body.category === 'rentals' || body.category === 'for_sale')) {
+        if (state.book && ['rentals', 'for_sale', 'promotions'].includes(body.category)) {
           body.booking = { modes: [state.book_viewing && 'viewing', state.book_call && 'call'].filter(Boolean), days: state.book_days, start_time: state.book_from, end_time: state.book_to, slot_minutes: Number(state.book_slot) };
         }
         init = { ...init, body: JSON.stringify(body) };
@@ -135,7 +135,7 @@
     booking.className = 'rv-ld-booking';
     const toggle = document.createElement('label'); toggle.className = 'rv-ld-toggle';
     const on = document.createElement('input'); on.type = 'checkbox'; on.checked = state.book;
-    toggle.append(on, '📅 Let people book a viewing or call');
+    toggle.append(on, '📅 Let people book a time (viewing, visit or call)');
     const opts = document.createElement('div'); opts.style.display = 'grid'; opts.style.gap = '10px';
     const modes = document.createElement('div'); modes.className = 'rv-ld-days';
     [['book_viewing', 'Viewings'], ['book_call', 'Calls']].forEach(([key, text]) => { const l = document.createElement('label'); const c = document.createElement('input'); c.type = 'checkbox'; c.checked = state[key]; c.addEventListener('change', () => { state[key] = c.checked; }); l.append(c, text); modes.appendChild(l); });
@@ -147,7 +147,8 @@
     const bNote = document.createElement('p'); bNote.className = 'rv-ld-note';
     bNote.textContent = 'Visitors pick a free time (Lagos time) and confirm by email. You get their name and phone and accept or decline. Your email stays hidden.';
     opts.append(modes, days, hours, bNote);
-    on.addEventListener('change', () => { state.book = on.checked; opts.hidden = !on.checked; });
+    opts.hidden = !state.book;
+    on.addEventListener('change', () => { state.book = on.checked; state.bookTouched = true; opts.hidden = !on.checked; });
     booking.append(toggle, opts);
     const note = document.createElement('p');
     note.className = 'rv-ld-note';
@@ -165,7 +166,13 @@
     panel.hidden = !['for_sale', 'promotions', 'rentals'].includes(category);
     panel.querySelector('.rv-ld-sale').hidden = category !== 'for_sale';
     panel.querySelector('.rv-ld-rental').hidden = category !== 'rentals';
-    panel.querySelector('.rv-ld-booking').hidden = category !== 'rentals' && category !== 'for_sale';
+    panel.querySelector('.rv-ld-booking').hidden = !['rentals', 'for_sale', 'promotions'].includes(category);
+    // Booking is the poster's choice: ticked by default for Rentals only, until they change it.
+    if (!state.bookTouched) {
+      state.book = category === 'rentals';
+      const box = panel.querySelector('.rv-ld-toggle input'); if (box) box.checked = state.book;
+      const opts = panel.querySelector('.rv-ld-booking > div'); if (opts) opts.hidden = !state.book;
+    }
     panel.querySelector('.rv-ld-event').hidden = category !== 'promotions';
   }
 

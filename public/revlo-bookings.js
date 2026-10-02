@@ -90,7 +90,7 @@
     dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-label', 'Book a viewing or call');
     const sheet = el('div', 'rv-bk-sheet');
     const closeBtn = el('button', 'rv-bk-close', '×'); closeBtn.type = 'button'; closeBtn.setAttribute('aria-label', 'Close');
-    sheet.append(closeBtn, el('h3', '', 'Book a viewing or call'));
+    sheet.append(closeBtn, el('h3', '', 'Book a time'));
     const sub = el('p', 'rv-bk-sub', 'Loading free times…'); sheet.appendChild(sub);
     dialog.appendChild(sheet); document.body.appendChild(dialog);
     const close = () => { dialog.remove(); document.removeEventListener('keydown', onKey); };
@@ -106,7 +106,8 @@
 
     const choice = { mode: data.modes.includes('viewing') ? 'viewing' : 'call', slot: null };
     const seg = el('div', 'rv-bk-seg');
-    data.modes.forEach(mode => { const b = el('button', '', mode === 'viewing' ? '🏠 Viewing' : '📞 Call'); b.type = 'button'; b.setAttribute('aria-pressed', String(choice.mode === mode)); b.addEventListener('click', () => { choice.mode = mode; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }); seg.appendChild(b); });
+    const visitLabel = data.category === 'promotions' ? '🎟️ Reserve' : data.category === 'for_sale' ? '👀 See it' : '🏠 Viewing';
+    data.modes.forEach(mode => { const b = el('button', '', mode === 'viewing' ? visitLabel : '📞 Call'); b.type = 'button'; b.setAttribute('aria-pressed', String(choice.mode === mode)); b.addEventListener('click', () => { choice.mode = mode; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }); seg.appendChild(b); });
     if (data.modes.length > 1) sheet.appendChild(seg);
     const byDay = new Map(); data.slots.forEach(s => { const k = dayKey(s); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(s); });
     const days = el('div', 'rv-bk-days'); const slots = el('div', 'rv-bk-slots');
@@ -250,7 +251,8 @@
         article.querySelector('.rv-bk-btn')?.remove();
       }
       if (modes && contact && !gone && !article.querySelector('.rv-bk-btn')) {
-        const b = el('button', 'rv-bk-btn', modes.includes('viewing') ? '📅 Book a viewing' : '📞 Book a call'); b.type = 'button';
+        const visitText = cardCategory === 'promotions' ? '📅 Book a slot' : cardCategory === 'for sale' ? '📅 Book to see it' : '📅 Book a viewing';
+        const b = el('button', 'rv-bk-btn', modes.includes('viewing') ? visitText : '📞 Book a call'); b.type = 'button';
         b.addEventListener('click', e => { e.stopPropagation(); openBooking(uid, sample); });
         contact.insertAdjacentElement('afterend', b);
       }

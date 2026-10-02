@@ -11,5 +11,6 @@ export function page(title, inner) {
 
 export const safetyHtml = () => `<div class="safe" style="margin-top:18px;padding:12px 14px;border-radius:12px;background:#fff7e6;border:1px solid #f3dfb0;font-size:14px"><strong>Stay safe</strong><ul style="margin:6px 0 0;padding-left:18px">${SAFETY_LINES.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
 
-export const what = booking => (booking.mode === 'call' ? 'call' : 'viewing');
+// "viewing" for rentals and items; "booking" for promotions (a reserved slot or visit).
+export const what = (booking, category) => (booking.mode === 'call' ? 'call' : category === 'promotions' ? 'booking' : 'viewing');
 export const when = booking => lagosLabel(booking.slot_start);

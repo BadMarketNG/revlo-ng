@@ -15,7 +15,7 @@ export async function GET(request) {
   if (!post || !settings) return NextResponse.json({ error: 'This post does not take bookings.' }, { status: 404 });
   const { data: taken } = await supabaseAdmin.from('revlo_bookings').select('slot_start').eq('post_uid', uid).in('status', ['requested', 'accepted']).gte('slot_start', now.toISOString());
   return NextResponse.json({
-    title: post.title, location: post.location, modes: settings.modes, slotMinutes: settings.slot_minutes,
+    title: post.title, location: post.location, category: post.category, modes: settings.modes, slotMinutes: settings.slot_minutes,
     slots: availableSlots(settings, { now: now.getTime(), expiresAt: post.expires_at, taken: (taken ?? []).map(t => t.slot_start) }),
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

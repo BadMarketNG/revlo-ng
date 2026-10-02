@@ -17,13 +17,13 @@ export async function GET(request) {
   // The unique index refuses this if someone else confirmed the same slot first.
   const { error } = await supabaseAdmin.from('revlo_bookings').update({ status: 'requested', confirmed_at: new Date().toISOString() }).eq('id', booking.id).eq('status', 'unconfirmed');
   if (error) return back('taken');
-  const { data: post } = await supabaseAdmin.from('posts').select('uid,title,poster_email').eq('uid', booking.post_uid).maybeSingle();
+  const { data: post } = await supabaseAdmin.from('posts').select('uid,title,category,poster_email').eq('uid', booking.post_uid).maybeSingle();
   if (post?.poster_email) {
     const decideUrl = `https://revlo.ng/api/bookings/decide?token=${booking.poster_token}`;
     await sendEmail({
       to: post.poster_email,
-      subject: `New ${what(booking)} request: ${when(booking)} — ${post.title}`.slice(0, 150),
-      html: `<p><strong>${esc(booking.name)}</strong> would like a <strong>${what(booking)}</strong> on <strong>${esc(when(booking))}</strong> (Lagos time) about your Revlo.ng post <strong>${esc(post.title)}</strong> (${esc(post.uid)}).</p>
+      subject: `New ${what(booking, post?.category)} request: ${when(booking)} — ${post.title}`.slice(0, 150),
+      html: `<p><strong>${esc(booking.name)}</strong> would like a <strong>${what(booking, post?.category)}</strong> on <strong>${esc(when(booking))}</strong> (Lagos time) about your Revlo.ng post <strong>${esc(post.title)}</strong> (${esc(post.uid)}).</p>
              <p>Phone: <strong>${esc(booking.phone)}</strong><br>Email: ${esc(booking.email)}${booking.note ? `<br>Note: ${esc(booking.note)}` : ''}</p>
              <p><a href="${decideUrl}">Accept or decline this request</a></p>
              <p style="color:#888;font-size:13px">Your email stays hidden unless you reply to them yourself. If you do nothing, the time stays held for them.</p>${safetyHtml()}`,

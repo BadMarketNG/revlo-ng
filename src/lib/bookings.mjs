@@ -1,7 +1,8 @@
 // Book a viewing or call (2026-10-02): availability, slots and validation. All times are Lagos time
 // (UTC+1 all year, no daylight saving).
 
-export const BOOKING_CATEGORIES = ['rentals', 'for_sale'];
+// 2026-10-02 (later): Promotions too (reservations, visits); booking is always the poster's choice.
+export const BOOKING_CATEGORIES = ['rentals', 'for_sale', 'promotions'];
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DAY_MS = 86400000;
 const LAGOS_OFFSET_MS = 3600000;

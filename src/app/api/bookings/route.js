@@ -23,7 +23,7 @@ export async function POST(request) {
 
   const now = new Date();
   const [{ data: post }, { data: settings }] = await Promise.all([
-    supabaseAdmin.from('posts').select('uid,title,expires_at').eq('uid', uid).is('deleted_at', null).gt('expires_at', now.toISOString()).maybeSingle(),
+    supabaseAdmin.from('posts').select('uid,title,category,expires_at').eq('uid', uid).is('deleted_at', null).gt('expires_at', now.toISOString()).maybeSingle(),
     supabaseAdmin.from('revlo_booking_settings').select('*').eq('post_uid', uid).maybeSingle(),
   ]);
   if (!post || !settings) return NextResponse.json({ error: 'This post does not take bookings.' }, { status: 404 });
@@ -38,8 +38,8 @@ export async function POST(request) {
   const confirmUrl = `https://revlo.ng/api/bookings/confirm?token=${booking.visitor_token}`;
   const result = await sendEmail({
     to: booking.email,
-    subject: `Confirm your ${what(booking)} request: ${post.title}`.slice(0, 150),
-    html: `<p>Hi ${esc(booking.name)}, confirm your request for a <strong>${what(booking)}</strong> on <strong>${esc(when(booking))}</strong> (Lagos time) about <strong>${esc(post.title)}</strong>.</p>
+    subject: `Confirm your ${what(booking, post?.category)} request: ${post.title}`.slice(0, 150),
+    html: `<p>Hi ${esc(booking.name)}, confirm your request for a <strong>${what(booking, post?.category)}</strong> on <strong>${esc(when(booking))}</strong> (Lagos time) about <strong>${esc(post.title)}</strong>.</p>
            <p><a href="${confirmUrl}">Confirm and send my request</a></p>
            <p>Once confirmed, the poster gets your name, phone number and email and can accept or decline. We will email you their answer.</p>${safetyHtml()}`,
   });
