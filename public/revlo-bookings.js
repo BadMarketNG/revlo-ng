@@ -17,7 +17,7 @@
   const PROPERTY = { room: 'Room', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
   const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Promotions: 'promotions', General: 'general' };
-  const extras = { booking: {}, details: {} };
+  const extras = { booking: {}, details: {}, bumped: new Set() };
   const asked = new Set();
   let category = 'all';
   const filter = { property: '', maxRent: '' };
@@ -57,6 +57,8 @@
     .rv-bk-cta{display:inline-flex;align-items:center;gap:8px;margin-left:10px;border:1.5px solid #1b5e20;background:#fff;color:#1b5e20;border-radius:12px;padding:14px 18px;font:800 16px system-ui;cursor:pointer;vertical-align:middle}
     .rv-bk-cta:hover{background:#eef6ef}
     @media (max-width:560px){.rv-bk-cta{margin:10px 0 0;width:100%;justify-content:center}}
+    .rv-bk-bumped{position:absolute;z-index:3;top:12px;left:50%;transform:translateX(-50%);background:#1b5e20;color:#fff;border-radius:999px;padding:5px 10px;font:800 11.5px/1 system-ui;letter-spacing:.03em;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+    .rv-bk-bump-link{border:0;background:none;color:#1b5e20;font:700 12px system-ui;cursor:pointer;padding:0;text-decoration:underline}
     .rv-bk-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147480002;background:#1b5e20;color:#fff;border-radius:12px;padding:12px 16px;font:700 14px system-ui;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 32px)}
   `;
   document.head.appendChild(style);
@@ -132,6 +134,32 @@
     sheet.append(form, safetyBox());
   }
 
+  // Bump up: the poster enters the post's email; a payment link is emailed to that address.
+  function openBump(uid) {
+    if (document.querySelector('.rv-bk-dialog')) return;
+    const dialog = el('div', 'rv-bk-dialog'); dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-label', 'Bump to the top');
+    const sheet = el('div', 'rv-bk-sheet');
+    const closeBtn = el('button', 'rv-bk-close', '×'); closeBtn.type = 'button'; closeBtn.setAttribute('aria-label', 'Close');
+    sheet.append(closeBtn, el('h3', '', '⬆ Bump to the top'), el('p', 'rv-bk-sub', 'Your post goes back to the top and into “Right now” for 24 hours, labelled “Bumped”. It keeps its original expiry.'));
+    const form = el('form', 'rv-bk-form'); form.noValidate = true;
+    form.innerHTML = '<label>Email you used for this post<input name="email" type="email" autocomplete="email"></label><button class="rv-bk-go" type="submit">Email me the bump link</button><p class="rv-bk-msg" role="status" aria-live="polite"></p>';
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const msg = form.querySelector('.rv-bk-msg'); const go = form.querySelector('.rv-bk-go'); msg.className = 'rv-bk-msg'; go.disabled = true; msg.textContent = 'Sending…';
+      try {
+        const r = await fetch('/api/bumps/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid, email: form.email.value }) });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || 'Something went wrong. Please try again.');
+        msg.textContent = body.message; form.querySelector('label').remove(); go.remove();
+      } catch (error) { msg.classList.add('err'); msg.textContent = error.message; go.disabled = false; }
+    });
+    sheet.appendChild(form); dialog.appendChild(sheet); document.body.appendChild(dialog);
+    const close = () => { dialog.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    closeBtn.addEventListener('click', close); dialog.addEventListener('click', e => { if (e.target === dialog) close(); }); document.addEventListener('keydown', onKey);
+    form.email.focus();
+  }
+
   // Cards: booking buttons, rental badges and the Rentals filter.
   async function fetchExtras() {
     const uids = [...document.querySelectorAll('article[id^="post-"]:not([data-sample])')].map(a => a.id.slice(5)).filter(u => !asked.has(u));
@@ -142,6 +170,7 @@
       if (!r.ok) return;
       const body = await r.json();
       Object.assign(extras.booking, body.booking || {}); Object.assign(extras.details, body.details || {});
+      (body.bumped || []).forEach(u => extras.bumped.add(u));
       decorate();
     } catch { /* cards work without extras */ }
   }
@@ -168,6 +197,17 @@
         const b = el('button', 'rv-bk-btn', modes.includes('viewing') ? '📅 Book a viewing' : '📞 Book a call'); b.type = 'button';
         b.addEventListener('click', e => { e.stopPropagation(); openBooking(uid, sample); });
         contact.insertAdjacentElement('afterend', b);
+      }
+      // Bumped label (paid placement is always labelled) and the poster's bump link in the card footer.
+      if (!sample && extras.bumped.has(uid) && !article.querySelector('.rv-bk-bumped')) {
+        if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
+        article.appendChild(el('span', 'rv-bk-bumped', '⬆ Bumped'));
+      }
+      const footer = [...article.querySelectorAll('span')].find(s => /Auto-deletes when time runs out/.test(s.textContent));
+      if (!sample && footer && !article.querySelector('.rv-bk-bump-link')) {
+        const link = el('button', 'rv-bk-bump-link', 'Your post? ⬆ Bump to top'); link.type = 'button';
+        link.addEventListener('click', e => { e.stopPropagation(); openBump(uid); });
+        footer.insertAdjacentElement('beforebegin', link);
       }
       const details = extras.details[uid];
       if (details && !article.querySelector('.rv-bk-badges')) {
@@ -233,6 +273,12 @@
   if (outcome) {
     const text = { sent: '📅 Request sent. The poster will accept or decline by email.', taken: 'Sorry, someone confirmed that time first. Please pick another.', done: 'This request was already confirmed.', past: 'That time has passed. Please pick another.', invalid: 'That booking link is not valid.' }[outcome];
     if (text) setTimeout(() => toast(text), 1200);
+  }
+  const bump = params.get('bump');
+  if (bump) {
+    const text = { done: '⬆ Paid. Your post is back at the top for 24 hours.', pending: 'Payment received. Your bump will apply in a moment.', failed: 'The payment did not go through. You have not been charged for a bump.' }[bump];
+    if (text) setTimeout(() => toast(text), 1200);
+    const url = new URL(location.href); url.searchParams.delete('bump'); history.replaceState(null, '', url);
   }
   const bookUid = params.get('book');
   if (outcome || bookUid) { const url = new URL(location.href); url.searchParams.delete('booking'); url.searchParams.delete('book'); history.replaceState(null, '', url); }

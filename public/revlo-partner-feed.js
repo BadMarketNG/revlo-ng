@@ -14,8 +14,14 @@
   style.textContent = `
     .rv-pf{max-width:680px;margin:28px auto 8px;padding:0 0 8px;box-sizing:border-box}
     .rv-pf-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 12px}
-    .rv-pf-head h2{margin:0;font:900 20px/1.1 Georgia,serif;color:#1b5e20}
-    .rv-pf-head span{font:12px system-ui;color:#7b867c}
+    .rv-pf-head{align-items:flex-end!important}
+    /* Lockup: the rooster stands on the heading's baseline, its tail tucked in towards the R. */
+    .rv-pf-head h2{margin:0;font:900 26px/1 Georgia,serif;color:#1b5e20;display:flex;align-items:flex-end;letter-spacing:-.01em}
+    .rv-pf-head h2 picture{display:block;margin:0 -7px -2px -4px;position:relative;z-index:0}
+    .rv-pf-rooster{display:block;height:62px;width:auto;filter:drop-shadow(0 1px 0 rgba(0,0,0,.06))}
+    .rv-pf-head h2 .rv-pf-word{position:relative;z-index:1;padding-bottom:3px;white-space:nowrap}
+    @media (max-width:560px){.rv-pf-head h2{font-size:21px}.rv-pf-rooster{height:50px}.rv-pf-head > span{max-width:42%}}
+    .rv-pf-head > span{font:12px system-ui;color:#7b867c;text-align:right}
     .rv-pf-list{display:grid;gap:12px}
     .rv-pf-card{display:grid;grid-template-columns:168px minmax(0,1fr);gap:16px;align-items:center;width:100%;text-align:left;border:1.5px solid #e3e3e3;background:#fff;border-radius:16px;padding:12px;cursor:pointer;font:inherit;color:inherit;transition:border-color .2s,transform .2s}
     .rv-pf-thumb{position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#1b5e20;display:grid;place-items:center}
@@ -198,8 +204,8 @@
     if (!section) {
       section = document.createElement('section');
       section.className = 'rv-pf';
-      section.setAttribute('aria-label', 'From around Nigeria');
-      section.innerHTML = '<div class="rv-pf-head"><h2>Around Nigeria</h2><span>From partner sites · opens on the source</span></div><div class="rv-pf-list"></div>';
+      section.setAttribute('aria-label', 'Revolution Today');
+      section.innerHTML = '<div class="rv-pf-head"><h2><picture><source srcset="/revlo-rooster.webp" type="image/webp"><img src="/revlo-rooster.png" alt="" width="42" height="62" class="rv-pf-rooster"></picture><span class="rv-pf-word">Revolution Today</span></h2><span>From partner sites · opens on the source</span></div><div class="rv-pf-list"></div>';
     }
     if (section.previousElementSibling !== list) list.insertAdjacentElement('afterend', section);
     return section;

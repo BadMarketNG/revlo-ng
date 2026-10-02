@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyTransaction } from '@/lib/paystack';
+import { applyBump } from '@/lib/bumps.mjs';
 
 export async function fulfilPayment(reference, suppliedTransaction = null) {
   const { data: intent, error } = await supabaseAdmin
@@ -23,5 +24,7 @@ export async function fulfilPayment(reference, suppliedTransaction = null) {
   const { data: fulfilled, error: fulfilError } = await supabaseAdmin.from('revlo_payment_intents').update({ status: 'paid' })
     .eq('reference', reference).eq('status', 'pending').select('*').maybeSingle();
   if (fulfilError) throw fulfilError;
+  // NOTE (2026-10-02): a paid bump puts the post back at the top (idempotent per reference).
+  if (intent.kind === 'bump' && intent.post_uid) await applyBump(supabaseAdmin, { reference, postUid: intent.post_uid });
   return fulfilled || intent;
 }

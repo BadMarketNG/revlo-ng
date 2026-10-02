@@ -3,6 +3,7 @@
 import { NextResponse, after } from 'next/server';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 import { saveListingExtras } from '@/lib/listingExtras.mjs';
+import { liveBumps, pinBumped } from '@/lib/bumps.mjs';
 import { aliasTakenByOther, cleanAlias, currentAlias, saveAlias } from '@/lib/community';
 import { cleanTags, flagPostForContactInfo, requireNotSuspended, tagLimit } from '@/lib/moderation';
 import { attachDeviceCookie, deviceIdFrom, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
@@ -77,7 +78,10 @@ export async function GET(request) {
   const existingSeed = request.cookies.get(FEED_SESSION_COOKIE)?.value;
   const feedSeed = isFeedSessionSeed(existingSeed) ? existingSeed : createFeedSessionSeed();
   const context = `${duration}:${category || 'all'}`;
-  const response = NextResponse.json({ posts: saltedSessionOrder(data, feedSeed, context) });
+  // ORIGINAL (commented out 2026-10-02): const response = NextResponse.json({ posts: saltedSessionOrder(data, feedSeed, context) });
+  // NOTE: posts bumped in the last 24 hours (paid, labelled "Bumped") are pinned above the shuffled feed.
+  const bumped = await liveBumps(supabaseAdmin).catch(() => []);
+  const response = NextResponse.json({ posts: pinBumped(saltedSessionOrder(data, feedSeed, context), bumped) });
   // NOTE (2026-09-30): give every visitor a device cookie early so later follows and posts can be linked.
   if (!deviceIdFrom(request)) attachDeviceCookie(response, ensureDeviceId(request));
   if (feedSeed !== existingSeed) {
