@@ -5,13 +5,14 @@
   //   with a "Post for 24 hours" button sits under the intro.
   // - Post form: the 24h duration is tagged "Gone today"; Jobs + 24h shows "Shows as a 24-Hour Job".
   // - Feed: 24-hour posts get a badge with the time left ("24-Hour Job" for jobs), and a
-  //   "24-Hour Jobs" chip filters the feed to them.
+  //   "Gone in 24h" chip filters the feed to every 24-hour post (any category).
+  //   (2026-10-02: widened from jobs only at the owner's request.)
   // 24-hour posts already exist (the "24h · Today" duration, stored as "now"); they count as a normal post.
 
   const PROMPTS = ['Need staff today?', 'Room free this weekend?', 'Selling before you travel?', 'Promotion ends tonight?'];
   const G = '#1b5e20';
   let urgent = new Map(); // uid -> { category, expiresAt }
-  let jobsOnly = false;
+  let dayOnly = false;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -88,7 +89,7 @@
     } else if (!show && hint) hint.remove();
   }
 
-  // Feed: badges and the 24-Hour Jobs filter.
+  // Feed: badges and the Gone in 24h filter.
   function decorateCards() {
     document.querySelectorAll('article[id^="post-"]').forEach(article => {
       const uid = article.id.slice(5);
@@ -101,34 +102,35 @@
         badge.append(info.category === 'jobs' ? '⚡ 24-Hour Job' : '⚡ 24 hours only');
         const time = document.createElement('small'); time.textContent = `· ${remaining(info.expiresAt)}`; badge.appendChild(time);
       } else if (badge) badge.remove();
-      const keep = !jobsOnly || (info && info.category === 'jobs');
+      const keep = !dayOnly || Boolean(info);
       article.style.display = keep ? '' : 'none';
     });
     const empty = document.querySelector('.rv-ur-empty');
-    const any = [...urgent.values()].some(v => v.category === 'jobs');
-    if (jobsOnly && !any && !empty) {
+    const any = urgent.size > 0;
+    if (dayOnly && !any && !empty) {
       const feed = document.querySelector('article[id^="post-"]')?.parentElement || document.querySelector('main');
       const note = document.createElement('div');
       note.className = 'rv-ur-empty';
-      note.innerHTML = 'No 24-hour jobs right now. <button type="button" class="rv-ur-btn" style="margin-left:8px">Post one</button>';
+      note.innerHTML = 'Nothing ending in the next 24 hours yet. <button type="button" class="rv-ur-btn" style="margin-left:8px">Post one</button>';
       note.querySelector('button').addEventListener('click', () => postButton()?.click());
       feed?.parentElement?.insertBefore(note, feed);
-    } else if ((!jobsOnly || any) && empty) empty.remove();
+    } else if ((!dayOnly || any) && empty) empty.remove();
   }
 
   function addChip() {
     // The visible category bar only (the page also keeps hidden copies of some controls).
-    const jobsButton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Jobs' && !b.closest('[role="radiogroup"]') && b.offsetParent !== null);
+    // Placed after "All" now that it covers every category.
+    const jobsButton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'All' && !b.closest('[role="radiogroup"], .rv-pf') && b.offsetParent !== null);
     if (!jobsButton || jobsButton.parentElement.querySelector('.rv-ur-chip')) return;
     const chip = jobsButton.cloneNode(false);
     chip.className = `${jobsButton.className} rv-ur-chip`;
     chip.removeAttribute('aria-current');
     chip.type = 'button';
-    chip.textContent = '⚡ 24-Hour Jobs';
+    chip.textContent = '⚡ Gone in 24h';
     chip.setAttribute('aria-pressed', 'false');
     chip.addEventListener('click', () => {
-      jobsOnly = !jobsOnly;
-      chip.setAttribute('aria-pressed', String(jobsOnly));
+      dayOnly = !dayOnly;
+      chip.setAttribute('aria-pressed', String(dayOnly));
       decorateCards();
     });
     jobsButton.insertAdjacentElement('afterend', chip);
