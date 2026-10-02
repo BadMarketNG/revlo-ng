@@ -17,7 +17,14 @@
     .rv-pf-head h2{margin:0;font:900 20px/1.1 Georgia,serif;color:#1b5e20}
     .rv-pf-head span{font:12px system-ui;color:#7b867c}
     .rv-pf-list{display:grid;gap:12px}
-    .rv-pf-card{display:block;width:100%;text-align:left;border:1.5px solid #e3e3e3;background:#fff;border-radius:16px;padding:14px 16px;cursor:pointer;font:inherit;color:inherit;transition:border-color .2s,transform .2s}
+    .rv-pf-card{display:grid;grid-template-columns:168px minmax(0,1fr);gap:16px;align-items:center;width:100%;text-align:left;border:1.5px solid #e3e3e3;background:#fff;border-radius:16px;padding:12px;cursor:pointer;font:inherit;color:inherit;transition:border-color .2s,transform .2s}
+    .rv-pf-thumb{position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#1b5e20;display:grid;place-items:center}
+    .rv-pf-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .rv-pf-thumb span{font:900 26px/1 Georgia,serif;color:#eef6ef;letter-spacing:.02em}
+    .rv-pf-body{min-width:0;padding-right:4px}
+    @media (max-width:560px){.rv-pf-card{grid-template-columns:104px minmax(0,1fr);gap:12px;padding:10px}.rv-pf-title{font-size:15px!important}}
+    .rv-pf-hero{position:relative;margin:-22px -20px 14px;aspect-ratio:16/9;overflow:hidden;border-radius:20px 20px 0 0;background:#1b5e20}
+    .rv-pf-hero img{width:100%;height:100%;object-fit:cover;display:block}
     .rv-pf-card:hover{border-color:#1b5e20;transform:translateY(-1px)}
     .rv-pf-kind{display:inline-block;font:800 10.5px/1 system-ui;letter-spacing:.08em;color:#1b5e20;background:#eef6ef;border-radius:999px;padding:5px 8px}
     .rv-pf-title{display:block;margin:8px 0 6px;font:800 17px/1.3 system-ui;color:#1a1a1a}
@@ -42,6 +49,25 @@
   };
   const host = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
 
+  const initials = name => name.split(/\s+/).filter(w => /^[A-Za-z]/.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  // Publisher's image, loaded from their server; a branded placeholder if it is missing or fails.
+  function thumb(item, className) {
+    const box = document.createElement('span');
+    box.className = className;
+    const fallback = () => { box.textContent = ''; const mark = document.createElement('span'); mark.textContent = initials(item.source); box.appendChild(mark); };
+    if (item.image) {
+      const img = document.createElement('img');
+      img.src = item.image;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      img.addEventListener('error', fallback, { once: true });
+      box.appendChild(img);
+    } else fallback();
+    return box;
+  }
+
   function openItem(item) {
     const dialog = document.createElement('div');
     dialog.className = 'rv-pf-dialog';
@@ -49,6 +75,7 @@
     dialog.setAttribute('aria-modal', 'true');
     dialog.innerHTML = '<div class="rv-pf-sheet"><button type="button" class="rv-pf-close" aria-label="Close">×</button><span class="rv-pf-kind"></span><h3></h3><div class="rv-pf-meta"></div><a class="rv-pf-out" target="_blank" rel="noopener noreferrer"></a><p class="rv-pf-note"></p></div>';
     const sheet = dialog.firstChild;
+    if (item.image) sheet.insertBefore(thumb(item, 'rv-pf-hero'), sheet.firstChild);
     sheet.querySelector('.rv-pf-kind').textContent = KIND[item.kind] || 'PARTNER';
     sheet.querySelector('h3').textContent = item.title;
     sheet.querySelector('.rv-pf-meta').textContent = [`via ${item.source}`, item.location, item.salary, ago(item.publishedAt)].filter(Boolean).join(' · ');
@@ -94,7 +121,8 @@
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'rv-pf-card';
-      card.innerHTML = '<span class="rv-pf-kind"></span><span class="rv-pf-title"></span><span class="rv-pf-meta"></span>';
+      card.innerHTML = '<span class="rv-pf-body"><span class="rv-pf-kind"></span><span class="rv-pf-title"></span><span class="rv-pf-meta"></span></span>';
+      card.insertBefore(thumb(item, 'rv-pf-thumb'), card.firstChild);
       card.querySelector('.rv-pf-kind').textContent = KIND[item.kind] || 'PARTNER';
       card.querySelector('.rv-pf-title').textContent = item.title;
       const meta = card.querySelector('.rv-pf-meta');

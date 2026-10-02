@@ -30,3 +30,11 @@ test('one source never fills the whole list', () => {
 test('entities and tags are decoded', () => {
   assert.equal(decodeText('Tinubu&#8217;s <b>plan</b> &amp; more'), 'Tinubu’s plan & more');
 });
+
+test('feed images are found and BBC thumbnails are enlarged', async () => {
+  const { itemImage, ogImage } = await import('../src/lib/partnerFeed.mjs');
+  assert.equal(itemImage('<item><media:thumbnail width="240" url="https://ichef.bbci.co.uk/ace/ws/240/cpsprodpb/a.jpg"/></item>'), 'https://ichef.bbci.co.uk/ace/ws/480/cpsprodpb/a.jpg');
+  assert.equal(itemImage('<item><description><![CDATA[<img src="https://cdn.example.ng/a.jpg">]]></description></item>'), 'https://cdn.example.ng/a.jpg');
+  assert.equal(itemImage('<item><img src="http://insecure.ng/a.jpg"></item>'), null);
+  assert.equal(ogImage('<meta property="og:image" content="https://punchng.com/x.jpg" />'), 'https://punchng.com/x.jpg');
+});

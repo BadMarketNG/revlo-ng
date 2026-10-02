@@ -32,6 +32,32 @@ const tag = (block, name) => {
   return match ? decodeText(match[1]) : '';
 };
 
+// The image a publisher attaches to a feed item (media:content, media:thumbnail, an image
+// enclosure, or the first <img> in the item). Shown from the publisher's server, never copied.
+export function itemImage(block) {
+  for (const pattern of [
+    /<media:content[^>]*url="([^"]+)"[^>]*(?:medium="image"|type="image)/i,
+    /<media:content[^>]*url="([^"]+\.(?:jpe?g|png|webp)[^"]*)"/i,
+    /<media:thumbnail[^>]*url="([^"]+)"/i,
+    /<enclosure[^>]*url="([^"]+\.(?:jpe?g|png|webp)[^"]*)"/i,
+    /<img[^>]*src="([^"]+)"/i,
+  ]) {
+    const match = block.match(pattern);
+    if (match && /^https:\/\//.test(match[1])) {
+      // BBC thumbnails come at 240px; their image service serves larger widths on request.
+      return match[1].replace(/(ichef\.bbci\.co\.uk\/[^/]+\/[^/]+\/)240\//, '$1480/').replace(/&amp;/g, '&');
+    }
+  }
+  return null;
+}
+
+/** The share image a publisher declares for an article page (og:image), used when the feed has none. */
+export function ogImage(html) {
+  const match = String(html).match(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i)
+    || String(html).match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  return match && /^https:\/\//.test(match[1]) ? match[1].replace(/&amp;/g, '&') : null;
+}
+
 /** Parses RSS 2.0 into headline items (no article text is kept). */
 export function parseRss(xml, sourceName) {
   const items = [];
@@ -47,6 +73,7 @@ export function parseRss(xml, sourceName) {
       title: title.slice(0, 180),
       source: sourceName,
       url,
+      image: itemImage(block),
       location: 'Nigeria',
       publishedAt: published ? new Date(published).toISOString() : null,
       expiresAt: null,
