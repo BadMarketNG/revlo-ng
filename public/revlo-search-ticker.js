@@ -4,6 +4,7 @@
   // - The right half of the box shows a slow, clickable ticker of searches: a mix of the most
   //   searched, the newest and everything in between (see src/lib/searchTicker.mjs).
   // - Typing shows autocomplete suggestions; searches are counted (once per term per visit).
+  // - The ticker stays visible at all times (persistent), including while typing.
   // A clicked term fills the box exactly as if typed, so the feed's own search does the filtering.
 
   const SELECTOR = 'input[aria-label="Search posts"]';
@@ -114,11 +115,13 @@
       sync();
     }
 
+    // ORIGINAL (2026-10-02, first version): the ticker hid while typing and came back on the next
+    // keystroke, so clearing the box with the × button (no input event) left it hidden for good.
+    // NOTE: the ticker is now persistent: always shown when there are terms, typing or not.
     function sync() {
-      const typing = input.value.trim().length > 0;
       const empty = !state.items.length;
-      wrap.classList.toggle('rv-st-off', typing || empty);
-      input.classList.toggle('rv-st-room', !typing && !empty);
+      wrap.classList.toggle('rv-st-off', empty);
+      input.classList.toggle('rv-st-room', !empty);
     }
 
     function closeList() { list.hidden = true; active = -1; input.removeAttribute('aria-activedescendant'); }
