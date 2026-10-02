@@ -34,6 +34,13 @@ const nextConfig = {
           value: "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
         }],
       },
+      // The share image is shown by link-preview tools and apps on other origins (added 2026-10-02).
+      {
+        source: '/revlo-og.jpg',
+        headers: [
+          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+        ],
+      },
       // Email images are loaded by webmail on other origins.
       {
         source: '/email/:path*',
