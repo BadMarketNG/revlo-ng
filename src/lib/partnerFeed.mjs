@@ -119,6 +119,7 @@ export function fromJooble(job) {
     title: [title, company].filter(Boolean).join(' · ').slice(0, 180),
     source: null, // confidential source: never named on the page
     company: company || null,
+    summary: decodeText(job.snippet).slice(0, 280) || null,
     url,
     location: decodeText(job.location) || 'Nigeria',
     salary: decodeText(job.salary) || null,

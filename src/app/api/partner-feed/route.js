@@ -84,7 +84,9 @@ export async function GET(request) {
   const wantJobs = category === 'all' || category === 'jobs';
   const [jobs, jooble, news] = await Promise.all([
     wantJobs ? boqqsJobs() : [],
-    wantJobs ? joobleJobs() : [],
+    // ORIGINAL (2026-10-02, earlier today): wantJobs ? joobleJobs() : [],
+    // NOTE: jobs are now imported as real posts by /api/cron/import-jobs, so the feed no longer adds them.
+    [],
     category === 'all' || category === 'general' ? newsHeadlines() : [],
   ]);
   const items = await addMissingImages(mixSources([...jobs, ...jooble, ...news], category === 'all' ? 40 : 60));
