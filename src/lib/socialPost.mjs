@@ -14,7 +14,7 @@ export function lagosDay(now = Date.now()) {
 const LABELS = [['jobs', 'job', 'jobs'], ['rentals', 'room or rental', 'rooms and rentals'], ['for_sale', 'item for sale', 'items for sale'], ['promotions', 'promotion', 'promotions'], ['general', 'other post', 'other posts']];
 
 /** The daily message. `counts` is { jobs: 12, rentals: 5, … } for posts created in the last 24 hours. */
-export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now() } = {}) {
+export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now(), results = [] } = {}) {
   const lines = LABELS.filter(([key]) => counts[key] > 0).map(([key, one, many]) => `• ${counts[key]} ${counts[key] === 1 ? one : many}`);
   if (!lines.length) return null;
   const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
@@ -23,6 +23,8 @@ export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, no
     '',
     ...lines,
     ...(bookable ? ['', `📅 ${bookable} you can book a viewing or call for online`] : []),
+    // Real results the posters agreed to share, e.g. "✓ Let in 3 hours: 2-bedroom flat · Yaba".
+    ...(results.length ? ['', 'Gone already:', ...results.slice(0, 3).map(r => `✓ ${r}`)] : []),
     '',
     'Free to post, no sign-up. Posts expire, so look today 👇',
     url,

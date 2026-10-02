@@ -17,7 +17,7 @@
   const PROPERTY = { room: 'Room', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
   const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Promotions: 'promotions', General: 'general' };
-  const extras = { booking: {}, details: {}, bumped: new Set() };
+  const extras = { booking: {}, details: {}, bumped: new Set(), outcomes: {} };
   const asked = new Set();
   let category = 'all';
   const filter = { property: '', maxRent: '' };
@@ -59,6 +59,10 @@
     @media (max-width:560px){.rv-bk-cta{margin:10px 0 0;width:100%;justify-content:center}}
     .rv-bk-bumped{position:absolute;z-index:3;top:12px;left:50%;transform:translateX(-50%);background:#1b5e20;color:#fff;border-radius:999px;padding:5px 10px;font:800 11.5px/1 system-ui;letter-spacing:.03em;box-shadow:0 4px 12px rgba(0,0,0,.18)}
     .rv-bk-bump-link{border:0;background:none;color:#1b5e20;font:700 12px system-ui;cursor:pointer;padding:0;text-decoration:underline}
+    .rv-bk-done{position:absolute;z-index:4;top:12px;left:50%;transform:translateX(-50%);background:#f5c518;color:#1a1a1a;border-radius:999px;padding:6px 12px;font:900 12px/1 system-ui;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+    .rv-bk-gone{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0 0;font:700 13px system-ui;color:#3d3d3d}
+    .rv-bk-gone a{display:inline-flex;gap:6px;align-items:center;background:#fff;border:1.5px solid #cfe3d1;color:#1b5e20;border-radius:999px;padding:6px 11px;text-decoration:none;font-weight:800}
+    .rv-bk-gone a small{font-weight:600;color:#555}
     .rv-bk-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147480002;background:#1b5e20;color:#fff;border-radius:12px;padding:12px 16px;font:700 14px system-ui;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 32px)}
   `;
   document.head.appendChild(style);
@@ -160,6 +164,50 @@
     form.email.focus();
   }
 
+  // Results: the poster marks their post as sold / let / filled (link emailed to the post's own address).
+  function openMarkGone(uid, verb) {
+    if (document.querySelector('.rv-bk-dialog')) return;
+    const dialog = el('div', 'rv-bk-dialog'); dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-label', `Mark as ${verb}`);
+    const sheet = el('div', 'rv-bk-sheet');
+    const closeBtn = el('button', 'rv-bk-close', '×'); closeBtn.type = 'button'; closeBtn.setAttribute('aria-label', 'Close');
+    sheet.append(closeBtn, el('h3', '', `✓ Mark as ${verb}`), el('p', 'rv-bk-sub', `We will email the address this post was made with a link to mark it ${verb}. New enquiries stop, and you get a result card to share.`));
+    const form = el('form', 'rv-bk-form'); form.noValidate = true;
+    form.innerHTML = '<label>Email you used for this post<input name="email" type="email" autocomplete="email"></label><button class="rv-bk-go" type="submit">Email me the link</button><p class="rv-bk-msg" role="status" aria-live="polite"></p>';
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const msg = form.querySelector('.rv-bk-msg'); const go = form.querySelector('.rv-bk-go'); msg.className = 'rv-bk-msg'; go.disabled = true; msg.textContent = 'Sending…';
+      try {
+        const r = await fetch('/api/outcomes/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid, email: form.email.value }) });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || 'Something went wrong. Please try again.');
+        msg.textContent = body.message; form.querySelector('label').remove(); go.remove();
+      } catch (error) { msg.classList.add('err'); msg.textContent = error.message; go.disabled = false; }
+    });
+    sheet.appendChild(form); dialog.appendChild(sheet); document.body.appendChild(dialog);
+    const close = () => { dialog.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    closeBtn.addEventListener('click', close); dialog.addEventListener('click', e => { if (e.target === dialog) close(); }); document.addEventListener('keydown', onKey);
+    form.email.focus();
+  }
+
+  // Hero: "Recently gone" with real results the posters agreed to share.
+  let goneLoaded = false;
+  async function recentlyGone() {
+    const details = document.getElementById('revlo-header-details');
+    if (!details || goneLoaded) return;
+    goneLoaded = true;
+    try {
+      const r = await fetch('/api/outcomes/recent');
+      const { results = [] } = await r.json();
+      if (!results.length) return;
+      const strip = el('div', 'rv-bk-gone');
+      strip.append('✓ Recently gone:');
+      results.slice(0, 3).forEach(x => { const a = el('a'); a.href = `/r/${x.id}`; a.append(x.text, el('small', '', x.label)); strip.appendChild(a); });
+      const cta = [...details.querySelectorAll('button')].find(b => /Post something/.test(b.textContent));
+      (cta?.parentElement || details).insertAdjacentElement('afterend', strip);
+    } catch { /* the hero works without results */ }
+  }
+
   // Cards: booking buttons, rental badges and the Rentals filter.
   async function fetchExtras() {
     const uids = [...document.querySelectorAll('article[id^="post-"]:not([data-sample])')].map(a => a.id.slice(5)).filter(u => !asked.has(u));
@@ -171,6 +219,7 @@
       const body = await r.json();
       Object.assign(extras.booking, body.booking || {}); Object.assign(extras.details, body.details || {});
       (body.bumped || []).forEach(u => extras.bumped.add(u));
+      Object.assign(extras.outcomes, body.outcomes || {});
       decorate();
     } catch { /* cards work without extras */ }
   }
@@ -193,13 +242,20 @@
       const contact = [...article.querySelectorAll('button, a')].find(b => /Contact/.test(b.textContent));
       const cardCategory = article.querySelector('span')?.textContent.trim().toLowerCase();
       const modes = sample ? (['rentals', 'for sale'].includes(cardCategory) ? ['viewing'] : null) : extras.booking[uid];
-      if (modes && contact && !article.querySelector('.rv-bk-btn')) {
+      const gone = !sample && extras.outcomes[uid];
+      if (gone && !article.querySelector('.rv-bk-done')) {
+        if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
+        article.querySelector('.rv-bk-bumped')?.remove();
+        article.appendChild(el('span', 'rv-bk-done', `✓ ${gone}`));
+        article.querySelector('.rv-bk-btn')?.remove();
+      }
+      if (modes && contact && !gone && !article.querySelector('.rv-bk-btn')) {
         const b = el('button', 'rv-bk-btn', modes.includes('viewing') ? '📅 Book a viewing' : '📞 Book a call'); b.type = 'button';
         b.addEventListener('click', e => { e.stopPropagation(); openBooking(uid, sample); });
         contact.insertAdjacentElement('afterend', b);
       }
       // Bumped label (paid placement is always labelled) and the poster's bump link in the card footer.
-      if (!sample && extras.bumped.has(uid) && !article.querySelector('.rv-bk-bumped')) {
+      if (!sample && !extras.outcomes[uid] && extras.bumped.has(uid) && !article.querySelector('.rv-bk-bumped')) {
         if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
         article.appendChild(el('span', 'rv-bk-bumped', '⬆ Bumped'));
       }
@@ -208,6 +264,12 @@
         const link = el('button', 'rv-bk-bump-link', 'Your post? ⬆ Bump to top'); link.type = 'button';
         link.addEventListener('click', e => { e.stopPropagation(); openBump(uid); });
         footer.insertAdjacentElement('beforebegin', link);
+        const verb = { rentals: 'let', 'for sale': 'sold', jobs: 'filled' }[cardCategory];
+        if (verb && !extras.outcomes[uid]) {
+          const mark = el('button', 'rv-bk-bump-link', `✓ Mark as ${verb}`); mark.type = 'button'; mark.style.marginLeft = '10px';
+          mark.addEventListener('click', e => { e.stopPropagation(); openMarkGone(uid, verb); });
+          link.insertAdjacentElement('afterend', mark);
+        }
       }
       const details = extras.details[uid];
       if (details && !article.querySelector('.rv-bk-badges')) {
@@ -285,6 +347,6 @@
   if (bookUid && /^[A-Za-z0-9-]{4,24}$/.test(bookUid)) setTimeout(() => openBooking(bookUid, false), 1500);
 
   let queued = false;
-  new MutationObserver(() => { if (queued) return; queued = true; setTimeout(() => { queued = false; hero(); decorate(); fetchExtras(); }, 150); })
+  new MutationObserver(() => { if (queued) return; queued = true; setTimeout(() => { queued = false; hero(); recentlyGone(); decorate(); fetchExtras(); }, 150); })
     .observe(document.documentElement, { childList: true, subtree: true });
 })();

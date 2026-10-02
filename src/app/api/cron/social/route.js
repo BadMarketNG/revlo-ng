@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { buildDigest, buildShortDigest, postToFacebook, postToX } from '@/lib/socialPost.mjs';
+import { headline } from '@/lib/outcomes.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -20,7 +21,9 @@ export async function GET(request) {
     ? await supabaseAdmin.from('revlo_booking_settings').select('post_uid', { count: 'exact', head: true }).in('post_uid', posts.map(p => p.uid).slice(0, 1000))
     : { count: 0 };
   const link = 'https://revlo.ng/app.html?utm_source=social&utm_medium=daily';
-  const long = buildDigest(counts, { url: link, bookable: bookable || 0 });
+  const { data: shared } = await supabaseAdmin.from('revlo_outcomes').select('outcome,label,hours').eq('share', true).gt('resolved_at', new Date(now.getTime() - 86400000).toISOString()).order('hours').limit(3);
+  const results = (shared ?? []).map(r => `${headline(r.outcome, Number(r.hours))}: ${r.label}`);
+  const long = buildDigest(counts, { url: link, bookable: bookable || 0, results });
   const short = buildShortDigest(counts, { url: link });
   if (!long) return NextResponse.json({ ok: true, posted: false, reason: 'no new posts' });
   const [facebook, x] = await Promise.all([

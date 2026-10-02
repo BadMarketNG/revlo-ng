@@ -28,3 +28,9 @@ test('daily digests', async () => {
   const { lagosDay } = await import('../src/lib/socialPost.mjs');
   assert.equal(lagosDay(Date.parse('2026-10-02T23:30:00Z')), 'Sat 3 Oct'); // already Saturday in Lagos
 });
+
+test('daily digest lists shared results', async () => {
+  const { buildDigest } = await import('../src/lib/socialPost.mjs');
+  const text = buildDigest({ rentals: 2 }, { results: ['Let in 3 hours: 2-bedroom flat · Yaba'] });
+  assert.match(text, /Gone already:\n✓ Let in 3 hours: 2-bedroom flat · Yaba/);
+});
