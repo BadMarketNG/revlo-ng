@@ -2,6 +2,7 @@
 // NOTE: after() added so IndexNow is told about new posts without slowing the response.
 import { NextResponse, after } from 'next/server';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
+import { saveListingExtras } from '@/lib/listingExtras.mjs';
 import { aliasTakenByOther, cleanAlias, currentAlias, saveAlias } from '@/lib/community';
 import { cleanTags, flagPostForContactInfo, requireNotSuspended, tagLimit } from '@/lib/moderation';
 import { attachDeviceCookie, deviceIdFrom, ensureDeviceId, recordSignal } from '@/lib/activitySignals';
@@ -328,6 +329,8 @@ export async function POST(request) {
   await incrementPublisherPosts(cleanEmail).catch((e) => console.error('[publisherStats]', e));
   // NOTE (2026-10-01): posts with phone numbers, emails, links or handles go to admin review.
   await flagPostForContactInfo({ ...data, poster_email: cleanEmail, description: String(description) }).catch((e) => console.error('[post-flags]', e));
+  // NOTE (2026-10-02): booking times and structured details (rent, bedrooms, price), when given.
+  await saveListingExtras(supabaseAdmin, data, body).catch((e) => console.error('[listing-extras]', e));
   // NOTE (2026-10-02): tell Bing and other IndexNow search engines about the new post page.
   after(() => notifyIndexNow(`https://revlo.ng/p/${data.uid}`));
   if (aliasProvided) {

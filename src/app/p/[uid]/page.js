@@ -21,6 +21,13 @@ async function getPost(uid) {
 
 // NOTE (2026-10-02): the employer for Google for Jobs: the imported job's employer, else the
 // publisher's public alias. Job posts with neither keep the ordinary markup.
+// NOTE (2026-10-02): Rentals / For Sale posts that take bookings link to the booking sheet.
+async function takesBookings(post) {
+  if (post.category !== 'rentals' && post.category !== 'for_sale') return false;
+  const { data } = await supabaseAdmin.from('revlo_booking_settings').select('post_uid').eq('post_uid', post.uid).maybeSingle();
+  return Boolean(data);
+}
+
 async function getEmployer(post) {
   if (post.category !== 'jobs') return null;
   const { data } = await supabaseAdmin.from('revlo_imported_jobs').select('company').eq('post_uid', post.uid).maybeSingle();
@@ -73,6 +80,7 @@ export default async function PostPage({ params }) {
 
   const link = `/app.html#post-${post.uid}`;
   const employer = await getEmployer(post);
+  const bookable = await takesBookings(post);
   // NOTE (2026-10-02): job posts with an employer use JobPosting markup (Google for Jobs).
   const jobPosting = jobPostingFor(post, { employer, origin: APP_URL });
   // NOTE (2026-10-02): For Sale posts with a price use Product markup; Promotions with an event date use Event markup.
@@ -117,6 +125,11 @@ export default async function PostPage({ params }) {
         {/* ORIGINAL (2026-10-02): View on Revlo.ng */}
         {jobPosting ? 'Apply: contact on Revlo.ng' : 'View on Revlo.ng'}
       </a>
+      {bookable && (
+        <a href={`/app.html?book=${encodeURIComponent(post.uid)}`} style={{ display: 'inline-block', marginLeft: 10, border: '1.5px solid #b45309', color: '#92400e', background: '#fff7e6', padding: '11px 20px', borderRadius: 8, textDecoration: 'none', fontWeight: 700 }}>
+          📅 Book a viewing or call
+        </a>
+      )}
       {jobPosting && (
         <p style={{ color: '#666', fontSize: 14, marginTop: 14 }}>
           To apply, open this post on Revlo.ng and use Contact. Posted {new Date(post.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}.
