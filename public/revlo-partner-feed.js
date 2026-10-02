@@ -38,6 +38,46 @@
     .rv-pf-out{display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:#1b5e20;color:#fff;border-radius:12px;padding:12px 16px;font:700 15px system-ui;text-decoration:none}
     .rv-pf-close{float:right;border:0;background:#eee;border-radius:999px;width:34px;height:34px;font-size:18px;cursor:pointer}
     .rv-pf-note{margin-top:10px;font:12.5px system-ui;color:#7b867c}
+    /* News tiles (2026-10-02): square social-style tiles in a two-row carousel, wider than the feed. */
+    .rv-pf.rv-pf-wide{max-width:none;width:min(1180px,calc(100vw - 32px));position:relative;left:50%;transform:translateX(-50%)}
+    .rv-pf.rv-pf-wide .rv-pf-list{max-width:680px;margin:18px auto 0}
+    .rv-pf-news{position:relative}
+    .rv-pf-rail{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:calc((100% - 42px)/4);gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:2px}
+    .rv-pf-rail::-webkit-scrollbar{display:none}
+    @media (max-width:980px){.rv-pf-rail{grid-auto-columns:calc((100% - 28px)/3)}}
+    @media (max-width:640px){.rv-pf-rail{grid-template-rows:auto;grid-auto-columns:82%}}
+    .rv-pf-tile{position:relative;aspect-ratio:1;overflow:hidden;border:0;border-radius:6px;padding:0;cursor:pointer;scroll-snap-align:start;background:#14231a;color:#fff;text-align:left;font:inherit;box-shadow:0 10px 24px -14px rgba(0,0,0,.55)}
+    .rv-pf-tile .rv-pf-bg{position:absolute;inset:0;background:#14231a}
+    .rv-pf-tile .rv-pf-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
+    .rv-pf-tile .rv-pf-bg>span{display:none}
+    .rv-pf-tile:hover .rv-pf-bg img{transform:scale(1.04)}
+    .rv-pf-tile:focus-visible{outline:3px solid #f5c518;outline-offset:2px}
+    .rv-pf-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 26%,rgba(0,0,0,.25) 48%,rgba(0,0,0,.88) 100%)}
+    .rv-pf-top{position:absolute;top:14px;left:16px;right:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .rv-pf-brand{font:900 15px/1 system-ui;letter-spacing:-.01em;color:#fff}
+    .rv-pf-brand i{font-style:normal;color:#f5c518}
+    .rv-pf-src{background:#d32f2f;color:#fff;border-radius:999px;padding:4px 9px;font:700 10px/1 system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+    .rv-pf-dots{position:absolute;right:16px;top:28%;display:grid;grid-template-columns:repeat(2,4px);gap:6px;opacity:.85}
+    .rv-pf-dots b{width:4px;height:4px;border-radius:50%;background:#fff}
+    .rv-pf-copy{position:absolute;left:16px;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+    .rv-pf-label{background:#d32f2f;color:#fff;padding:5px 10px;font:900 12px/1 system-ui;letter-spacing:.04em;text-transform:uppercase}
+    .rv-pf-headline{font:800 clamp(16px,1.55vw,21px)/1.18 system-ui;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 12px rgba(0,0,0,.45)}
+    .rv-pf-headline mark{background:#f5c518;color:#1a1a1a;padding:0 4px;text-shadow:none;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+    .rv-pf-when{font:600 11px/1 system-ui;color:rgba(255,255,255,.8)}
+    .rv-pf-tile.v1 .rv-pf-copy{align-items:center;text-align:center;bottom:18px}
+    .rv-pf-tile.v1 .rv-pf-label{border-radius:999px;padding:7px 16px;font-size:14px}
+    .rv-pf-tile.v1 .rv-pf-headline{font-weight:600}
+    .rv-pf-tile.v2 .rv-pf-headline{text-transform:uppercase;font-weight:900;letter-spacing:.005em}
+    .rv-pf-tile.v2 .rv-pf-label{background:transparent;color:#ff5a4f;font-style:italic;font-size:18px;padding:0}
+    .rv-pf-tile.v3 .rv-pf-shade{background:linear-gradient(180deg,rgba(10,16,12,.92) 0%,rgba(10,16,12,.7) 55%,rgba(10,16,12,.35) 100%)}
+    .rv-pf-tile.v3 .rv-pf-copy{top:52px;bottom:auto}
+    .rv-pf-tile.v3 .rv-pf-headline{font-weight:500;font-size:clamp(17px,1.7vw,23px)}
+    .rv-pf-tile.v3 .rv-pf-headline strong{font-weight:900}
+    .rv-pf-arrow{position:absolute;top:50%;z-index:2;width:46px;height:46px;margin-top:-23px;border-radius:50%;border:0;background:#fff;color:#1a1a1a;font:700 22px/1 system-ui;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);display:grid;place-items:center}
+    .rv-pf-arrow[hidden]{display:none}
+    .rv-pf-arrow.prev{left:-12px}.rv-pf-arrow.next{right:-12px}
+    @media (max-width:640px){.rv-pf-arrow{display:none}}
+    @media (prefers-reduced-motion:reduce){.rv-pf-rail{scroll-behavior:auto}.rv-pf-tile .rv-pf-bg img{transition:none}}
   `;
   document.head.appendChild(style);
 
@@ -93,6 +133,63 @@
     out.focus();
   }
 
+  // Headline styling per tile: the part after a colon or dash, or the last two words, is highlighted
+  // (yellow box on some tiles, bold on others), echoing social news tiles. Text is set safely.
+  function headline(el, title, variant) {
+    const split = title.match(/^(.{12,}?)([:—–-]\s+)(.+)$/) || title.match(/^(.+?)\s(\S+\s\S+)$/);
+    if (!split || variant === 2) { el.textContent = title; return; }
+    const lead = split[1] + (split.length === 4 ? split[2] : ' ');
+    const tail = split[split.length - 1];
+    el.append(lead);
+    const em = document.createElement(variant === 3 ? 'strong' : 'mark');
+    em.textContent = tail;
+    if (variant === 1) el.textContent = title; else el.appendChild(em);
+  }
+
+  function tile(item, index) {
+    const variant = index % 4;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = `rv-pf-tile v${variant}`;
+    el.setAttribute('aria-label', `${item.title}${item.source ? `, from ${item.source}` : ''}`);
+    el.appendChild(thumb(item, 'rv-pf-bg'));
+    el.insertAdjacentHTML('beforeend', '<span class="rv-pf-shade"></span><span class="rv-pf-top"><span class="rv-pf-brand">revlo<i>.ng</i></span></span><span class="rv-pf-dots" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b></span><span class="rv-pf-copy"><span class="rv-pf-label"></span><span class="rv-pf-headline"></span><span class="rv-pf-when"></span></span>');
+    if (item.source) {
+      const src = document.createElement('span'); src.className = 'rv-pf-src'; src.textContent = `Source: ${item.source}`;
+      el.querySelector('.rv-pf-top').appendChild(src);
+    }
+    const minutes = (Date.now() - Date.parse(item.publishedAt)) / 60000;
+    // "Just in" only when it genuinely is: published within the last hour.
+    el.querySelector('.rv-pf-label').textContent = variant === 2 ? (minutes < 60 ? 'Just in —' : 'Latest —') : (minutes < 60 ? 'Just in' : 'News update');
+    headline(el.querySelector('.rv-pf-headline'), item.title, variant);
+    el.querySelector('.rv-pf-when').textContent = ago(item.publishedAt);
+    el.addEventListener('click', () => openItem(item));
+    return el;
+  }
+
+  function newsRail(section, news) {
+    let block = section.querySelector('.rv-pf-news');
+    if (!news.length) { block?.remove(); return; }
+    if (!block) {
+      block = document.createElement('div');
+      block.className = 'rv-pf-news';
+      block.innerHTML = '<button type="button" class="rv-pf-arrow prev" aria-label="Previous news">‹</button><div class="rv-pf-rail" role="list"></div><button type="button" class="rv-pf-arrow next" aria-label="More news">›</button>';
+      section.querySelector('.rv-pf-head').insertAdjacentElement('afterend', block);
+      const rail = block.querySelector('.rv-pf-rail');
+      const prev = block.querySelector('.prev'), next = block.querySelector('.next');
+      const arrows = () => { prev.hidden = rail.scrollLeft < 8; next.hidden = rail.scrollLeft + rail.clientWidth > rail.scrollWidth - 8; };
+      prev.addEventListener('click', () => rail.scrollBy({ left: -rail.clientWidth, behavior: 'smooth' }));
+      next.addEventListener('click', () => rail.scrollBy({ left: rail.clientWidth, behavior: 'smooth' }));
+      rail.addEventListener('scroll', arrows, { passive: true });
+      block.arrows = arrows;
+    }
+    const rail = block.querySelector('.rv-pf-rail');
+    rail.textContent = '';
+    news.slice(0, 24).forEach((item, i) => { const t = tile(item, i); t.setAttribute('role', 'listitem'); rail.appendChild(t); });
+    rail.scrollLeft = 0;
+    requestAnimationFrame(() => block.arrows());
+  }
+
   function container() {
     const firstPost = document.querySelector('article[id^="post-"], article[data-sample]');
     const list = firstPost?.parentElement;
@@ -118,7 +215,11 @@
     if (list.dataset.key === key) return;
     list.dataset.key = key;
     list.textContent = '';
-    for (const item of items.slice(0, 30)) {
+    // News shows as image tiles; jobs and listings keep the row cards.
+    const news = items.filter(item => item.kind === 'news');
+    section.classList.toggle('rv-pf-wide', news.length > 0);
+    newsRail(section, news);
+    for (const item of items.filter(item => item.kind !== 'news').slice(0, 30)) {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'rv-pf-card';
