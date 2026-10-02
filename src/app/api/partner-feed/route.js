@@ -19,24 +19,37 @@ async function boqqsJobs() {
   } catch { return []; }
 }
 
-// Jooble: one search for jobs in Nigeria, cached 6 hours and shared by every visitor (about four
-// calls a day against the 500-request allowance). Switches on when JOOBLE_API_KEY is set.
+// Jooble: jobs in Nigeria, cached 6 hours and shared by every visitor (a few calls a day against the
+// 500-request allowance). Switches on when JOOBLE_API_KEY is set. Tries the Nigerian site first,
+// then the international one; stops at the first search that returns jobs.
+const JOOBLE_SEARCHES = [
+  { host: 'https://ng.jooble.org', body: { keywords: '', location: '' } },
+  { host: 'https://ng.jooble.org', body: { keywords: 'jobs', location: 'Lagos' } },
+  { host: 'https://jooble.org', body: { keywords: 'jobs', location: 'Nigeria' } },
+];
+
 async function joobleJobs() {
   const key = process.env.JOOBLE_API_KEY;
   if (!key) return [];
-  try {
-    const response = await fetch(`https://jooble.org/api/${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT },
-      body: JSON.stringify({ keywords: '', location: 'Nigeria' }),
-      cache: 'force-cache',
-      next: { revalidate: 21600, tags: ['jooble'] },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!response.ok) { console.error('[partner-feed:jooble]', response.status); return []; }
-    const body = await response.json();
-    return (body.jobs ?? []).map(fromJooble).filter(Boolean);
-  } catch (error) { console.error('[partner-feed:jooble]', error?.name || 'failed'); return []; }
+  for (const search of JOOBLE_SEARCHES) {
+    try {
+      const response = await fetch(`${search.host}/api/${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT },
+        body: JSON.stringify(search.body),
+        cache: 'force-cache',
+        next: { revalidate: 21600, tags: ['jooble'] },
+        signal: AbortSignal.timeout(10000),
+      });
+      const label = `${new URL(search.host).hostname} ${JSON.stringify(search.body)}`;
+      if (!response.ok) { console.error('[partner-feed:jooble]', label, 'status', response.status); continue; }
+      const body = await response.json();
+      const jobs = (body.jobs ?? []).map(fromJooble).filter(Boolean);
+      console.info('[partner-feed:jooble]', label, 'total', body.totalCount ?? 'n/a', 'returned', body.jobs?.length ?? 0, 'usable', jobs.length);
+      if (jobs.length) return jobs;
+    } catch (error) { console.error('[partner-feed:jooble]', search.host, error?.name || 'failed'); }
+  }
+  return [];
 }
 
 async function newsHeadlines() {
