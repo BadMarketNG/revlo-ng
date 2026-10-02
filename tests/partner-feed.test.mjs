@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { decodeText, fromBoqqs, mixSources, parseRss } from '../src/lib/partnerFeed.mjs';
+
+const rss = `<rss><channel><item><title><![CDATA[Lagos &amp; Ogun roll out CNG buses]]></title><link>https://example.ng/a</link><description><![CDATA[<p>Full article text that must not be kept</p>]]></description><pubDate>Thu, 01 Oct 2026 10:00:00 +0100</pubDate></item><item><title>No link item</title></item><item><title>Insecure</title><link>http://example.ng/b</link></item></channel></rss>`;
+
+test('RSS keeps only the headline, source and https link', () => {
+  const items = parseRss(rss, 'Example');
+  assert.equal(items.length, 1);
+  assert.equal(items[0].title, 'Lagos & Ogun roll out CNG buses');
+  assert.equal(items[0].source, 'Example');
+  assert.equal(items[0].url, 'https://example.ng/a');
+  assert.ok(!('description' in items[0]) && !JSON.stringify(items[0]).includes('Full article'));
+});
+
+test('BOQQS jobs keep their link and are dropped once expired', () => {
+  assert.equal(fromBoqqs({ id: 'BQ-1', title: 'Barista', employer: 'Cafe', url: 'https://boqqs.com/jobs/x', expiresAt: '2000-01-01T00:00:00Z' }), null);
+  const job = fromBoqqs({ id: 'BQ-2', title: 'Barista', employer: 'Cafe', url: 'https://boqqs.com/jobs/y', location: { city: 'Lagos', country: 'NG' }, expiresAt: '2999-01-01T00:00:00Z' });
+  assert.equal(job.source, 'BOQQS');
+  assert.equal(job.url, 'https://boqqs.com/jobs/y');
+  assert.equal(job.location, 'Lagos, Nigeria');
+});
+
+test('one source never fills the whole list', () => {
+  const items = [...Array.from({ length: 10 }, (_, i) => ({ source: 'A', publishedAt: `2026-10-0${(i % 9) + 1}T00:00:00Z` })), { source: 'B', publishedAt: '2026-01-01T00:00:00Z' }];
+  const mixed = mixSources(items, 4);
+  assert.ok(mixed.some(i => i.source === 'B'));
+});
+
+test('entities and tags are decoded', () => {
+  assert.equal(decodeText('Tinubu&#8217;s <b>plan</b> &amp; more'), 'Tinubu’s plan & more');
+});
