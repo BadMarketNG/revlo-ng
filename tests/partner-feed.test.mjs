@@ -43,7 +43,9 @@ test('Jooble jobs are normalised without their description', async () => {
   const { fromJooble } = await import('../src/lib/partnerFeed.mjs');
   const job = fromJooble({ id: 7, title: '<b>Sales</b> Officer', company: 'Acme &amp; Co', location: 'Lagos', salary: '', snippet: 'long text', link: 'https://jooble.org/desc/7', updated: '2026-10-01T09:00:00' });
   assert.equal(job.title, 'Sales Officer · Acme & Co');
-  assert.equal(job.source, 'Jooble');
+  assert.equal(job.source, null);
+  assert.equal(job.company, 'Acme & Co');
+  assert.equal(JSON.stringify(job).toLowerCase().includes('jooble.org/desc') && !/jooble(?!\.org)/i.test(JSON.stringify(job)), true);
   assert.equal(job.location, 'Lagos');
   assert.equal(job.salary, null);
   assert.equal('snippet' in job, false);

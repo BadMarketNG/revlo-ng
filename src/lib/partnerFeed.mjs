@@ -6,7 +6,8 @@
 //   general  Nigerian news headlines from publishers' public RSS feeds: headline, source and link only
 //
 //   jobs     Jooble REST API (key in JOOBLE_API_KEY; 500-request allowance, so called at most every 6 hours;
-//            links go through Jooble's own job link, as their API intends)
+//            links go through Jooble's own job link, as their API intends). The owner treats this source
+//            as confidential: Jooble items carry no source name, and cards show none (2026-10-02).
 //
 // Further sources (Careerjet jobs, affiliate shops, eBay) plug in as more adapters.
 
@@ -110,12 +111,14 @@ export function fromJooble(job) {
   const title = decodeText(job?.title);
   if (!title || !/^https:\/\//.test(url)) return null;
   const updated = Date.parse(job.updated) || null;
+  const company = decodeText(job.company);
   return {
-    id: `jooble:${job.id ?? url}`,
+    id: `job:${job.id ?? url}`,
     category: 'jobs',
     kind: 'job',
-    title: [title, decodeText(job.company)].filter(Boolean).join(' · ').slice(0, 180),
-    source: 'Jooble',
+    title: [title, company].filter(Boolean).join(' · ').slice(0, 180),
+    source: null, // confidential source: never named on the page
+    company: company || null,
     url,
     location: decodeText(job.location) || 'Nigeria',
     salary: decodeText(job.salary) || null,
@@ -128,8 +131,9 @@ export function fromJooble(job) {
 export function mixSources(items, limit = 60) {
   const bySource = new Map();
   for (const item of [...items].sort((a, b) => (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0))) {
-    if (!bySource.has(item.source)) bySource.set(item.source, []);
-    bySource.get(item.source).push(item);
+    const group = item.source ?? item.id.split(':')[0];
+    if (!bySource.has(group)) bySource.set(group, []);
+    bySource.get(group).push(item);
   }
   const queues = [...bySource.values()];
   const out = [];

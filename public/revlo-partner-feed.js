@@ -49,12 +49,12 @@
   };
   const host = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
 
-  const initials = name => name.split(/\s+/).filter(w => /^[A-Za-z]/.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const initials = name => String(name || 'Job').split(/\s+/).filter(w => /^[A-Za-z]/.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   // Publisher's image, loaded from their server; a branded placeholder if it is missing or fails.
   function thumb(item, className) {
     const box = document.createElement('span');
     box.className = className;
-    const fallback = () => { box.textContent = ''; const mark = document.createElement('span'); mark.textContent = initials(item.source); box.appendChild(mark); };
+    const fallback = () => { box.textContent = ''; const mark = document.createElement('span'); mark.textContent = initials(item.source || item.company); box.appendChild(mark); };
     if (item.image) {
       const img = document.createElement('img');
       img.src = item.image;
@@ -78,11 +78,12 @@
     if (item.image) sheet.insertBefore(thumb(item, 'rv-pf-hero'), sheet.firstChild);
     sheet.querySelector('.rv-pf-kind').textContent = KIND[item.kind] || 'PARTNER';
     sheet.querySelector('h3').textContent = item.title;
-    sheet.querySelector('.rv-pf-meta').textContent = [`via ${item.source}`, item.location, item.salary, ago(item.publishedAt)].filter(Boolean).join(' · ');
+    sheet.querySelector('.rv-pf-meta').textContent = [item.source ? `via ${item.source}` : item.company, item.location, item.salary, ago(item.publishedAt)].filter(Boolean).join(' · ');
     const out = sheet.querySelector('.rv-pf-out');
     out.href = item.url;
-    out.textContent = `Open on ${item.source} ↗`;
-    sheet.querySelector('.rv-pf-note').textContent = `This opens ${host(item.url)} in a new tab. It is not a Revlo post.`;
+    // Some sources are confidential (no source name): the button and note then stay generic.
+    out.textContent = item.source ? `Open on ${item.source} ↗` : 'Open the full listing ↗';
+    sheet.querySelector('.rv-pf-note').textContent = item.source ? `This opens ${host(item.url)} in a new tab. It is not a Revlo post.` : 'This opens on an outside site in a new tab. It is not a Revlo post.';
     const close = () => { dialog.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = e => { if (e.key === 'Escape') close(); };
     dialog.addEventListener('click', e => { if (e.target === dialog) close(); });
@@ -126,7 +127,7 @@
       card.querySelector('.rv-pf-kind').textContent = KIND[item.kind] || 'PARTNER';
       card.querySelector('.rv-pf-title').textContent = item.title;
       const meta = card.querySelector('.rv-pf-meta');
-      const via = document.createElement('b'); via.textContent = `via ${item.source}`;
+      const via = document.createElement('b'); via.textContent = item.source ? `via ${item.source}` : (item.company || 'Job listing');
       meta.append(via, [item.location, item.salary, ago(item.publishedAt)].filter(Boolean).map(v => ` · ${v}`).join(''));
       card.addEventListener('click', () => openItem(item));
       list.appendChild(card);
