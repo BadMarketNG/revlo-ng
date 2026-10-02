@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { serializeJsonForHtml } from '@/lib/security';
 import { publicOrigin } from '@/lib/publicOrigin';
-import { jobPostingFor } from '@/lib/jobPosting.mjs';
+import { jobPostingFor, nigerianAddress } from '@/lib/jobPosting.mjs';
+import { eventFor, productFor } from '@/lib/listingMarkup.mjs';
 
 const APP_URL = publicOrigin();
 
@@ -74,6 +75,9 @@ export default async function PostPage({ params }) {
   const employer = await getEmployer(post);
   // NOTE (2026-10-02): job posts with an employer use JobPosting markup (Google for Jobs).
   const jobPosting = jobPostingFor(post, { employer, origin: APP_URL });
+  // NOTE (2026-10-02): For Sale posts with a price use Product markup; Promotions with an event date use Event markup.
+  const listingMarkup = productFor(post, { origin: APP_URL })
+    || eventFor(post, { origin: APP_URL, organizer: post.poster_alias, address: nigerianAddress(post.location) });
   const socialPosting = {
     '@context': 'https://schema.org',
     '@type': 'SocialMediaPosting',
@@ -91,7 +95,7 @@ export default async function PostPage({ params }) {
       <script
         type="application/ld+json"
         // ORIGINAL (commented out 2026-10-02): dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jsonLd) }}
-        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jobPosting || socialPosting) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jobPosting || listingMarkup || socialPosting) }}
       />
       {post.header_url && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -102,7 +106,9 @@ export default async function PostPage({ params }) {
       {/* NOTE: job posts also show the employer and how to apply, which Google needs visible on the page. */}
       <p style={{ color: '#666', marginBottom: 16 }}>{[jobPosting ? employer : null, post.location].filter(Boolean).join(' · ')}</p>
       {post.description && (
-        <p style={{ lineHeight: 1.6, marginBottom: 24, color: '#333' }}>{post.description}</p>
+        // ORIGINAL (2026-10-02): <p style={{ lineHeight: 1.6, marginBottom: 24, color: '#333' }}>{post.description}</p>
+        // NOTE: keeps line breaks, so the "Price:", "When:" and "Where:" lines read as lines.
+        <p style={{ lineHeight: 1.6, marginBottom: 24, color: '#333', whiteSpace: 'pre-line' }}>{post.description}</p>
       )}
       <a
         href={link}
