@@ -25,3 +25,11 @@ test('Nigerian addresses', () => {
   assert.deepEqual(nigerianAddress('Abuja FCT'), { '@type': 'PostalAddress', addressLocality: 'Abuja', addressRegion: 'Federal Capital Territory', addressCountry: 'NG' });
   assert.deepEqual(nigerianAddress('Lagos, Nigeria'), { '@type': 'PostalAddress', addressLocality: 'Lagos', addressCountry: 'NG' });
 });
+
+test('placeholder employers get no job markup', async () => {
+  const { isPlaceholderEmployer } = await import('../src/lib/jobPosting.mjs');
+  assert.equal(isPlaceholderEmployer('a Reputable Company'), true);
+  assert.equal(isPlaceholderEmployer('Confidential'), true);
+  assert.equal(isPlaceholderEmployer('Softhills Limited'), false);
+  assert.equal(jobPostingFor(post, { employer: 'a Reputable Company', origin: 'x' }), null);
+});

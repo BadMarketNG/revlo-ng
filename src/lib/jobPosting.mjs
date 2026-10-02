@@ -27,12 +27,18 @@ function employmentType(text) {
   return types.length ? types : undefined;
 }
 
+// Placeholder employers ("a Reputable Company", "Confidential", "Our client") are not real
+// hiring organisations; Google treats such listings as low quality, so they get no job markup.
+export function isPlaceholderEmployer(name) {
+  return !name || /\b(reputable|confidential|undisclosed|anonymous|our client|a client|leading|reliable|private (company|firm|employer)|a company|an organi[sz]ation|top (company|firm))\b/i.test(String(name));
+}
+
 /**
  * JobPosting markup for one post, or null when it should not have any.
  * `employer` is the hiring organisation's name (imported employer, else the publisher's alias).
  */
 export function jobPostingFor(post, { employer, origin }) {
-  if (!post || post.category !== 'jobs' || !employer) return null;
+  if (!post || post.category !== 'jobs' || isPlaceholderEmployer(employer)) return null;
   // Imported titles are "Role · Employer"; Google's title should be the role alone.
   const title = String(post.title).split(' · ')[0].trim();
   if (!title) return null;

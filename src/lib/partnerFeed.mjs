@@ -111,7 +111,9 @@ export function fromJooble(job) {
   const title = decodeText(job?.title);
   if (!title || !/^https:\/\//.test(url)) return null;
   const updated = Date.parse(job.updated) || null;
-  const company = decodeText(job.company);
+  // Placeholder employers ("a Reputable Company") are dropped rather than shown as a name.
+  const rawCompany = decodeText(job.company);
+  const company = /\b(reputable|confidential|undisclosed|anonymous|our client|a client|leading|reliable|a company|top (company|firm))\b/i.test(rawCompany) ? '' : rawCompany;
   return {
     id: `job:${job.id ?? url}`,
     category: 'jobs',

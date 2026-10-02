@@ -248,7 +248,9 @@
   document.addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('button') : null;
     const key = button && LABELS[button.textContent.trim()];
-    if (key && !button.closest('.rv-pf, [role="radiogroup"]')) { category = key; load(key); }
+    // Real clicks only (2026-10-02): other scripts send automatic clicks to keep hidden copies of the
+    // category bar in step, which used to switch this section back to "All".
+    if (key && event.isTrusted && !button.closest('.rv-pf, [role="radiogroup"]')) { category = key; load(key); }
   }, true);
   document.addEventListener('input', event => {
     if (event.target instanceof HTMLInputElement && event.target.getAttribute('aria-label') === 'Search posts') { query = event.target.value.trim().toLowerCase(); render(); }

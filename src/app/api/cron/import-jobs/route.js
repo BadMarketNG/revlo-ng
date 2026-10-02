@@ -7,6 +7,7 @@ import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { makeUid, expiryFor } from '@/lib/util';
 import { USER_AGENT, fromJooble } from '@/lib/partnerFeed.mjs';
 import { JOB_POSTER, jobToPost } from '@/lib/jobImport.mjs';
+import { notifyIndexNow } from '@/lib/indexNow.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -55,6 +56,7 @@ export async function GET(request) {
   if (seen.size) await supabaseAdmin.from('revlo_imported_jobs').update({ last_seen_at: new Date().toISOString() }).in('external_id', [...seen]);
 
   let imported = 0;
+  const newUids = [];
   const done = new Set();
   for (const job of jobs) {
     if (imported >= MAX_NEW_PER_RUN) break;
@@ -86,7 +88,9 @@ export async function GET(request) {
     }
     await supabaseAdmin.from('revlo_imported_jobs').update({ post_uid: uid }).eq('external_id', job.id);
     imported += 1;
+    newUids.push(uid);
   }
+  await notifyIndexNow(newUids.map(u => `https://revlo.ng/p/${u}`));
   console.info('[cron:import-jobs]', 'fetched', jobs.length, 'already known', seen.size, 'imported', imported);
   return NextResponse.json({ ok: true, fetched: jobs.length, imported });
 }
