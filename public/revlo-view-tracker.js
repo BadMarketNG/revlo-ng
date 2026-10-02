@@ -56,6 +56,7 @@
   }
 
   function decorate(article) {
+    if (article.dataset.sample === 'true') return;
     var uid = uidFromArticle(article);
     if (!uid || rails.has(uid) || article.querySelector('.revlo-view-progress')) return;
 

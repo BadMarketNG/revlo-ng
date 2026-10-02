@@ -42,7 +42,26 @@
     if (!header || header.dataset.revloEnhanced === 'true') return false;
     const logo = header.querySelector('img[alt*="revlo.ng"]');
     const firstRow = logo?.parentElement;
-    if (!logo || !firstRow) return false;
+    const lifespan = document.querySelector('nav[aria-label="Post lifespan"]');
+    if (!logo || !firstRow || !lifespan) return false;
+
+    // Keep the direct-posting promise in the sticky browsing controls, outside
+    // the details toggle. Reuse the existing guarded create-post entry point.
+    const promise = document.createElement('div');
+    promise.className = 'revlo-direct-posting';
+    const message = document.createElement('div');
+    const headline = document.createElement('strong');
+    headline.textContent = 'Post directly.';
+    const explanation = document.createElement('span');
+    explanation.textContent = 'No registration. No login. No passwords.';
+    message.append(headline, explanation);
+    const post = document.createElement('button');
+    post.type = 'button';
+    post.textContent = '＋ Post';
+    post.setAttribute('aria-label', 'Create a post directly');
+    post.addEventListener('click', () => header.querySelector('button[aria-label="Create post"]')?.click());
+    promise.append(message, post);
+    lifespan.before(promise);
 
     header.dataset.revloEnhanced = 'true';
     header.classList.add('revlo-public-header');

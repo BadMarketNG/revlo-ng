@@ -59,6 +59,7 @@
 
   function selectCategory(slug) {
     selectedCategory = slug || null;
+    window.dispatchEvent(new CustomEvent("revlo:category-change", { detail: selectedCategory }));
     selectionGeneration += 1;
     renderToolbar();
     refreshFeed();

@@ -1,0 +1,208 @@
+/* Revlo's noticeboard palette. Keep this separate from the compiled app and
+   its feature scripts so content, filters and publishing behaviour stay intact.
+   Inline-colour selectors deliberately follow React's current state, rather
+   than a theme class which may have been attached before a filter changed. */
+:root {
+  --rv-canvas: #eeeee3;
+  --rv-paper: #fffdf5;
+  --rv-muted: #e6eadc;
+  --rv-ink: #2c352c;
+  --rv-secondary: #5b6456;
+  --rv-rule: #cbd0bc;
+  --rv-green: #245438;
+  --rv-green-hover: #183e28;
+  --rv-gold: #987b3b;
+  --rv-on-green: #fffdf5;
+  --rv-accent-text: #245438;
+}
+
+html[data-revlo-theme="dark"] {
+  --rv-canvas: #141c16;
+  --rv-paper: #1c2920;
+  --rv-muted: #28372b;
+  --rv-ink: #f0f1e8;
+  --rv-secondary: #bdc8b6;
+  --rv-rule: #465743;
+  --rv-green: #326747;
+  --rv-green-hover: #3b7853;
+  --rv-gold: #c3a764;
+  --rv-accent-text: #b4d7ad;
+}
+
+html:root[data-revlo-theme] body,
+html:root[data-revlo-theme] #root,
+html:root[data-revlo-theme] #root > div {
+  background: var(--rv-canvas) !important;
+  color: var(--rv-ink) !important;
+}
+
+html:root[data-revlo-theme] #root :is(
+  [style*="background: rgb(255, 255, 255)"],
+  [style*="background: rgb(250, 250, 250)"]
+) { background: var(--rv-paper) !important; }
+
+html:root[data-revlo-theme] #root :is(
+  [style*="background: rgb(245, 246, 247)"],
+  [style*="background: rgb(247, 248, 247)"],
+  [style*="background: rgb(244, 244, 244)"],
+  [style*="background: rgb(242, 242, 242)"],
+  [style*="background: rgb(238, 238, 238)"]
+) { background: var(--rv-muted) !important; }
+
+html:root[data-revlo-theme] #root .revlo-theme-primary-text { color: var(--rv-ink) !important; }
+html:root[data-revlo-theme] #root .revlo-theme-muted-text { color: var(--rv-secondary) !important; }
+html:root[data-revlo-theme] #root .revlo-theme-border { border-color: var(--rv-rule) !important; }
+
+html:root[data-revlo-theme] #root :is(button, a)[style*="background: rgb(27, 94, 32)"] {
+  background: var(--rv-green) !important;
+  color: var(--rv-on-green) !important;
+  border-color: var(--rv-green) !important;
+}
+
+html:root[data-revlo-theme] #root :is(button, a)[style*="background: rgb(27, 94, 32)"]:hover {
+  background: var(--rv-green-hover) !important;
+}
+
+html:root[data-revlo-theme] #root :is(button, a)[style*="color: rgb(27, 94, 32)"] {
+  color: var(--rv-accent-text) !important;
+  border-color: var(--rv-green) !important;
+}
+
+html:root[data-revlo-theme] #root .revlo-public-header {
+  border-top: 4px solid var(--rv-green) !important;
+  border-bottom: 1px solid var(--rv-rule) !important;
+  background: var(--rv-paper) !important;
+}
+
+html:root[data-revlo-theme] #root .revlo-public-header + div {
+  background: var(--rv-muted) !important;
+  border-bottom: 2px solid var(--rv-rule) !important;
+}
+
+#root header h1 {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.02em !important;
+  color: var(--rv-accent-text) !important;
+}
+
+.revlo-direct-posting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-inline: -18px;
+  background: var(--rv-green);
+  color: var(--rv-on-green);
+}
+.revlo-direct-posting > div { display: flex; align-items: baseline; gap: 14px; }
+.revlo-direct-posting strong { font-size: 20px; line-height: 1.2; }
+.revlo-direct-posting span { font-size: 14px; line-height: 1.4; }
+html:root[data-revlo-theme] #root .revlo-direct-posting button {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 7px 16px;
+  border: 1px solid var(--rv-on-green);
+  border-radius: 3px;
+  background: var(--rv-on-green);
+  color: #245438;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .revlo-direct-posting { padding-inline: 18px; }
+  .revlo-direct-posting > div { display: flex; flex-direction: column; gap: 2px; }
+  .revlo-direct-posting strong { font-size: 18px; }
+  .revlo-direct-posting span { font-size: 13px; }
+}
+
+html:root[data-revlo-theme] #root nav[aria-label="Post lifespan"] button {
+  color: var(--rv-secondary) !important;
+  border-radius: 0 !important;
+}
+
+html:root[data-revlo-theme] #root nav[aria-label="Post lifespan"] button[aria-current="page"] {
+  color: var(--rv-accent-text) !important;
+  border-bottom-color: var(--rv-green) !important;
+}
+
+html:root[data-revlo-theme] #root .revlo-managed-categories :is(button, a) {
+  background: var(--rv-paper) !important;
+  color: var(--rv-secondary) !important;
+  border: 1px solid var(--rv-rule) !important;
+  border-radius: 3px !important;
+}
+
+html:root[data-revlo-theme] #root .revlo-managed-categories button.active {
+  background: var(--rv-green) !important;
+  color: var(--rv-on-green) !important;
+  border-color: var(--rv-green) !important;
+}
+
+html:root[data-revlo-theme] #root .revlo-managed-categories .rules {
+  color: var(--rv-accent-text) !important;
+  border-style: dashed !important;
+  border-color: var(--rv-gold) !important;
+}
+
+html:root[data-revlo-theme] #root article[id^="post-"] {
+  background: var(--rv-paper) !important;
+  border: 1px solid var(--rv-rule) !important;
+  border-radius: 5px !important;
+  box-shadow: 0 2px 0 rgb(48 62 37 / 7%) !important;
+}
+
+/* Keep circular image controls and the existing photo/video treatments. */
+#root :is(header, main) :is(button, select, input[type="text"], input[type="search"], input[aria-label="Search posts"]):not([aria-label="Create post"]):not([style*="border-radius: 50%"]),
+#root main label:has(select) {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+/* The posting bar is the visible entry point; retain the original guarded handler. */
+#root header button[aria-label="Create post"] { display: none !important; }
+#root .revlo-header-toggle { right: 18px; }
+
+html:root[data-revlo-theme] #root .revlo-header-toggle,
+html:root[data-revlo-theme] #revlo-theme-control,
+html:root[data-revlo-theme] #revlo-theme-control select,
+html:root[data-revlo-theme] #root .revlo-layout-toggle {
+  background: var(--rv-paper) !important;
+  color: var(--rv-secondary) !important;
+  border: 1px solid var(--rv-rule) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+html:root[data-revlo-theme] #root .revlo-layout-toggle button { color: var(--rv-secondary); }
+html:root[data-revlo-theme] #root .revlo-layout-toggle button.active {
+  background: var(--rv-green);
+  color: var(--rv-on-green);
+}
+
+html:root[data-revlo-theme] #root .revlo-view-progress {
+  height: 4px;
+  background: var(--rv-muted);
+  border-color: var(--rv-rule);
+}
+
+#root .revlo-view-progress__fill { background: var(--rv-gold); }
+
+html:root[data-revlo-theme] #root :is(input, textarea, select) {
+  background-color: var(--rv-paper) !important;
+  color: var(--rv-ink) !important;
+  border-color: var(--rv-rule) !important;
+}
+
+html:root[data-revlo-theme] #root :is(input, textarea)::placeholder { color: var(--rv-secondary); opacity: 1; }
+
+#root :is(button, a, input, select, textarea):focus-visible,
+#revlo-theme-control select:focus-visible {
+  outline: 2px solid var(--rv-gold) !important;
+  outline-offset: 3px;
+}
