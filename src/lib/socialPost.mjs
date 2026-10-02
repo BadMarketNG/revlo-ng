@@ -5,15 +5,21 @@
 // Posts only counts and Revlo links; partner sources are never named.
 import crypto from 'crypto';
 
+// "Fri 2 Oct" in Lagos time. Each day's post is dated, so X never sees two identical posts.
+export function lagosDay(now = Date.now()) {
+  const d = new Date(now + 3600000);
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]} ${d.getUTCDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`;
+}
+
 const LABELS = [['jobs', 'job', 'jobs'], ['rentals', 'room or rental', 'rooms and rentals'], ['for_sale', 'item for sale', 'items for sale'], ['promotions', 'promotion', 'promotions'], ['general', 'other post', 'other posts']];
 
 /** The daily message. `counts` is { jobs: 12, rentals: 5, … } for posts created in the last 24 hours. */
-export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0 } = {}) {
+export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now() } = {}) {
   const lines = LABELS.filter(([key]) => counts[key] > 0).map(([key, one, many]) => `• ${counts[key]} ${counts[key] === 1 ? one : many}`);
   if (!lines.length) return null;
   const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
   return [
-    `Today on Revlo: ${total} new post${total === 1 ? '' : 's'} across Nigeria`,
+    `Today on Revlo (${lagosDay(now)}): ${total} new post${total === 1 ? '' : 's'} across Nigeria`,
     '',
     ...lines,
     ...(bookable ? ['', `📅 ${bookable} you can book a viewing or call for online`] : []),
@@ -24,10 +30,10 @@ export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0 } =
 }
 
 /** A shorter version for X (280 characters; a link counts as 23). */
-export function buildShortDigest(counts, { url = 'https://revlo.ng' } = {}) {
+export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.now() } = {}) {
   const parts = LABELS.filter(([key]) => counts[key] > 0).map(([key, one, many]) => `${counts[key]} ${counts[key] === 1 ? one : many}`);
   if (!parts.length) return null;
-  let text = `New on Revlo today: ${parts.join(', ')}. Free to post, no sign-up. Look before they expire:`;
+  let text = `New on Revlo, ${lagosDay(now)}: ${parts.join(', ')}. Free to post, no sign-up. Look before they expire:`;
   if (text.length > 280 - 24) text = `${text.slice(0, 280 - 26)}…`;
   return `${text} ${url}`;
 }

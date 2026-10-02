@@ -15,9 +15,9 @@ test('OAuth 1.0a signature uses the documented base string', () => {
   assert.match(header, /oauth_signature="0qzObXuXUG9S0zNhSb65UCAFBpc%3D"/);
 });
 
-test('daily digests', () => {
+test('daily digests', async () => {
   const text = buildDigest({ jobs: 12, rentals: 1, for_sale: 0 }, { bookable: 1 });
-  assert.match(text, /^Today on Revlo: 13 new posts across Nigeria/);
+  assert.match(text, /^Today on Revlo \(\w{3} \d{1,2} \w{3}\): 13 new posts across Nigeria/);
   assert.match(text, /• 12 jobs\n• 1 room or rental/);
   assert.match(text, /📅 1 you can book/);
   assert.doesNotMatch(text, /jooble/i);
@@ -25,4 +25,6 @@ test('daily digests', () => {
   const short = buildShortDigest({ jobs: 12, rentals: 5 });
   assert.ok(short.length <= 280);
   assert.match(short, /12 jobs, 5 rooms and rentals/);
+  const { lagosDay } = await import('../src/lib/socialPost.mjs');
+  assert.equal(lagosDay(Date.parse('2026-10-02T23:30:00Z')), 'Sat 3 Oct'); // already Saturday in Lagos
 });
