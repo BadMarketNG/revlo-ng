@@ -82,3 +82,25 @@ test('X post pictures: first photo as header, second photo or the author picture
   assert.equal(post.header_url, 'https://pbs.twimg.com/media/1.jpg');
   assert.equal(post.thumb_url, 'https://pbs.twimg.com/media/2.jpg');
 });
+
+test('admin searches: whole-word match words, city check unless national', async () => {
+  const { matchesSearch } = await import('../src/lib/xFeed.mjs');
+  const rent = { match_words: 'to let, flat, self-contain', national: false };
+  assert.equal(matchesSearch({ text: 'Nice flat to let in Lekki, Lagos', city: 'Lagos' }, rent), true);
+  assert.equal(matchesSearch({ text: 'Stop flattering yourself, Lagos', city: 'Lagos' }, rent), false);
+  assert.equal(matchesSearch({ text: 'Flat to let in Abuja', city: 'Lagos' }, rent), false);
+  assert.equal(matchesSearch({ text: 'Cars ₦4m dm', city: 'Lagos' }, { match_words: '₦', national: true }), true);
+  assert.equal(matchesSearch({ text: 'anything at all', city: 'Lagos' }, { match_words: '', national: true }), true);
+});
+
+test('admin budget: lowest of period, month and run share', async () => {
+  const { remainingFor, periodStartFor, searchBlocks } = await import('../src/lib/xFeed.mjs');
+  const s = { periodPosts: 120, periodDays: 3, monthlyUsd: 20, pricePerPost: 0.005 };
+  assert.equal(remainingFor(s, { periodRead: 0, monthRead: 0 }), 10);              // run share = 120 / 12
+  assert.equal(remainingFor(s, { periodRead: 115, monthRead: 115 }), 5);            // period nearly used
+  assert.equal(remainingFor(s, { periodRead: 0, monthRead: 3999 }), 1);             // $20 = 4000 posts
+  assert.equal(remainingFor({ ...s, periodPosts: 1200 }, { periodRead: 0, monthRead: 0 }), 100);
+  assert.equal(periodStartFor(3, Date.UTC(2026, 9, 3, 12)), periodStartFor(3, Date.UTC(2026, 9, 3, 1)));
+  const blocks = searchBlocks([{ id: 'a', cities: ['Lagos', 'Abuja'], national: false }, { id: 'b', national: true, cities: ['Nigeria'] }], 0);
+  assert.deepEqual(blocks.map(b => b.key), ['a:Lagos', 'a:Abuja', 'b:Nigeria']);
+});

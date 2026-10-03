@@ -146,7 +146,7 @@ export function xToPost(post, origin = 'https://revlo.ng') {
   const title = (clean.length > 110 ? `${clean.slice(0, 107).replace(/\s+\S*$/, '')}…` : clean) || `Post from @${post.author_username}`;
   const place = REVLO_PLACES.find(p => p.toLowerCase().startsWith(String(post.city).toLowerCase())) || 'Nigeria';
   const seed = seedOf(post.id);
-  const headers = HEADERS[category] || HEADERS.general;
+  const headers = HEADERS[category] || (['gadgets', 'electronics', 'wears', 'vehicles'].includes(category) ? HEADERS.for_sale : HEADERS.general);
   return {
     title: title.slice(0, 200),
     // ORIGINAL (2026-10-03): ended with 'Posted on X by Name (@handle): link'. Removed at the owner's request;
@@ -159,4 +159,66 @@ export function xToPost(post, origin = 'https://revlo.ng') {
     thumb_url: [post.icon_url, post.author_avatar && String(post.author_avatar).replace('_normal.', '_400x400.')].find(u => u && /^https:\/\/pbs\.twimg\.com\//.test(u)) || `${origin}/samples/icons/icon-${ICONS[(seed >> 3) % ICONS.length]}.jpg`,
     tags: ['x', category.replace('_', ' ')].filter(t => /^[a-z][a-z ]{1,30}$/.test(t)),
   };
+}
+
+// ---- Admin-editable searches and budget (2026-10-03) ----
+
+/** Budget settings: admin values from revlo_x_settings, falling back to the Vercel environment. */
+export async function getXSettings(db) {
+  const { data } = await db.from('revlo_x_settings').select('*').eq('id', true).maybeSingle();
+  const pick = (value, fallback) => (value === null || value === undefined ? fallback : value);
+  return {
+    enabled: pick(data?.enabled, process.env.X_FEED_ENABLED === '1'),
+    periodPosts: Math.max(10, Math.floor(Number(pick(data?.period_posts, PERIOD_POST_CAP())))),
+    periodDays: Math.max(1, Math.floor(Number(pick(data?.period_days, PERIOD_DAYS())))),
+    monthlyUsd: Number(pick(data?.monthly_usd, MONTHLY_CAP_USD())),
+    pricePerPost: Number(pick(data?.price_per_post, PRICE_PER_POST_USD())),
+    fromAdmin: Boolean(data),
+  };
+}
+
+export function periodStartFor(days, now = Date.now()) {
+  const day = Math.floor(now / 86400000);
+  return new Date((day - (day % days)) * 86400000).toISOString().slice(0, 10);
+}
+
+/** Posts that may still be read: the lowest of the period, month and this run's share. */
+export function remainingFor(settings, { periodRead, monthRead, runRead = 0 }) {
+  const byPeriod = settings.periodPosts - periodRead;
+  const byMonth = Math.floor(settings.monthlyUsd / settings.pricePerPost) - monthRead;
+  const byRun = Math.max(10, Math.ceil(settings.periodPosts / (RUNS_PER_DAY * settings.periodDays))) - runRead;
+  return Math.max(0, Math.min(byPeriod, byMonth, byRun));
+}
+
+/** Enabled admin searches; if none are configured, the built-in four. */
+export async function getXSearches(db, { includeDisabled = false } = {}) {
+  let query = db.from('revlo_x_searches').select('*').order('position').order('created_at');
+  if (!includeDisabled) query = query.eq('enabled', true);
+  const { data, error } = await query;
+  if (error || !data) return [];
+  return data;
+}
+
+export const matchWordsOf = search => String(search.match_words || '').split(',').map(w => w.trim().toLowerCase()).filter(w => w.length >= 2);
+
+export function searchQuery(search, city) {
+  return search.national ? `${search.terms} -is:retweet -is:reply` : `${search.terms} "${city}" -is:retweet -is:reply lang:en`;
+}
+
+export function searchBlocks(searches, runIndex) {
+  const all = searches.flatMap(search => (search.national ? ['Nigeria'] : (search.cities?.length ? search.cities : X_CITIES)).map(city => ({ search, city, key: `${search.id}:${city}` })));
+  if (!all.length) return [];
+  const start = (runIndex * 7) % all.length;
+  return [...all.slice(start), ...all.slice(0, start)];
+}
+
+/** A post is published only if its text has one of the search's words and (unless national) names the city. */
+export function matchesSearch(post, search) {
+  const text = String(post.text || '').toLowerCase();
+  const words = matchWordsOf(search);
+  // Whole words only (as the built-in filter did): "flat" must not match "flatter".
+  const hasWord = w => new RegExp(`${/^[\p{L}\p{N}]/u.test(w) ? '(?<![\\p{L}\\p{N}])' : ''}${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${/[\p{L}\p{N}]$/u.test(w) ? '(?![\\p{L}\\p{N}])' : ''}`, 'u').test(text);
+  if (words.length && !words.some(hasWord)) return false;
+  if (search.national) return true;
+  return new RegExp(`\\b${String(post.city).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(text);
 }
