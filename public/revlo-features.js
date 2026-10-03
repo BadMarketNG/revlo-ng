@@ -145,9 +145,9 @@
       // { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: '3-month posts and the top trust mark' },
       // NOTE: each badge now also gives a multi-post publish link with no time limit
       // (src/lib/revloFeatures.js PUBLISH_LINK_ALLOWANCE). Without a badge, a link is 5 posts (administrator-set) within 30 minutes.
-      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: `Video posts, 2-month posts, and publish links for ${s.silver_link_posts || 50} posts with no time limit` },
+      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: `Video posts, 1-week posts, and publish links for ${s.silver_link_posts || 50} posts with no time limit` },
       { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: `A stronger trust mark on every post, and publish links for ${s.bronze_link_posts || 100} posts with no time limit` },
-      { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: `3-month posts, the top trust mark, and publish links for ${s.gold_link_posts || 200} posts with no time limit` },
+      { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: `2½-week posts, the top trust mark, and publish links for ${s.gold_link_posts || 200} posts with no time limit` },
     ].map((tier, index) => ({ ...tier, earned: rank >= index + 1 || posts >= tier.posts }));
     const current = [...tiers].reverse().find((tier) => tier.earned);
     const next = tiers.find((tier) => !tier.earned);

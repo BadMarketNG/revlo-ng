@@ -37,7 +37,7 @@ const PUBLIC_COLS =
 
 // A post's duration is how long it stays live from publication. Every post
 // appears under "Right now" for its first 24 hours, then moves to the tab for
-// its own duration (1, 2 or 3 months) until it expires.
+// its own duration (72 hours, 1 week or 2½ weeks; codes 1m / 2m / 3m) until it expires.
 const FIRST_DAY_MS = 24 * 60 * 60 * 1000;
 
 // GET /api/posts?duration=now&category=jobs  -> list non-expired posts for a tab
@@ -184,10 +184,10 @@ export async function POST(request) {
     return NextResponse.json({ error: `Video unlocks with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
   if (duration === '2m' && !publisherStatus.trustBadge) {
-    return NextResponse.json({ error: `2-month posts unlock with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
+    return NextResponse.json({ error: `1-week posts unlock with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
   if (duration === '3m' && publisherStatus.trustBadge !== 'gold') {
-    return NextResponse.json({ error: `3-month posts unlock with the Gold badge at ${publisherStatus.settings.gold_posts} posts.` }, { status: 403 });
+    return NextResponse.json({ error: `2½-week posts unlock with the Gold badge at ${publisherStatus.settings.gold_posts} posts.` }, { status: 403 });
   }
   const ipLimited = await requireRateLimit({ action: 'publish:ip:hour', key: sourceIp, limit: 10, windowSeconds: 3600 });
   if (ipLimited) return ipLimited;

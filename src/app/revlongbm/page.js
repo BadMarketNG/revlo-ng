@@ -13,7 +13,8 @@ const TEXT = '#172033';
 const MUTED = '#667085';
 const SUBTLE = '#475467';
 
-const DUR_LABEL = { now: 'RIGHT NOW (24h)', '1m': '1 MONTH', '2m': '2 MONTHS', '3m': '3 MONTHS' };
+// ORIGINAL (2026-10-03): '1 MONTH', '2 MONTHS', '3 MONTHS'.
+const DUR_LABEL = { now: 'RIGHT NOW (24h)', '1m': '72 HOURS', '2m': '1 WEEK', '3m': '2½ WEEKS' };
 const CAT_LABEL = { jobs: 'Jobs', rentals: 'Rentals', for_sale: 'For Sale', promotions: 'Promotions', general: 'General' };
 const CAT_COLOR = { jobs: '#60a5fa', rentals: '#c084fc', for_sale: '#fb923c', promotions: '#f472b6', general: '#94a3b8' };
 

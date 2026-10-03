@@ -26,7 +26,7 @@ export async function GET(request) {
     <form method="post"><input type="hidden" name="token" value="${esc(token)}">
       ${field('Category', select('category', CATEGORIES, channel.default_category))}
       ${field('Area when a post does not name a city', select('area', AREAS.map(a => [a, a]), channel.default_area))}
-      ${field('How long posts stay up', select('duration', [['now', '24 hours'], ['1m', '1 month']], channel.duration))}
+      ${field('How long posts stay up', select('duration', [['now', '24 hours'], ['1m', '72 hours']], channel.duration))}
       ${field('Credit line on each post', select('credit', [['yes', 'Show "Shared from Telegram: @channel"'], ['no', 'No credit (source not shown)']], channel.credit ? 'yes' : 'no'))}
       ${field('Credit name (optional)', `<input name="credit_name" value="${esc(channel.credit_name || '')}" placeholder="${esc(channel.username ? `@${channel.username}` : channel.title || '')}" style="padding:10px;border-radius:10px;border:1.5px solid #d6d6d6;font:15px system-ui">`)}
       ${field('Email that receives enquiries and bookings for these posts', `<input name="contact_email" type="email" value="${esc(channel.contact_email || '')}" placeholder="support@revlo.ng" style="padding:10px;border-radius:10px;border:1.5px solid #d6d6d6;font:15px system-ui">`)}

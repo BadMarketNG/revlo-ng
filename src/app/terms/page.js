@@ -16,7 +16,7 @@ const SECTIONS = [
   ['How Revlo works',
     [
       'Revlo has no user accounts. To publish, you request a link sent to your email. Each link is single-use: it creates one post and cannot be reused.',
-      'Posts stay live for the duration you choose (24 hours, 1 month, 2 months or 3 months) and then expire.',
+      'Posts stay live for the duration you choose (24 hours, 72 hours, 1 week or 2½ weeks) and then expire.',
       'You can delete your post at any time by requesting a delete link to the email you published with.',
       'You are responsible for keeping access to your email secure. Anyone who can open your publish or delete links can act on your behalf.',
     ]],

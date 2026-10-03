@@ -14,9 +14,11 @@ export function makeUid() {
 // Map a duration choice to an expiry timestamp from now.
 const DURATION_MS = {
   now: 24 * 60 * 60 * 1000, // RIGHT NOW = 24 hours
-  '1m': 30 * 24 * 60 * 60 * 1000, // 1 month = 30 days
-  '2m': 60 * 24 * 60 * 60 * 1000, // 2 months = 60 days
-  '3m': 90 * 24 * 60 * 60 * 1000, // 3 months = 90 days
+  // ORIGINAL (commented out 2026-10-03, owner's request): '1m' 30 days, '2m' 60 days, '3m' 90 days.
+  // NOTE: the codes stay '1m' / '2m' / '3m' (stored on posts and used across the app); only the lengths change.
+  '1m': 72 * 60 * 60 * 1000, // 72 hours
+  '2m': 7 * 24 * 60 * 60 * 1000, // 1 week
+  '3m': 17.5 * 24 * 60 * 60 * 1000, // 2½ weeks
 };
 
 export function expiryFor(duration) {

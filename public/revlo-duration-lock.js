@@ -1,11 +1,12 @@
 (() => {
   'use strict';
-  // Longer posts are earned: 2 months needs Silver (or higher), 3 months needs
-  // Gold. The server enforces this in /api/posts; here the choices are shown
+  // Longer posts are earned: 1 week needs Silver (or higher), 2½ weeks needs
+  // Gold. (2026-10-03: was 2 months / 3 months; the form labels are now 7d / 17½d.) The server enforces this in /api/posts; here the choices are shown
   // as locked in the form.
   const RULES = [
-    { match: /^60d/, badge: 'Silver', ok: (b) => Boolean(b), posts: (s) => s?.silver_posts || 100 },
-    { match: /^90d/, badge: 'Gold', ok: (b) => b === 'gold', posts: (s) => s?.gold_posts || 1500 },
+    // ORIGINAL (2026-10-03): match: /^60d/ and /^90d/
+    { match: /^7d/, badge: 'Silver', ok: (b) => Boolean(b), posts: (s) => s?.silver_posts || 100 },
+    { match: /^17½d/, badge: 'Gold', ok: (b) => b === 'gold', posts: (s) => s?.gold_posts || 1500 },
   ];
 
   const style = document.createElement('style');

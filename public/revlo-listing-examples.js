@@ -111,7 +111,9 @@
     if (Number.isFinite(saved) && saved > 0 && saved <= startedAt) startedAt = saved;
     else localStorage.setItem(expiryKey, String(startedAt));
   } catch { /* Storage unavailable: keep the clock for this page session. */ }
-  const lifetimes = { 'RIGHT NOW': 1, '1 MONTH': 30, '2 MONTHS': 60, '3 MONTHS': 90 };
+  // ORIGINAL (2026-10-03): { 'RIGHT NOW': 1, '1 MONTH': 30, '2 MONTHS': 60, '3 MONTHS': 90 } (days).
+  // NOTE: sample posts follow the new lengths: 72 hours, 1 week, 2½ weeks.
+  const lifetimes = { 'RIGHT NOW': 1, '1 MONTH': 3, '2 MONTHS': 7, '3 MONTHS': 17.5 };
   const posts = rows.map(([key, duration, category, location, header, icon, title, desc], index) => ({
     id: `sample-${key}`, uid: `sample-${key}`, sample: true, showCreatePrompt: index % 8 === 0, duration, category, location, title, desc,
     headerImg: `/samples/headers/${header}.jpg`, thumbImg: `/samples/icons/icon-${icon}.jpg`,
