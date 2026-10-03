@@ -27,6 +27,9 @@
     if (!group) return;
     const status = publisher();
     // NOTE (2026-10-03): without a badge a post stays up 18 hours (shown under the 24-hour tab); say so once.
+    // The "18h Hot" option is for badge holders; without a badge, the 24-hour option already lasts 18 hours.
+    const hotButton = [...group.querySelectorAll('button[role="radio"]')].find((b) => /^18h/.test(b.textContent.trim()));
+    if (hotButton) hotButton.style.display = status?.trustBadge ? '' : 'none';
     let note = group.parentElement?.querySelector('.revlo-badge-length-note');
     if (!status?.trustBadge && !note) {
       note = document.createElement('p');

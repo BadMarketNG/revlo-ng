@@ -70,7 +70,9 @@
   function decorateForm() {
     const group = document.querySelector('[role="radiogroup"][aria-label="Duration"]');
     if (!group) return;
-    const first = group.querySelector('button[role="radio"]');
+    // ORIGINAL (2026-10-03): const first = group.querySelector('button[role="radio"]');
+    // NOTE: the first option is now "18h Hot", so the 24-hour option is found by its label.
+    const first = [...group.querySelectorAll('button[role="radio"]')].find(b => /^24h/.test(b.textContent.trim()));
     if (first && !first.querySelector('.rv-ur-tag')) {
       const tag = document.createElement('span');
       tag.className = 'rv-ur-tag';

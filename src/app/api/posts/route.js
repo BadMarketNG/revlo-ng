@@ -116,13 +116,18 @@ export async function POST(request) {
     gallery = [],
     contact_visibility = 'public',
     followable = true,
-    duration,
+    // ORIGINAL (2026-10-03): duration,
+    duration: requestedDuration,
     publish_token,
     media_type = 'images',
     video_url = null,
     premium_payment_reference = null,
     promo_payment_reference = null,
   } = body || {};
+  // NOTE (2026-10-03): 'hot' is the 18-hour option badge holders can pick. It is stored as a 'now' post
+  // (shown under the 24-hour tab) with an 18-hour expiry, like posts from people without a badge.
+  const hot = requestedDuration === 'hot';
+  const duration = hot ? 'now' : requestedDuration;
 
   // Validation
   if (!isEmail(poster_email)) {
@@ -245,7 +250,7 @@ export async function POST(request) {
   }
 
   // ORIGINAL (2026-10-03): const expires_at = expiryFor(duration);
-  const expires_at = duration === 'now' && !publisherStatus.trustBadge
+  const expires_at = duration === 'now' && (hot || !publisherStatus.trustBadge)
     ? new Date(Date.now() + 18 * 3600000).toISOString()
     : expiryFor(duration);
   const settings = await getFeatureSettings();
