@@ -35,3 +35,20 @@ test('autocomplete prefers matches at the start, then the most searched', () => 
   const list = suggest([{ term: 'lagos rentals', score: 1 }, { term: 'flats lagos', score: 9 }, { term: 'lagos', score: 5 }, { term: 'lagos jobs', score: 7 }], 'lag');
   assert.deepEqual(list.map(p => p.term), ['lagos jobs', 'lagos', 'lagos rentals', 'flats lagos']);
 });
+
+test('tags of posts ending within 6 hours are sprinkled through the ticker', async () => {
+  const { buildTicker } = await import('../src/lib/searchTicker.mjs');
+  const now = Date.parse('2026-10-03T12:00:00Z');
+  const pool = [
+    ...['a', 'b', 'c', 'd', 'e', 'f'].map((term, i) => ({ term, score: 10 - i, newestAt: 0 })),
+    { term: 'soon', score: 0, newestAt: 0, endingAt: now + 2 * 3600_000 },
+    { term: 'sooner', score: 0, newestAt: 0, endingAt: now + 3600_000 },
+    { term: 'later', score: 0, newestAt: 0, endingAt: now + 8 * 3600_000 },
+  ];
+  const { items } = buildTicker(pool, now);
+  const terms = items.map(i => i.term);
+  assert.equal(items.filter(i => i.kind === 'ending').length, 2);
+  assert.ok(terms.indexOf('sooner') < terms.indexOf('soon'), 'soonest-ending first');
+  assert.equal(items[2].kind, 'ending', 'sprinkled after the first two');
+  assert.notEqual(items.find(i => i.term === 'later')?.kind, 'ending');
+});

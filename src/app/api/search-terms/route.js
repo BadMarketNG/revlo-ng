@@ -12,7 +12,7 @@ export async function GET() {
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
   const [{ data: posts }, { data: searched }] = await Promise.all([
-    supabaseAdmin.from('posts').select('tags, created_at').is('deleted_at', null).gt('expires_at', nowIso).neq('tags', '{}').order('created_at', { ascending: false }).limit(2000),
+    supabaseAdmin.from('posts').select('tags, created_at, expires_at').is('deleted_at', null).gt('expires_at', nowIso).neq('tags', '{}').order('created_at', { ascending: false }).limit(2000),
     supabaseAdmin.from('revlo_search_terms').select('term, search_count, score, score_at').order('last_searched_at', { ascending: false }).limit(2000),
   ]);
 
@@ -22,11 +22,14 @@ export async function GET() {
   for (const term of STARTER_TERMS) pool.set(term, { term, score: 0, count: 0, newestAt: 0 });
   for (const post of posts ?? []) {
     const at = new Date(post.created_at).getTime();
+    const ends = new Date(post.expires_at).getTime();
     for (const raw of post.tags ?? []) {
       const term = normaliseTerm(raw);
       if (!term) continue;
       const entry = pool.get(term) ?? { term, score: 0, count: 0, newestAt: 0 };
       entry.newestAt = Math.max(entry.newestAt, at);
+      // NOTE (2026-10-03): when the soonest-ending live post with this tag expires (for "ending soon").
+      if (ends > now) entry.endingAt = Math.min(entry.endingAt ?? Infinity, ends);
       pool.set(term, entry);
     }
   }

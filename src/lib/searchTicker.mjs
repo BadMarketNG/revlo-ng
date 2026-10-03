@@ -5,9 +5,12 @@
 //   newest    terms most recently used on a live post
 //   rotation  everything else, in a stable order, shown a window at a time; the window
 //             advances every ROTATION_MINUTES, so the whole pool cycles through.
+// 2026-10-03: plus "ending" — tags of live posts with under ENDING_HOURS left, soonest first,
+// sprinkled through the ticker (one after every two other terms) so they get a last look.
 
 export const ROTATION_MINUTES = 20;
 export const GROUP_SIZE = 6;
+export const ENDING_HOURS = 6;
 const HALF_LIFE_MS = 72 * 3600 * 1000;
 
 // Starter terms keep the ticker useful before many posts carry tags. Generic searches, not claims.
@@ -33,8 +36,8 @@ function stableHash(text) {
 }
 
 /**
- * @param {{ term: string, score: number, newestAt: number }[]} pool  score: decayed searches; newestAt: ms of the newest post using it (0 if none)
- * @returns {{ items: { term: string, kind: 'popular'|'new'|'rotation' }[], hasSearchData: boolean }}
+ * @param {{ term: string, score: number, newestAt: number, endingAt?: number }[]} pool  score: decayed searches; newestAt: ms of the newest post using it (0 if none); endingAt: ms when the soonest-ending live post using it expires
+ * @returns {{ items: { term: string, kind: 'popular'|'new'|'rotation'|'ending' }[], hasSearchData: boolean }}
  */
 export function buildTicker(pool, now = Date.now(), groupSize = GROUP_SIZE) {
   const unique = [...new Map(pool.filter(p => p && p.term).map(p => [p.term, p])).values()];
@@ -42,6 +45,9 @@ export function buildTicker(pool, now = Date.now(), groupSize = GROUP_SIZE) {
   const taken = new Set();
   const take = (list, kind) => list.filter(p => !taken.has(p.term)).slice(0, groupSize).map(p => { taken.add(p.term); return { term: p.term, kind }; });
 
+  // Ending soon goes first, so these terms are never crowded out by the other groups.
+  const endingCutoff = now + ENDING_HOURS * 3600_000;
+  const ending = take([...unique].filter(p => p.endingAt > now && p.endingAt <= endingCutoff).sort((a, b) => a.endingAt - b.endingAt), 'ending');
   const popular = take([...unique].filter(p => p.score > 0).sort((a, b) => b.score - a.score), 'popular');
   const newest = take([...unique].filter(p => p.newestAt > 0).sort((a, b) => b.newestAt - a.newestAt), 'new');
   const rest = unique.filter(p => !taken.has(p.term)).sort((a, b) => stableHash(a.term) - stableHash(b.term));
@@ -58,7 +64,12 @@ export function buildTicker(pool, now = Date.now(), groupSize = GROUP_SIZE) {
   const items = [];
   const longest = Math.max(popular.length, newest.length, rotation.length);
   for (let i = 0; i < longest; i++) for (const group of [popular, newest, rotation]) if (group[i]) items.push(group[i]);
-  return { items, hasSearchData };
+  // Sprinkle the ending-soon terms: one after every two others (any left over go at the end).
+  const sprinkled = [];
+  let e = 0;
+  items.forEach((item, i) => { sprinkled.push(item); if (i % 2 === 1 && e < ending.length) sprinkled.push(ending[e++]); });
+  while (e < ending.length) sprinkled.push(ending[e++]);
+  return { items: sprinkled, hasSearchData };
 }
 
 /** Autocomplete: terms that start with the query first, then terms containing it; most searched first. */

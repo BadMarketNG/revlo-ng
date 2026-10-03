@@ -20,6 +20,7 @@
     .rv-st-track{position:absolute;top:0;bottom:0;left:0;display:flex;align-items:center;gap:8px;width:max-content;animation:rv-st-scroll var(--rv-st-dur,90s) linear infinite}
     .rv-st-viewport:hover .rv-st-track,.rv-st-viewport:focus-within .rv-st-track{animation-play-state:paused}
     .rv-st-item{flex:none;border:0;background:#eef6ef;color:#1b5e20;border-radius:999px;padding:6px 11px;font:600 13px/1 system-ui;cursor:pointer;white-space:nowrap}
+    .rv-st-item.rv-st-ending{background:#fff3df;color:#92400e}
     .rv-st-item:hover,.rv-st-item:focus-visible{background:#1b5e20;color:#fff;outline:none}
     @keyframes rv-st-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     @media (prefers-reduced-motion:reduce){.rv-st-track{animation:none;position:static}.rv-st-viewport{overflow-x:auto}}
@@ -106,6 +107,8 @@
         button.type = 'button';
         button.className = 'rv-st-item';
         button.textContent = item.term;
+        // 2026-10-03: tags from posts with under 6 hours left are marked, so people look before they go.
+        if (item.kind === 'ending') { button.classList.add('rv-st-ending'); button.prepend('⏳ '); button.title = 'Ending within 6 hours'; }
         if (copy) { button.setAttribute('aria-hidden', 'true'); button.tabIndex = -1; }
         button.addEventListener('click', () => { fill(input, item.term); count(item.term); input.focus(); sync(); });
         track.appendChild(button);
