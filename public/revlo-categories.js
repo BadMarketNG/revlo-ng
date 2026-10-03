@@ -3,6 +3,12 @@
   let categories = [];
   let selectedCategory = null;
   let selectionGeneration = 0;
+  // NOTE (2026-10-03, owner's request): the bar shows 3 category chips, a different 3 on each page load,
+  // plus a "More" dropdown listing every category (including ones added or removed later in admin).
+  // Categories an administrator pins (up to 5) are always shown first; rotating ones fill up to 3 in total.
+  const ROTATING_SHOWN = 3;
+  const MAX_PINNED = 5;
+  const pageSeed = Math.random();
   const originalFetch = window.fetch.bind(window);
 
   const isPostsRequest = (input, init) => {
@@ -79,7 +85,16 @@
       managed.setAttribute('aria-label', 'Post categories');
       original.insertAdjacentElement('afterend', managed);
     }
-    const signature = `${selectedCategory || 'all'}:${categories.map((category) => `${category.slug}:${category.label}`).join('|')}`;
+    // ORIGINAL (2026-10-03): every category was a chip. NOTE: 3 rotating + fixed ones + a "More" dropdown.
+    const pinned = categories.filter((category) => category.pinned).slice(0, MAX_PINNED);
+    const pool = categories.filter((category) => !pinned.includes(category));
+    const order = pool.map((category, index) => ({ category, key: Math.sin((index + 1) * 9301 + pageSeed * 49297) })).sort((a, b) => a.key - b.key).map((x) => x.category);
+    let rotating = order.slice(0, Math.max(0, ROTATING_SHOWN - pinned.length));
+    // The selected category is always visible (it takes the last rotating place, or is added).
+    const chosen = pool.find((c) => c.slug === selectedCategory);
+    if (chosen && !rotating.includes(chosen)) rotating = rotating.length ? [...rotating.slice(0, -1), chosen] : [chosen];
+    const visible = [...pinned, ...rotating];
+    const signature = `${selectedCategory || 'all'}:${visible.map((c) => c.slug).join(',')}:${categories.map((category) => `${category.slug}:${category.label}`).join('|')}`;
     if (managed.dataset.signature === signature) return;
     managed.dataset.signature = signature;
     managed.replaceChildren();
@@ -89,7 +104,7 @@
     all.className = selectedCategory === null ? 'active' : '';
     all.addEventListener('click', () => selectCategory(null));
     managed.append(all);
-    categories.forEach((category) => {
+    visible.forEach((category) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = category.label;
@@ -98,6 +113,15 @@
       button.addEventListener('click', () => selectCategory(category.slug));
       managed.append(button);
     });
+    // "More": every category, always up to date with the admin list.
+    const more = document.createElement('select');
+    more.className = 'revlo-more-categories';
+    more.setAttribute('aria-label', 'All categories');
+    more.add(new Option('More ▾', ''));
+    categories.forEach((category) => more.add(new Option(category.label, category.slug)));
+    more.value = '';
+    more.addEventListener('change', () => { if (more.value) selectCategory(more.value); });
+    managed.append(more);
     const rules = document.createElement('a');
     rules.href = '/rules';
     rules.textContent = 'Rules';
@@ -108,6 +132,8 @@
   function updateComposer() {
     if (!categories.length) return;
     document.querySelectorAll('select').forEach((select) => {
+      // NOTE (2026-10-03): the bar's own "More" dropdown is not the post form's category menu.
+      if (select.classList.contains('revlo-more-categories')) return;
       const values = [...select.options].map((option) => option.value);
       if (!values.includes('for_sale') && select.dataset.revloCategorySelect !== 'true') return;
       const signature = categories.map((category) => `${category.slug}:${category.label}`).join('|');
@@ -128,6 +154,7 @@
     .revlo-managed-categories::-webkit-scrollbar{display:none}
     .revlo-managed-categories button,.revlo-managed-categories a{flex:0 0 auto;border:1.5px solid #e3e3e3;border-radius:99px;background:#fff;color:#555;padding:7px 14px;font-size:13px;font-weight:700;line-height:1.2;font-family:inherit;white-space:nowrap;text-decoration:none;cursor:pointer}
     .revlo-managed-categories button.active{border-color:#1b5e20;background:#1b5e20;color:#fff}
+    .revlo-managed-categories select.revlo-more-categories{flex:0 0 auto;height:32px;border:1px solid #cbd0bc;border-radius:3px;background:#fffdf5;color:#1b5e20;padding:0 12px;font:800 13px/1.2 inherit;cursor:pointer;appearance:none;-webkit-appearance:none}
     .revlo-managed-categories .rules{border-style:dashed;border-color:#1b5e20;color:#1b5e20}
     html[data-revlo-theme="dark"] .revlo-managed-categories button,html[data-revlo-theme="dark"] .revlo-managed-categories a{border-color:#40506a;background:#0f192b;color:#dce5f3}
     html[data-revlo-theme="dark"] .revlo-managed-categories button.active{border-color:#247a31;background:#1b6b2a;color:#fff}

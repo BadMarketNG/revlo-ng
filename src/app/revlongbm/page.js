@@ -191,6 +191,14 @@ function Categories() {
     if (!confirm(`Delete “${category.label}”? Existing posts will move to General.`)) return;
     request('DELETE', { slug: category.slug });
   };
+  // NOTE (2026-10-03): pin up to 5 categories that are always shown in the bar; the rest rotate (3 at a time).
+  const pinnedCount = (rows || []).filter((row) => row.pinned).length;
+  const togglePin = (category) => {
+    const current = rows.filter((row) => row.pinned).map((row) => row.slug);
+    const next = category.pinned ? current.filter((slug) => slug !== category.slug) : [...current, category.slug];
+    if (next.length > 5) { setMessage('You can pin up to 5 categories.'); return; }
+    request('PATCH', { pinned: next });
+  };
   const move = async (index, direction) => {
     const target = index + direction;
     if (target < 0 || target >= rows.length) return;
@@ -205,6 +213,7 @@ function Categories() {
     <section style={cardStyle}>
       <h2 style={{ color: TEXT, marginTop: 0 }}>Post categories</h2>
       <p style={{ color: MUTED, lineHeight: 1.5 }}>Create, rename, delete, or reorder the categories shown to publishers and visitors. Deleting a category safely moves its existing posts to General.</p>
+      <p style={{ color: MUTED, lineHeight: 1.5 }}>The category bar shows 3 categories at a time, a different 3 on each visit, plus a “More” list of every category. Pin up to 5 to always show them ({pinnedCount} of 5 pinned).</p>
       <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap', marginTop: 16 }}>
         <input value={newLabel} maxLength={32} onChange={(event) => setNewLabel(event.target.value)} placeholder="New category name" style={{ ...inp, flex: '1 1 260px' }} />
         <button type="button" onClick={create} disabled={newLabel.trim().length < 2} style={{ ...miniBtn(GREEN), opacity: newLabel.trim().length < 2 ? 0.55 : 1 }}>Add category</button>
@@ -217,6 +226,7 @@ function Categories() {
           <div style={{ color: MUTED, fontSize: 12, marginTop: 5 }}>Key: {category.slug}{category.protected ? ' · required fallback' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={() => togglePin(category)} style={{ ...miniBtn(category.pinned ? GREEN : '#475467') }} aria-pressed={category.pinned}>{category.pinned ? '📌 Always shown' : '📌 Always show'}</button>
           <button type="button" onClick={() => move(index, -1)} disabled={index === 0} style={{ ...miniBtn('#475467'), opacity: index === 0 ? 0.45 : 1 }} aria-label={`Move ${category.label} earlier`}>↑</button>
           <button type="button" onClick={() => move(index, 1)} disabled={index === rows.length - 1} style={{ ...miniBtn('#475467'), opacity: index === rows.length - 1 ? 0.45 : 1 }} aria-label={`Move ${category.label} later`}>↓</button>
           <button type="button" onClick={() => rename(category.slug)} disabled={(drafts[category.slug] || '').trim() === category.label} style={{ ...miniBtn(BLUE), opacity: (drafts[category.slug] || '').trim() === category.label ? 0.5 : 1 }}>Rename</button>

@@ -8,6 +8,9 @@ export const DEFAULT_CATEGORY_ROWS = [
   { slug: 'general', label: 'General', position: 50, protected: true },
 ];
 
+// Categories an administrator chose to always show in the category bar (2026-10-03).
+export const MAX_PINNED_CATEGORIES = 5;
+
 export function categorySlug(label) {
   return String(label || '')
     .normalize('NFKD')
@@ -26,7 +29,9 @@ export function validCategoryLabel(label) {
 export async function getCategories() {
   const { data, error } = await supabaseAdmin.from('admin_log')
     .select('action,detail,created_at')
-    .in('action', ['category_create', 'category_rename', 'category_reorder', 'category_delete'])
+    // ORIGINAL (2026-10-03): ['category_create', 'category_rename', 'category_reorder', 'category_delete']
+    // NOTE: plus 'category_pin' (up to 5 categories always shown in the bar; the latest choice wins).
+    .in('action', ['category_create', 'category_rename', 'category_reorder', 'category_delete', 'category_pin'])
     .order('created_at', { ascending: true })
     .limit(5000);
   if (error) {
@@ -34,6 +39,7 @@ export async function getCategories() {
     return DEFAULT_CATEGORY_ROWS;
   }
   const catalogue = new Map(DEFAULT_CATEGORY_ROWS.map((row) => [row.slug, { ...row }]));
+  let pinned = [];
   for (const event of data || []) {
     const detail = event.detail || {};
     if (event.action === 'category_create' && detail.slug && detail.label) {
@@ -47,13 +53,18 @@ export async function getCategories() {
       catalogue.get(detail.slug).label = detail.label;
     } else if (event.action === 'category_delete' && detail.slug !== 'general') {
       catalogue.delete(detail.slug);
+    } else if (event.action === 'category_pin' && Array.isArray(detail.pinned)) {
+      pinned = detail.pinned.map(String).slice(0, MAX_PINNED_CATEGORIES);
     } else if (event.action === 'category_reorder' && Array.isArray(detail.order)) {
       detail.order.forEach((slug, index) => {
         if (catalogue.has(slug)) catalogue.get(slug).position = (index + 1) * 10;
       });
     }
   }
-  return [...catalogue.values()].sort((left, right) => left.position - right.position || left.label.localeCompare(right.label));
+  // ORIGINAL (2026-10-03): returned the rows without a pinned flag.
+  return [...catalogue.values()]
+    .map((row) => ({ ...row, pinned: pinned.includes(row.slug) }))
+    .sort((left, right) => left.position - right.position || left.label.localeCompare(right.label));
 }
 
 export async function isConfiguredCategory(slug) {

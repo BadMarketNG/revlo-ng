@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { categorySlug, getCategories, validCategoryLabel } from '@/lib/revloCategories';
+import { MAX_PINNED_CATEGORIES, categorySlug, getCategories, validCategoryLabel } from '@/lib/revloCategories';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +31,15 @@ export async function PATCH(request) {
   const admin = await getAdminSession();
   if (!admin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json().catch(() => ({}));
+  // NOTE (2026-10-03): { pinned: [slugs] } sets the categories always shown in the bar (up to 5).
+  if (Array.isArray(body.pinned)) {
+    const known = new Set((await getCategories()).map((row) => row.slug));
+    const pinned = [...new Set(body.pinned.map(String))];
+    if (pinned.length > MAX_PINNED_CATEGORIES) return NextResponse.json({ error: `Choose up to ${MAX_PINNED_CATEGORIES} categories to always show.` }, { status: 400 });
+    if (pinned.some((slug) => !known.has(slug))) return NextResponse.json({ error: 'Unknown category.' }, { status: 400 });
+    if (!await logCategoryAction(admin, 'category_pin', { pinned })) return NextResponse.json({ error: 'Could not save.' }, { status: 500 });
+    return NextResponse.json({ categories: await getCategories() });
+  }
   if (Array.isArray(body.order)) {
     const rows = await getCategories();
     const known = new Set(rows.map((row) => row.slug));
