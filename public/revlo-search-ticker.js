@@ -33,6 +33,9 @@
     @keyframes rv-st-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     @media (prefers-reduced-motion:reduce){.rv-st-track{animation:none;position:static}.rv-st-viewport{overflow-x:auto}}
     input.rv-st-room{padding-right:calc(50% + 14px)!important}
+    @media (max-width:640px){.rv-st-pinned.rv-st-stuck > .rv-st-extra{display:none!important}}
+    .rv-st-pinned{position:sticky!important;top:var(--rv-st-top,0px);z-index:44;padding:8px 0;background:var(--revlo-page-bg,#e8ebe0);box-shadow:0 8px 12px -12px rgba(0,0,0,.25)}
+    
     .rv-st-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:#fffdf7;border:1.5px solid #e3e3e3;border-radius:14px;box-shadow:0 12px 30px -16px rgba(0,0,0,.35);padding:6px;margin:0;list-style:none}
     .rv-st-list li{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:10px;font:15px system-ui;color:#1a1a1a;cursor:pointer}
     .rv-st-list li[aria-selected="true"],.rv-st-list li:hover{background:#eef6ef}
@@ -197,6 +200,39 @@
 
     attach.render = renderTicker;
     renderTicker();
+    // Sticky only holds within its parent, so pin the search block that sits directly inside <main>.
+    let block = host;
+    while (block.parentElement && block.parentElement.tagName !== 'MAIN' && block.parentElement !== document.body) block = block.parentElement;
+    pinSearch(block.parentElement?.tagName === 'MAIN' ? block : host);
+  }
+
+  // Pinned search bar (2026-10-03, owner's request): the search row stays visible just below the sticky
+  // header (Post directly · lifespan tabs · categories) while scrolling. The header's height changes with
+  // screen width, so the offset follows it. Codex's search box itself is not moved.
+  function pinSearch(row) {
+    if (row.dataset.rvPinned) return;
+    row.dataset.rvPinned = '1';
+    row.classList.add('rv-st-pinned');
+    const header = () => [...document.querySelectorAll('div')].find(d => d.style.position === 'sticky' && d.style.top === '0px' && d.querySelector('nav[aria-label="Post lifespan"]'));
+    const update = () => {
+      const h = header();
+      row.style.setProperty('--rv-st-top', `${h ? Math.round(h.getBoundingClientRect().height) : 0}px`);
+      // Match the page colour behind the row (light or dark theme), so posts do not show through.
+      let el = row.parentElement, bg = '';
+      while (el && !bg) { const c = getComputedStyle(el).backgroundColor; if (c && c !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(c)) bg = c; el = el.parentElement; }
+      row.style.setProperty('--revlo-page-bg', bg || getComputedStyle(document.body).backgroundColor || '#e8ebe0');
+    };
+    update();
+    const h = header();
+    if (h && 'ResizeObserver' in window) new ResizeObserver(update).observe(h);
+    window.addEventListener('resize', update, { passive: true });
+    // On phones only the search line stays pinned once scrolled; the count, filters and layout toggle
+    // tuck away (they return when scrolled back up). Uses a fixed scroll threshold, so it never flickers.
+    [...row.children].forEach(child => { if (!child.querySelector('input[aria-label="Search posts"]') && !child.matches('input')) child.classList.add('rv-st-extra'); });
+    const threshold = row.getBoundingClientRect().top + window.scrollY;
+    const onScroll = () => row.classList.toggle('rv-st-stuck', window.scrollY > threshold);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
   }
 
   async function load() {
