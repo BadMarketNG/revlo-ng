@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/social",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/x-feed",
+      "schedule": "15 */6 * * *"
     }
   ]
 }
