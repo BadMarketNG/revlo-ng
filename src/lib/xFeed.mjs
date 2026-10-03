@@ -149,7 +149,9 @@ export function xToPost(post, origin = 'https://revlo.ng') {
   const headers = HEADERS[category] || HEADERS.general;
   return {
     title: title.slice(0, 200),
-    description: `${post.text}\n\nPosted on X by ${post.author_name} (@${post.author_username}): ${xPostUrl(post)}`.slice(0, 5000),
+    // ORIGINAL (2026-10-03): ended with 'Posted on X by Name (@handle): link'. Removed at the owner's request;
+    // the owner is implementing attribution their own way (revlo_x_posts keeps the author and link).
+    description: String(post.text).slice(0, 5000),
     location: place,
     category,
     header_url: post.media_url && /^https:\/\/pbs\.twimg\.com\//.test(post.media_url) ? post.media_url : `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,

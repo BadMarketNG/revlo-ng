@@ -60,12 +60,12 @@ test('the budget renews every 3 days', async () => {
   assert.ok(days[2] - days[0] <= 3 && days[2] - days[0] >= 0);
 });
 
-test('X posts become Revlo posts that credit the author with the text unedited', async () => {
+test('X posts become Revlo posts with the text unedited', async () => {
   const { xToPost } = await import('../src/lib/xFeed.mjs');
   const post = xToPost({ id: '99', category: 'for_sale', city: 'Lagos', text: 'Clean iPhone 13 for sale in Lagos\nDM for price', author_name: 'Ada', author_username: 'ada_sells', media_url: 'https://pbs.twimg.com/p.jpg' });
   assert.equal(post.title, 'Clean iPhone 13 for sale in Lagos');
   assert.ok(post.description.startsWith('Clean iPhone 13 for sale in Lagos\nDM for price'));
-  assert.match(post.description, /Posted on X by Ada \(@ada_sells\): https:\/\/x\.com\/ada_sells\/status\/99$/);
+  assert.equal(post.description, 'Clean iPhone 13 for sale in Lagos\nDM for price');  // credit line removed (owner)
   assert.equal(post.location, 'Lagos, Nigeria');
   assert.equal(post.header_url, 'https://pbs.twimg.com/p.jpg');
   assert.equal(xToPost({ id: '1', category: 'politics', city: 'Nigeria', text: 'Senate passes bill', author_name: 'Premium Times', author_username: 'PremiumTimesng' }).category, 'general');
