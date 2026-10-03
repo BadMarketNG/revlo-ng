@@ -24,7 +24,8 @@ async function publishAsPosts(limit = 40) {
     if (!claimed) continue;
     const { error } = await supabaseAdmin.from('posts').insert({
       uid, poster_email: X_POSTER, ...xToPost(item), media_type: 'images', gallery: [],
-      contact_visibility: 'private', followable: false, duration: 'now', expires_at: expiryFor('now'), trust_badge: null, premium_badge: false,
+      // ORIGINAL (2026-10-03): contact_visibility 'private', followable false (contact via X). Owner's request: normal posts.
+      contact_visibility: 'public', followable: true, duration: 'now', expires_at: expiryFor('now'), trust_badge: null, premium_badge: false,
     });
     if (error) { await supabaseAdmin.from('revlo_x_posts').update({ post_uid: null }).eq('id', item.id); console.error('[cron:x-feed] post', error.code || error.message); continue; }
     created.push(uid);

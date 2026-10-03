@@ -131,8 +131,8 @@ export function remainingBudget({ todayRead, monthRead, runRead = 0 }) {
 }
 
 // X posts as Revlo posts (2026-10-03, owner's request): created by support@revlo.ng through the normal post
-// fields, with the author credited and the text unedited (X's rules). Contact goes to the author on X, so
-// the post's Revlo contact is private; posts last 24 hours (removed well within X's deletion window).
+// fields, with the author credited and the text unedited (X's rules). They are ordinary Revlo posts
+// (contact goes to support@revlo.ng); posts last 24 hours (removed well within X's deletion window).
 const REVLO_PLACES = ['Lagos, Nigeria', 'Abuja FCT', 'Port Harcourt, Rivers'];
 const HEADERS = { jobs: ['jobs-1', 'jobs-2', 'jobs-3', 'jobs-4', 'jobs-5'], rentals: ['rentals-2', 'rentals-3', 'rentals-5'], for_sale: ['for_sale-3', 'for_sale-4', 'for_sale-5'], promotions: ['promotions-1', 'promotions-2', 'promotions-4', 'promotions-5'], general: ['general-1', 'general-3', 'general-4'] };
 const ICONS = ['01', '07', '12', '13', '14'];

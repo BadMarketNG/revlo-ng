@@ -17,7 +17,7 @@
   const PROPERTY = { room: 'Room', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
   const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Promotions: 'promotions', General: 'general' };
-  const extras = { booking: {}, details: {}, bumped: new Set(), outcomes: {}, fromX: {} };
+  const extras = { booking: {}, details: {}, bumped: new Set(), outcomes: {} };
   const asked = new Set();
   let category = 'all';
   const filter = { property: '', maxRent: '' };
@@ -63,8 +63,6 @@
     .rv-bk-gone{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0 0;font:700 13px system-ui;color:#3d3d3d}
     .rv-bk-gone a{display:inline-flex;gap:6px;align-items:center;background:#fff;border:1.5px solid #cfe3d1;color:#1b5e20;border-radius:999px;padding:6px 11px;text-decoration:none;font-weight:800}
     .rv-bk-gone a small{font-weight:600;color:#555}
-    .rv-bk-x{display:inline-flex;align-items:center;gap:6px;background:#0f1419;color:#fff;border-radius:999px;padding:4px 10px;font:700 12px system-ui;text-decoration:none}
-    .rv-bk-xcontact{display:inline-flex;align-items:center;gap:6px;background:#0f1419;color:#fff!important;border-radius:12px;padding:10px 16px;font:800 14.5px system-ui;text-decoration:none}
     .rv-bk-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147480002;background:#1b5e20;color:#fff;border-radius:12px;padding:12px 16px;font:700 14px system-ui;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 32px)}
   `;
   document.head.appendChild(style);
@@ -223,7 +221,6 @@
       Object.assign(extras.booking, body.booking || {}); Object.assign(extras.details, body.details || {});
       (body.bumped || []).forEach(u => extras.bumped.add(u));
       Object.assign(extras.outcomes, body.outcomes || {});
-      Object.assign(extras.fromX, body.fromX || {});
       decorate();
     } catch { /* cards work without extras */ }
   }
@@ -276,28 +273,8 @@
           link.insertAdjacentElement('afterend', mark);
         }
       }
-      // Posts published from X (2026-10-03): credit the author and send enquiries to them on X.
-      const x = !sample && extras.fromX[uid];
-      if (x && !article.querySelector('.rv-bk-x')) {
-        const chip = el('a', 'rv-bk-x', `𝕏 From @${x.handle}`); chip.href = x.url; chip.target = '_blank'; chip.rel = 'noopener noreferrer';
-        chip.title = `Posted on X by ${x.name}`;
-        const meta = article.querySelector('.revlo-theme-muted-text');
-        if (meta) meta.appendChild(chip);
-        const copy = article.querySelector('button[title="Copy link"]');
-        const row = copy?.parentElement?.parentElement;
-        if (row && !row.querySelector('.rv-bk-xcontact')) {
-          const go = el('a', 'rv-bk-xcontact', 'Contact on X ↗'); go.href = x.url; go.target = '_blank'; go.rel = 'noopener noreferrer';
-          row.insertBefore(go, row.firstChild);
-        }
-      }
-      if (x) {
-        // Enquiries go to the author on X; Revlo's own contact, follow and poster links do not apply.
-        article.querySelectorAll('button, a').forEach((b) => {
-          if (b.classList.contains('rv-bk-xcontact') || b.classList.contains('rv-bk-x')) return;
-          const t = b.textContent.trim();
-          if (/^✉?\s*Contact$|Follow$|Bump to top|Mark as/.test(t)) b.style.display = 'none';
-        });
-      }
+      // ORIGINAL (2026-10-03, removed at the owner's request): X posts showed a '𝕏 From @handle' chip and
+      // 'Contact on X', and hid Revlo Contact/Follow/poster links. The owner will handle this their own way.
       const details = extras.details[uid];
       if (details && !article.querySelector('.rv-bk-badges')) {
         const row = el('div', 'rv-bk-badges'); badges(details).forEach(t => row.appendChild(el('span', '', t)));
