@@ -22,8 +22,8 @@ test('results keep the text unedited and the author, as X requires', () => {
 });
 
 test('spending caps: the lower of the daily and monthly limits', () => {
-  assert.equal(remainingBudget({ todayRead: 0, monthRead: 0 }), 30);            // a run gets a quarter of 120
-  assert.equal(remainingBudget({ todayRead: 30, monthRead: 0, runRead: 30 }), 0);
+  assert.equal(remainingBudget({ todayRead: 0, monthRead: 0 }), 10);            // 120 over 3 days × 4 runs = 10 a run
+  assert.equal(remainingBudget({ todayRead: 10, monthRead: 0, runRead: 10 }), 0);
   assert.equal(remainingBudget({ todayRead: 110, monthRead: 0 }), 10);          // daily cap
   assert.equal(remainingBudget({ todayRead: 0, monthRead: 3990 }), 10);         // $20 / $0.005 = 4000
   assert.equal(remainingBudget({ todayRead: 0, monthRead: 4000 }), 0);
@@ -48,4 +48,14 @@ test('focus: jobs, rent, items for sale (per city) and politics (national, news 
   assert.equal(isRelevant({ category: 'politics', city: 'Nigeria', text: 'Super Eagles win friendly' }), false);
   assert.deepEqual(SHOWN_FOR.vehicles, ['for_sale']);
   assert.equal(SHOWN_FOR.promotions, undefined);
+});
+
+test('the budget renews every 3 days', async () => {
+  const { periodStart } = await import('../src/lib/xFeed.mjs');
+  const a = periodStart(Date.parse('2026-10-03T12:00:00Z'));
+  const b = periodStart(Date.parse('2026-10-04T12:00:00Z'));
+  const c = periodStart(Date.parse('2026-10-06T12:00:00Z'));
+  const days = [a, b, c].map(d => Date.parse(d) / 86400000);
+  assert.ok(days.every(d => d % 3 === 0));
+  assert.ok(days[2] - days[0] <= 3 && days[2] - days[0] >= 0);
 });

@@ -14,3 +14,12 @@ test('imported jobs become Revlo job posts without the source or an outside link
   assert.match(post.description, /Use Contact on this post/);
   assert.doesNotMatch(JSON.stringify(post), /jooble|https?:\/\/(?!revlo\.ng)/i);
 });
+
+test('imported jobs use Revlo place names so the location filter finds them', async () => {
+  const { revloLocation, jobToPost } = await import('../src/lib/jobImport.mjs');
+  assert.equal(revloLocation('Lagos, Lagos State'), 'Lagos, Nigeria');
+  assert.equal(revloLocation('Abuja'), 'Abuja FCT');
+  assert.equal(revloLocation('Port Harcourt, Rivers State'), 'Port Harcourt, Rivers');
+  assert.equal(revloLocation('Owerri'), 'Owerri');
+  assert.equal(jobToPost({ id: 'x', title: 'Driver', company: 'A Ltd', location: 'Lagos, Lagos State', url: 'https://jooble.org/x' }).location, 'Lagos, Nigeria');
+});

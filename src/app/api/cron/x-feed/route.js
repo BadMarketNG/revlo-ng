@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { oauth1Header } from '@/lib/socialPost.mjs';
-import { BLOCK_POST_CAP, KEEP_HOURS, blocksForRun, buildQuery, isRelevant, parseSearch, remainingBudget } from '@/lib/xFeed.mjs';
+import { BLOCK_POST_CAP, KEEP_HOURS, blocksForRun, buildQuery, isRelevant, parseSearch, periodStart, remainingBudget } from '@/lib/xFeed.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,9 +16,14 @@ const rfc3986 = params => Object.entries(params).map(([k, v]) => [k, v].map(x =>
 async function usage() {
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = `${today.slice(0, 7)}-01`;
-  const { data } = await supabaseAdmin.from('revlo_x_usage').select('day,posts_read,requests').gte('day', monthStart);
+  const periodFrom = periodStart();
+  const from = periodFrom < monthStart ? periodFrom : monthStart;
+  const { data } = await supabaseAdmin.from('revlo_x_usage').select('day,posts_read,requests').gte('day', from);
   const rows = data || [];
-  return { today, todayRow: rows.find(r => r.day === today) || null, todayRead: rows.find(r => r.day === today)?.posts_read || 0, monthRead: rows.reduce((n, r) => n + (r.posts_read || 0), 0) };
+  const todayRow = rows.find(r => r.day === today) || null;
+  // NOTE (2026-10-03): the cap now covers a budget period (default 3 days), not a single day.
+  const periodRead = rows.filter(r => r.day >= periodFrom).reduce((n, r) => n + (r.posts_read || 0), 0);
+  return { today, todayRow, todayStored: todayRow?.posts_read || 0, todayRead: periodRead, monthRead: rows.filter(r => r.day >= monthStart).reduce((n, r) => n + (r.posts_read || 0), 0) };
 }
 
 export async function GET(request) {
@@ -69,7 +74,8 @@ export async function GET(request) {
       if (!error) stored += posts.length;
     }
     await supabaseAdmin.from('revlo_x_blocks').upsert({ block_key: block.key, since_id: body?.meta?.newest_id || sinceIds.get(block.key) || null, last_run: new Date().toISOString() });
-    await supabaseAdmin.from('revlo_x_usage').upsert({ day: u.today, posts_read: todayRead, requests });
+    // Today's row keeps today's reads only (the period total is the sum of its days).
+    await supabaseAdmin.from('revlo_x_usage').upsert({ day: u.today, posts_read: u.todayStored + (todayRead - u.todayRead), requests });
   }
   console.info('[cron:x-feed]', JSON.stringify({ todayRead, monthReadBefore: u.monthRead, stored, stopped }));
   return NextResponse.json({ ok: true, todayRead, stored, stopped });

@@ -3,10 +3,20 @@
 
 export const PRICE_PER_POST_USD = () => Number(process.env.X_PRICE_PER_POST || 0.005);
 export const MONTHLY_CAP_USD = () => Number(process.env.X_FEED_MONTHLY_USD || 20);
-export const DAILY_POST_CAP = () => Math.max(10, Math.floor(Number(process.env.X_FEED_DAILY_POSTS || 120)));
+// ORIGINAL (2026-10-03): a daily cap (X_FEED_DAILY_POSTS posts per day).
+// NOTE (owner's request): the budget renews every PERIOD_DAYS (default 3); X_FEED_DAILY_POSTS is now the
+// number of posts per period.
+export const PERIOD_DAYS = () => Math.max(1, Math.floor(Number(process.env.X_FEED_PERIOD_DAYS || 3)));
+export const PERIOD_POST_CAP = () => Math.max(10, Math.floor(Number(process.env.X_FEED_DAILY_POSTS || 120)));
+export const DAILY_POST_CAP = PERIOD_POST_CAP; // kept for older callers
+/** First day (YYYY-MM-DD) of the budget period containing `now`. Periods are aligned to the calendar. */
+export function periodStart(now = Date.now()) {
+  const day = Math.floor(now / 86400000);
+  return new Date((day - (day % PERIOD_DAYS())) * 86400000).toISOString().slice(0, 10);
+}
 // ORIGINAL (2026-10-03, first run): 50 per block let the first three blocks use the whole day's cap.
 export const BLOCK_POST_CAP = 10;          // most posts pulled per category/city block per refresh
-export const RUNS_PER_DAY = 4;             // the refresh runs every 6 hours; each gets a quarter of the daily cap
+export const RUNS_PER_DAY = 4;             // the refresh runs every 6 hours; each gets an even share of the period's cap
 export const KEEP_HOURS = 48;              // cached posts are kept this long
 
 export const X_CITIES = ['Lagos', 'Abuja', 'Port Harcourt'];
@@ -104,10 +114,11 @@ export function parseSearch(body, { category, city }) {
 }
 
 /** How many posts may still be read today and this month, given usage so far. */
+// todayRead is the number read so far in the current budget period (name kept from the daily version).
 export function remainingBudget({ todayRead, monthRead, runRead = 0 }) {
-  const byDay = DAILY_POST_CAP() - todayRead;
-  // Each run may use only its share of the daily cap, so every category and city gets a turn.
-  const byRun = Math.ceil(DAILY_POST_CAP() / RUNS_PER_DAY) - runRead;
+  const byDay = PERIOD_POST_CAP() - todayRead;
+  // Each run may use only its share of the period's cap, so every category and city gets a turn.
+  const byRun = Math.max(10, Math.ceil(PERIOD_POST_CAP() / (RUNS_PER_DAY * PERIOD_DAYS()))) - runRead;
   const byMonth = Math.floor(MONTHLY_CAP_USD() / PRICE_PER_POST_USD()) - monthRead;
   return Math.max(0, Math.min(byDay, byMonth, byRun));
 }
