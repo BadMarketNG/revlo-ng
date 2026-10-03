@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+// NOTE (2026-10-03): scam contact reports tab (separate file).
+import ScamReports from './ScamReports';
 
 const GREEN = '#16803d';
 const RED = '#dc2626';
@@ -38,7 +40,7 @@ export default function AdminPage() {
     // The query string is an external browser value and is intentionally
     // synchronized once after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (['stats', 'reports', 'posts', 'emails', 'bm', 'features', 'categories', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'scam', 'posts', 'emails', 'bm', 'features', 'categories', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -108,7 +110,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -131,6 +133,7 @@ export default function AdminPage() {
       </nav>
       {tab === 'stats' && <Stats />}
       {tab === 'reports' && <Reports />}
+      {tab === 'scam' && <ScamReports />}
       {tab === 'posts' && <AllPosts />}
       {tab === 'emails' && <Emails />}
       {tab === 'bm' && <BMLinks />}
