@@ -4,7 +4,9 @@
 export const PRICE_PER_POST_USD = () => Number(process.env.X_PRICE_PER_POST || 0.005);
 export const MONTHLY_CAP_USD = () => Number(process.env.X_FEED_MONTHLY_USD || 20);
 export const DAILY_POST_CAP = () => Math.max(10, Math.floor(Number(process.env.X_FEED_DAILY_POSTS || 120)));
-export const BLOCK_POST_CAP = 50;          // most posts pulled per category/city block per refresh
+// ORIGINAL (2026-10-03, first run): 50 per block let the first three blocks use the whole day's cap.
+export const BLOCK_POST_CAP = 10;          // most posts pulled per category/city block per refresh
+export const RUNS_PER_DAY = 4;             // the refresh runs every 6 hours; each gets a quarter of the daily cap
 export const KEEP_HOURS = 48;              // cached posts are kept this long
 
 export const X_CITIES = ['Lagos', 'Abuja', 'Port Harcourt'];
@@ -19,10 +21,35 @@ export const X_QUERIES = {
   wears: '(clothes OR shoes OR sneakers OR dress OR thrift) ("for sale" OR selling)',
   vehicles: '(car OR toyota OR honda OR lexus OR tokunbo) ("for sale" OR selling)',
   repairs: '(repair OR technician OR "we fix") (phone OR laptop OR car OR ac OR generator)',
-  promotions: '(promo OR discount OR "% off" OR giveaway)',
+  // ORIGINAL (2026-10-03): '(promo OR discount OR "% off" OR giveaway)' matched general chatter.
+  promotions: '(promo OR discount OR "% off") (shop OR store OR order OR price OR dm)',
 };
 
 export const blockKey = (category, city) => `${category}:${city}`;
+
+// Relevance check (2026-10-03): X search also matches loosely related posts, so a post is kept and shown
+// only if its own text has the category's listing words and names the city.
+const RELEVANT = {
+  jobs: /\b(hiring|vacanc(y|ies)|job opening|recruiting|apply)\b/i,
+  rentals: /\b(to let|for rent|apartment|self[- ]?contain|shortlet|bedroom|flat)\b/i,
+  for_sale: /\b(for sale|selling|price|₦|naira)\b/i,
+  gadgets: /\b(phone|iphone|laptop|gadget|samsung|ipad|airpods)\b/i,
+  electronics: /\b(tv|television|fridge|freezer|generator|inverter|sound system|speaker)\b/i,
+  wears: /\b(clothes|shoes|sneakers|dress|thrift|wear|bags?)\b/i,
+  vehicles: /\b(car|toyota|honda|lexus|tokunbo|benz|camry|corolla)\b/i,
+  repairs: /\b(repair|technician|we fix|fixing|servicing)\b/i,
+  promotions: /\b(promo|discount|% off|\d+%\s?off)\b/i,
+};
+const SALE_WORDS = /\b(for sale|selling|price|₦|naira|dm|order)\b/i;
+export function isRelevant(post) {
+  const text = String(post.text || '');
+  const pattern = RELEVANT[post.category];
+  if (!pattern || !pattern.test(text)) return false;
+  if (!new RegExp(`\\b${String(post.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) return false;
+  // Item categories must also read like a sale.
+  if (['gadgets', 'electronics', 'wears', 'vehicles'].includes(post.category) && !SALE_WORDS.test(text)) return false;
+  return true;
+}
 export function buildQuery(category, city) {
   const terms = X_QUERIES[category];
   if (!terms) return null;
@@ -59,8 +86,10 @@ export function parseSearch(body, { category, city }) {
 }
 
 /** How many posts may still be read today and this month, given usage so far. */
-export function remainingBudget({ todayRead, monthRead }) {
+export function remainingBudget({ todayRead, monthRead, runRead = 0 }) {
   const byDay = DAILY_POST_CAP() - todayRead;
+  // Each run may use only its share of the daily cap, so every category and city gets a turn.
+  const byRun = Math.ceil(DAILY_POST_CAP() / RUNS_PER_DAY) - runRead;
   const byMonth = Math.floor(MONTHLY_CAP_USD() / PRICE_PER_POST_USD()) - monthRead;
-  return Math.max(0, Math.min(byDay, byMonth));
+  return Math.max(0, Math.min(byDay, byMonth, byRun));
 }

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { oauth1Header } from '@/lib/socialPost.mjs';
-import { BLOCK_POST_CAP, KEEP_HOURS, blocksForRun, buildQuery, parseSearch, remainingBudget } from '@/lib/xFeed.mjs';
+import { BLOCK_POST_CAP, KEEP_HOURS, blocksForRun, buildQuery, isRelevant, parseSearch, remainingBudget } from '@/lib/xFeed.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -41,7 +41,7 @@ export async function GET(request) {
 
   for (const block of blocksForRun(runIndex)) {
     if (Date.now() - started > 45000) { stopped = 'time'; break; }
-    const remaining = remainingBudget({ todayRead, monthRead: u.monthRead + (todayRead - u.todayRead) });
+    const remaining = remainingBudget({ todayRead, monthRead: u.monthRead + (todayRead - u.todayRead), runRead: todayRead - u.todayRead });
     // X returns at least 10 posts per request, so never start one that could pass the cap.
     if (remaining < 10) { stopped = 'spending cap'; break; }
     const params = {
@@ -61,7 +61,8 @@ export async function GET(request) {
     if (response.status === 429 || response.status === 402 || response.status === 403) { stopped = `X answered ${response.status}`; break; }
     if (!response.ok) continue;
     const body = await response.json().catch(() => null);
-    const posts = parseSearch(body, block);
+    // Only posts that really are listings for this category and city are kept.
+    const posts = parseSearch(body, block).filter(isRelevant);
     todayRead += body?.data?.length || 0;
     if (posts.length) {
       const { error } = await supabaseAdmin.from('revlo_x_posts').upsert(posts, { onConflict: 'id', ignoreDuplicates: true });
