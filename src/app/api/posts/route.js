@@ -148,6 +148,9 @@ export async function POST(request) {
   if (!await isConfiguredCategory(category)) {
     return NextResponse.json({ error: 'invalid category' }, { status: 400 });
   }
+  if (category === 'lodging' || category === 'dating') {
+    return NextResponse.json({ error: 'This category only accepts reviewed partner sources.' }, { status: 403 });
+  }
   if (!['public', 'private'].includes(contact_visibility)) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
   }

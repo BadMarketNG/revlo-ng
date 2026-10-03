@@ -137,15 +137,16 @@
 
   function updateComposer() {
     if (!categories.length) return;
+    const publishable = categories.filter((category) => category.slug !== 'lodging' && category.slug !== 'dating');
     document.querySelectorAll('select').forEach((select) => {
       // NOTE (2026-10-03): the bar's own "More" dropdown is not the post form's category menu.
       if (select.classList.contains('revlo-more-categories')) return;
       const values = [...select.options].map((option) => option.value);
       if (!values.includes('for_sale') && select.dataset.revloCategorySelect !== 'true') return;
-      const signature = categories.map((category) => `${category.slug}:${category.label}`).join('|');
+      const signature = publishable.map((category) => `${category.slug}:${category.label}`).join('|');
       if (select.dataset.revloCategorySignature === signature) return;
-      const current = categories.some((category) => category.slug === select.value) ? select.value : 'general';
-      select.replaceChildren(...categories.map((category) => new Option(category.label, category.slug)));
+      const current = publishable.some((category) => category.slug === select.value) ? select.value : 'general';
+      select.replaceChildren(...publishable.map((category) => new Option(category.label, category.slug)));
       select.value = current;
       select.dataset.revloCategorySelect = 'true';
       select.dataset.revloCategorySignature = signature;

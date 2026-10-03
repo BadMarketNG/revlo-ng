@@ -9,6 +9,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/cron/import-discovery",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/cron/alerts",
       "schedule": "0 6 * * *"
     },
