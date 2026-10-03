@@ -13,7 +13,8 @@ import { notifyIndexNow } from '@/lib/indexNow.mjs';
 const X_POSTER = 'support@revlo.ng';
 
 // Publishes cached X posts that do not have a Revlo post yet (newest first), within the last 24 hours.
-async function publishAsPosts(limit = 40) {
+// ORIGINAL (2026-10-03): limit 40 checked only the newest 40 saved posts before the relevance filter.
+async function publishAsPosts(limit = 300) {
   const { data: pending } = await supabaseAdmin.from('revlo_x_posts').select('*').is('post_uid', null)
     .gt('fetched_at', new Date(Date.now() - 24 * 3600000).toISOString()).order('posted_at', { ascending: false }).limit(limit);
   const created = [];
