@@ -22,6 +22,7 @@
     .rv-st-item{flex:none;border:0;background:#eef6ef;color:#1b5e20;border-radius:999px;padding:6px 11px;font:600 13px/1 system-ui;cursor:pointer;white-space:nowrap}
     .rv-st-item.rv-st-ending{display:inline-flex;align-items:center;gap:5px;background:#b45309;color:#fff;font-weight:800;box-shadow:0 0 0 2px rgba(180,83,9,.18)}
     .rv-st-item.rv-st-ending small{font-weight:700;opacity:.9;font-size:12px}
+    .rv-st-example{font-style:normal;font-weight:800;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.25);border-radius:999px;padding:2px 6px;margin-left:4px}
     /* Blinks slowly (about once a second, well under any flashing limit) so ending posts stand out. */
     .rv-st-item.rv-st-ending{animation:rv-st-blink 1.1s ease-in-out infinite}
     @keyframes rv-st-blink{0%,100%{background:#b45309;box-shadow:0 0 0 2px rgba(180,83,9,.18)}50%{background:#f59e0b;box-shadow:0 0 0 5px rgba(245,158,11,.28)}}
@@ -106,7 +107,11 @@
 
     function renderTicker() {
       label.textContent = state.label;
-      const items = state.items;
+      // 2026-10-03: while no real post is ending within 6 hours, one labelled example shows how they
+      // appear. It is marked "Example", never counted as a search, and disappears once a real one exists.
+      const items = state.items.length && !state.items.some(i => i.kind === 'ending')
+        ? [...state.items.slice(0, 2), { term: ['sofa', 'flat', 'phone', 'room', 'shop'].find(t => !state.items.some(i => i.term === t)) || 'sofa', kind: 'ending', endsInMinutes: 180, example: true }, ...state.items.slice(2)]
+        : state.items;
       track.textContent = '';
       if (!items.length) { wrap.classList.add('rv-st-off'); input.classList.remove('rv-st-room'); return; }
       // Two copies so the loop is seamless; the copy is hidden from screen readers.
@@ -126,9 +131,16 @@
           button.append(dot, `⏳ ${item.term}`, when);
           button.title = `A post tagged "${item.term}" ends in ${left.replace(' left', '')}`;
           button.setAttribute('aria-label', `${item.term}, post ending soon, ${left}`);
+          if (item.example) {
+            const tag = document.createElement('em'); tag.className = 'rv-st-example'; tag.textContent = 'Example';
+            button.appendChild(tag);
+            button.title = 'Example: tags from posts ending within 6 hours appear like this';
+            button.setAttribute('aria-label', 'Example of a post ending soon');
+          }
         }
         if (copy) { button.setAttribute('aria-hidden', 'true'); button.tabIndex = -1; }
-        button.addEventListener('click', () => { fill(input, item.term); count(item.term); input.focus(); sync(); });
+        // ORIGINAL (2026-10-03): the example chip did not exist; it searches without being counted.
+        button.addEventListener('click', () => { fill(input, item.term); if (!item.example) count(item.term); input.focus(); sync(); });
         track.appendChild(button);
       }));
       // Slow: about seven seconds per term on screen.
