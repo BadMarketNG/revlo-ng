@@ -8,7 +8,7 @@
   const cache = new Map();
   const style = document.createElement('style');
   style.textContent = `
-    .rv-x{max-width:680px;margin:26px auto 8px;box-sizing:border-box}
+    .rv-x{max-width:680px;margin:6px auto 22px;box-sizing:border-box}
     .rv-x-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 12px}
     .rv-x-head h2{margin:0;font:900 20px/1.1 Georgia,serif;color:#1b5e20}
     .rv-x-head span{font:12px system-ui;color:#7b867c}
@@ -45,15 +45,17 @@
     return c;
   }
 
+  // ORIGINAL (2026-10-03): placed after the news section, at the very bottom of the feed (after every
+  // post), where almost nobody scrolled. NOTE: now sits just above the feed's first post.
   function section() {
     let s = document.querySelector('.rv-x');
-    const anchor = document.querySelector('.rv-pf') || document.querySelector('article[id^="post-"], article[data-sample]')?.parentElement;
-    if (!anchor) return null;
+    const list = document.querySelector('article[id^="post-"], article[data-sample]')?.parentElement;
+    if (!list) return null;
     if (!s) {
       s = el('section', 'rv-x'); s.setAttribute('aria-label', 'On X right now');
       s.innerHTML = '<div class="rv-x-head"><h2>On X right now</h2><span>Posts from X · opens on X</span></div><div class="rv-x-rail"></div>';
     }
-    if (s.previousElementSibling !== anchor) anchor.insertAdjacentElement('afterend', s);
+    if (s.nextElementSibling !== list) list.insertAdjacentElement('beforebegin', s);
     return s;
   }
 
