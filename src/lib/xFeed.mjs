@@ -100,7 +100,11 @@ export function parseSearch(body, { category, city }) {
   return (body?.data || []).map(tweet => {
     const user = users.get(tweet.author_id);
     if (!user || !tweet.text) return null;
-    const firstMedia = (tweet.attachments?.media_keys || []).map(k => media.get(k)).find(Boolean);
+    // ORIGINAL (2026-10-03): only the first photo was kept. NOTE: the first photo is the header and the
+    // second photo (or the author's full-size profile picture) is the icon.
+    const photos = (tweet.attachments?.media_keys || []).map(k => media.get(k)).filter(Boolean).map(m => m.url || m.preview_image_url).filter(u => /^https:\/\//.test(u || ''));
+    const firstMedia = photos.length ? { url: photos[0] } : null;
+    const avatar = /^https:\/\//.test(user.profile_image_url || '') ? user.profile_image_url.replace('_normal.', '_400x400.') : null;
     return {
       id: String(tweet.id),
       block_key: blockKey(category, city),
@@ -109,7 +113,8 @@ export function parseSearch(body, { category, city }) {
       author_name: String(user.name || user.username).slice(0, 80),
       author_username: String(user.username).slice(0, 40),
       author_avatar: /^https:\/\//.test(user.profile_image_url || '') ? user.profile_image_url : null,
-      media_url: firstMedia ? (firstMedia.url || firstMedia.preview_image_url || null) : null,
+      media_url: firstMedia ? firstMedia.url : null,
+      icon_url: photos[1] || avatar,
       posted_at: tweet.created_at || new Date().toISOString(),
     };
   }).filter(Boolean);
@@ -148,7 +153,8 @@ export function xToPost(post, origin = 'https://revlo.ng') {
     location: place,
     category,
     header_url: post.media_url && /^https:\/\/pbs\.twimg\.com\//.test(post.media_url) ? post.media_url : `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,
-    thumb_url: `${origin}/samples/icons/icon-${ICONS[(seed >> 3) % ICONS.length]}.jpg`,
+    // Posts saved before icon_url existed fall back to the author's saved picture (full size).
+    thumb_url: [post.icon_url, post.author_avatar && String(post.author_avatar).replace('_normal.', '_400x400.')].find(u => u && /^https:\/\/pbs\.twimg\.com\//.test(u)) || `${origin}/samples/icons/icon-${ICONS[(seed >> 3) % ICONS.length]}.jpg`,
     tags: ['x', category.replace('_', ' ')].filter(t => /^[a-z][a-z ]{1,30}$/.test(t)),
   };
 }

@@ -70,3 +70,15 @@ test('X posts become Revlo posts that credit the author with the text unedited',
   assert.equal(post.header_url, 'https://pbs.twimg.com/p.jpg');
   assert.equal(xToPost({ id: '1', category: 'politics', city: 'Nigeria', text: 'Senate passes bill', author_name: 'Premium Times', author_username: 'PremiumTimesng' }).category, 'general');
 });
+
+test('X post pictures: first photo as header, second photo or the author picture as icon', async () => {
+  const { parseSearch, xToPost } = await import('../src/lib/xFeed.mjs');
+  const [two] = parseSearch({ data: [{ id: '5', text: 'Car for sale Lagos', author_id: 'u', attachments: { media_keys: ['a', 'b'] } }], includes: { users: [{ id: 'u', name: 'A', username: 'a', profile_image_url: 'https://pbs.twimg.com/profile_images/1/x_normal.jpg' }], media: [{ media_key: 'a', url: 'https://pbs.twimg.com/media/1.jpg' }, { media_key: 'b', url: 'https://pbs.twimg.com/media/2.jpg' }] } }, { category: 'for_sale', city: 'Lagos' });
+  assert.equal(two.media_url, 'https://pbs.twimg.com/media/1.jpg');
+  assert.equal(two.icon_url, 'https://pbs.twimg.com/media/2.jpg');
+  const [one] = parseSearch({ data: [{ id: '6', text: 'Flat to let Lagos', author_id: 'u' }], includes: { users: [{ id: 'u', name: 'A', username: 'a', profile_image_url: 'https://pbs.twimg.com/profile_images/1/x_normal.jpg' }] } }, { category: 'rentals', city: 'Lagos' });
+  assert.equal(one.icon_url, 'https://pbs.twimg.com/profile_images/1/x_400x400.jpg');
+  const post = xToPost({ ...two, author_name: 'A', author_username: 'a' });
+  assert.equal(post.header_url, 'https://pbs.twimg.com/media/1.jpg');
+  assert.equal(post.thumb_url, 'https://pbs.twimg.com/media/2.jpg');
+});
