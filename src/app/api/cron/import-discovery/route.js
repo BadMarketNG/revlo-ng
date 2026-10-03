@@ -1,27 +1,19 @@
-// Curated Nigeria-only Dating articles and approved short-stay listings.
-// External feeds are never allowed to create contactable personal profiles.
+// Approved short-stay listings. Dating profiles must be posted by the person
+// pictured, with their own consent, and are never imported from article feeds.
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { makeUid, expiryFor } from '@/lib/util';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 import { hash, JOB_ICONS } from '@/lib/jobImport.mjs';
-import { parseRss, USER_AGENT } from '@/lib/partnerFeed.mjs';
-import { DATING_FEEDS, DISCOVERY_POSTER, datingItem, shortletItem, raypropItem } from '@/lib/discoveryImport.mjs';
+import { USER_AGENT } from '@/lib/partnerFeed.mjs';
+import { DISCOVERY_POSTER, shortletItem, raypropItem } from '@/lib/discoveryImport.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MAX_PER_SOURCE = { 'zikoko-love-life': 3, 'kisses-and-huggs': 3, shortlet: 6, rayprop: 6 };
+const MAX_PER_SOURCE = { shortlet: 6, rayprop: 6 };
 const headers = { 'User-Agent': USER_AGENT, Accept: 'application/json' };
-
-async function fetchDating(feed) {
-  const response = await fetch(feed.url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/rss+xml' }, cache: 'no-store', signal: AbortSignal.timeout(10000) });
-  if (!response.ok || Number(response.headers.get('content-length') || 0) > 3_000_000) throw new Error(`${feed.id} feed unavailable`);
-  const xml = await response.text();
-  if (xml.length > 3_000_000) throw new Error(`${feed.id} feed too large`);
-  return parseRss(xml, feed.name).map(item => datingItem(item, feed)).filter(Boolean);
-}
 
 function liveShortletBase() {
   try {
@@ -64,23 +56,14 @@ async function publish(item) {
   const { error: claimError } = await supabaseAdmin.from('revlo_discovery_imports').insert({ source: item.source, external_id: item.externalId, source_url: item.sourceUrl });
   if (claimError) {
     if (claimError.code !== '23505') throw new Error(`Could not claim ${item.source} import`);
-    // Refresh cards created before source images were enabled. Keep their own
-    // uploaded or editorially chosen cover if one has already replaced the sample.
-    if (item.category === 'dating' && item.photos[0]) {
-      const { data: existing } = await supabaseAdmin.from('revlo_discovery_imports').select('post_uid')
-        .eq('source', item.source).eq('external_id', item.externalId).maybeSingle();
-      if (existing?.post_uid) await supabaseAdmin.from('posts').update({ header_url: item.photos[0] })
-        .eq('uid', existing.post_uid).like('header_url', 'https://revlo.ng/samples/headers/%');
-    }
     return null;
   }
   const seed = hash(`${item.source}:${item.externalId}`);
-  const headers = item.category === 'lodging' ? ['rentals-2', 'rentals-3', 'rentals-5'] : ['general-1', 'general-3', 'general-4'];
   const uid = makeUid();
   const post = {
     uid, poster_email: DISCOVERY_POSTER, title: item.title, description: item.description,
     location: item.location, category: item.category,
-    header_url: item.photos[0] || `https://revlo.ng/samples/headers/${headers[seed % headers.length]}.jpg`,
+    header_url: item.photos[0],
     thumb_url: `https://revlo.ng/samples/icons/icon-${JOB_ICONS[(seed >> 3) % JOB_ICONS.length]}.jpg`,
     media_type: 'images', gallery: item.photos.slice(1), contact_visibility: 'private', followable: false,
     duration: item.duration, expires_at: expiryFor(item.duration), trust_badge: null, premium_badge: false,
@@ -100,7 +83,7 @@ export async function GET(request) {
   let secret;
   try { secret = requiredSecret('CRON_SECRET'); } catch { return NextResponse.json({ error: 'service unavailable' }, { status: 503 }); }
   if (!constantTimeBearerMatches(request.headers.get('authorization') || '', secret)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const sources = [...DATING_FEEDS.map(feed => [feed.id, () => fetchDating(feed)]), ['shortlet', fetchShortlet], ['rayprop', fetchRayprop]];
+  const sources = [['shortlet', fetchShortlet], ['rayprop', fetchRayprop]];
   const imported = {};
   const newUids = [];
   for (const [name, load] of sources) {

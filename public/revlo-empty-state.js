@@ -33,12 +33,16 @@
       box = document.createElement('section');
       box.className = 'rv-empty';
       box.innerHTML = '<h3></h3><p>Posts on Revlo come down when their time is up, so new ones appear all the time.</p><div><button type="button" class="post">＋ Post one free</button><button type="button" class="alert">🔔 Alert me when one appears</button></div>';
-      box.querySelector('.post').addEventListener('click', () => document.querySelector('button[aria-label="Create post"]')?.click());
+      box.querySelector('.post').addEventListener('click', () => document.querySelector('button[aria-label="Create a post directly"], button[aria-label="Create post"]')?.click());
       box.querySelector('.alert').addEventListener('click', () => document.querySelector('.rv-al-chip:not([hidden])')?.click() || [...document.querySelectorAll('.rv-al-chip')].find((c) => c.offsetParent)?.click());
       const anchor = document.querySelector('.rv-st-pinned') || countLine.closest('main > *');
       anchor?.insertAdjacentElement('afterend', box);
     }
-    box.querySelector('h3').textContent = `No ${what}${where} right now. Be the first!`;
+    box.querySelector('h3').textContent = category === 'Dating' ? `No dating profiles${where} right now.` : `No ${what}${where} right now. Be the first!`;
+    box.querySelector('p').textContent = category === 'Dating'
+      ? 'Profiles appear only when adults choose to post themselves. Your email stays private and you can remove your post.'
+      : 'Posts on Revlo come down when their time is up, so new ones appear all the time.';
+    box.querySelector('.post').textContent = category === 'Dating' ? '＋ Post your profile' : '＋ Post one free';
   }
 
   let queued = false;

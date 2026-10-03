@@ -2,7 +2,7 @@ import LegalPage, { CONTACT_EMAIL } from '@/components/LegalPage';
 
 export const metadata = {
   title: 'Community Rules — Revlo.ng',
-  description: 'What you can and cannot post on Revlo.ng, and how we keep jobs, rentals, sales and promotions safe.',
+  description: 'What you can and cannot post on Revlo.ng, including Dating profiles, jobs, rentals and sales.',
   alternates: { canonical: '/rules' },
 };
 
@@ -38,6 +38,15 @@ const SECTIONS = [
       'Do not ask for inspection fees or deposits before a viewing. Renters should never pay for a property they have not seen.',
       'Photos and descriptions must match the actual property and its condition.',
       'Shortlets must be genuine, available on the dates offered and legal in their location.',
+    ]],
+  ['Dating profiles',
+    [
+      'Only post your own profile if you are 18 or older and want to be contacted about dating. Do not post for someone else.',
+      'Use your own current photo. Do not use a stock image, another person’s photo, or an AI-generated person.',
+      'Give your age honestly and use a city or broad area, never a home or work address.',
+      'Keep phone numbers, email addresses, social handles and links out of the profile. Use Revlo Contact, which verifies a sender’s email before delivering a message.',
+      'No requests for money, gifts, travel fares or deposits; no harassment, sexual services or explicit content.',
+      'Revlo does not independently verify someone’s identity or age. Report a suspicious profile and stop contact if someone asks for money or private documents.',
     ]],
   ['For sale',
     [

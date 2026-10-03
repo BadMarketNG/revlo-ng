@@ -1,19 +1,10 @@
-// Curated, link-first imports for two source-only categories. No dating profiles,
-// guest data, payments or booking credentials are copied into Revlo posts.
+// Curated short-stay listings. No guest data, payments or booking credentials
+// are copied into Revlo posts.
 import { decodeText } from './partnerFeed.mjs';
 
 export const DISCOVERY_POSTER = 'support@revlo.ng';
-export const DATING_FEEDS = [
-  { id: 'zikoko-love-life', name: 'Zikoko Love Life', url: 'https://www.zikoko.com/category/ships/love-life/feed/', host: 'www.zikoko.com', imageHosts: ['www.zikoko.com', 'c7684bdb45.mjedge.net'] },
-  { id: 'kisses-and-huggs', name: 'Kisses & Huggs Club', url: 'https://kissesandhuggs.org/feed/', host: 'kissesandhuggs.org', imageHosts: ['kissesandhuggs.org'] },
-];
-
 const NIGERIAN_CITIES = new Set(['lagos', 'abuja', 'port harcourt', 'ibadan', 'kano', 'enugu', 'kaduna', 'benin city', 'abeokuta', 'owerri', 'uyo', 'warri', 'jos', 'ilorin']);
 const safeText = (value, max = 200) => decodeText(value).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
-const dateIsFresh = (value, now = Date.now(), days = 30) => {
-  const date = Date.parse(value || '');
-  return Number.isFinite(date) && date <= now + 86400000 && date >= now - days * 86400000;
-};
 const safeSourceUrl = (value, hosts) => {
   try {
     const url = new URL(value);
@@ -28,24 +19,6 @@ const safePhoto = (value) => {
 };
 const photosOf = (values) => [...new Set(values.map(safePhoto).filter(Boolean))].slice(0, 3);
 const hasContact = text => /(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|\+?234[\s.-]?[789]\d|\b0[789]\d{9}\b|\b(?:whatsapp|telegram|dm me|chat me)\b)/i.test(text);
-
-export function datingItem(item, feed, now = Date.now()) {
-  const title = safeText(item?.title, 160);
-  const url = safeSourceUrl(item?.url, [feed.host]);
-  const image = safeSourceUrl(feed.id === 'kisses-and-huggs'
-    ? String(item?.image || '').replace(/-150x150(?=\.(?:jpe?g|png|webp)(?:$|[?#]))/i, '')
-    : item?.image, feed.imageHosts || [feed.host]);
-  if (!title || !url || !image || !dateIsFresh(item?.publishedAt, now) || hasContact(title)) return null;
-  if (feed.id === 'zikoko-love-life' && (!/^Love Life:/i.test(title) || !new URL(url).pathname.startsWith('/ships/'))) return null;
-  if (feed.id === 'kisses-and-huggs' && !/\b(single|singles|dating|courtship|before you say yes|future spouse|spouse you haven.t met|choosing a partner)\b/i.test(title)) return null;
-  if (/\b(?:teen|minor|child|underage|schoolgirl|schoolboy)\b/i.test(title)) return null;
-  return {
-    source: feed.id, externalId: url, sourceUrl: url, duration: '1m',
-    title, category: 'dating', location: 'Nigeria',
-    description: `${feed.id === 'kisses-and-huggs' ? 'Christian dating guidance' : 'A Nigerian relationship story'} from ${feed.name}. Read the original article: ${url}\n\nThis is editorial content, not a personal dating profile or an invitation to contact anyone through Revlo.`,
-    photos: [image],
-  };
-}
 
 export function shortletItem(raw, now = Date.now()) {
   const id = String(raw?.id || '');

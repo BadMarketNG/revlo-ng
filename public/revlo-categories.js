@@ -137,7 +137,7 @@
 
   function updateComposer() {
     if (!categories.length) return;
-    const publishable = categories.filter((category) => category.slug !== 'lodging' && category.slug !== 'dating');
+    const publishable = categories.filter((category) => category.slug !== 'lodging');
     document.querySelectorAll('select').forEach((select) => {
       // NOTE (2026-10-03): the bar's own "More" dropdown is not the post form's category menu.
       if (select.classList.contains('revlo-more-categories')) return;
@@ -145,7 +145,9 @@
       if (!values.includes('for_sale') && select.dataset.revloCategorySelect !== 'true') return;
       const signature = publishable.map((category) => `${category.slug}:${category.label}`).join('|');
       if (select.dataset.revloCategorySignature === signature) return;
-      const current = publishable.some((category) => category.slug === select.value) ? select.value : 'general';
+      const current = select.dataset.revloCategorySignature
+        ? (publishable.some((category) => category.slug === select.value) ? select.value : 'general')
+        : (publishable.some((category) => category.slug === selectedCategory) ? selectedCategory : select.value);
       select.replaceChildren(...publishable.map((category) => new Option(category.label, category.slug)));
       select.value = current;
       select.dataset.revloCategorySelect = 'true';

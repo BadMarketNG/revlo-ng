@@ -16,11 +16,11 @@
   ];
   const PROPERTY = { room: 'Room', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
-  const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Vehicles: 'vehicles', Promotions: 'promotions', General: 'general' };
+  const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Vehicles: 'vehicles', Dating: 'dating', Promotions: 'promotions', General: 'general' };
   const extras = { booking: {}, details: {}, bumped: new Set(), outcomes: {} };
   const asked = new Set();
   let category = 'all';
-  const filter = { property: '', maxRent: '' };
+  const filter = { property: '', maxRent: '', minAge: '', maxAge: '', intent: '' };
 
   const style = document.createElement('style');
   style.textContent = `
@@ -233,6 +233,8 @@
     if (details.furnishing) out.push(FURNISH[details.furnishing]);
     if (details.price) out.push(money(details.price));
     if (details.condition) out.push(details.condition);
+    if (details.age) out.push(`${details.age} years old`);
+    if (details.intent) out.push({ dating: 'Looking to date', relationship: 'Seeking a relationship', marriage: 'Seeking marriage' }[details.intent]);
     return out.filter(Boolean);
   }
 
@@ -283,7 +285,8 @@
       }
       // Rentals filter: hide cards that do not match (cards without details are hidden only while a filter is set).
       const d = details || {};
-      const hide = category === 'rentals' && ((filter.property && d.property !== filter.property) || (filter.maxRent && !(d.rent && d.rent <= Number(filter.maxRent))));
+      const hide = (category === 'rentals' && ((filter.property && d.property !== filter.property) || (filter.maxRent && !(d.rent && d.rent <= Number(filter.maxRent)))))
+        || (category === 'dating' && ((filter.intent && d.intent !== filter.intent) || (filter.minAge && !(d.age >= Number(filter.minAge))) || (filter.maxAge && !(d.age <= Number(filter.maxAge)))));
       if (hide) article.dataset.rvBkHidden = '1'; else delete article.dataset.rvBkHidden;
     });
     filterBar();
@@ -292,15 +295,32 @@
   function filterBar() {
     const first = document.querySelector('article[id^="post-"]');
     let bar = document.querySelector('.rv-bk-filter');
-    if (category !== 'rentals' || !first) { bar?.remove(); return; }
+    if (!['rentals', 'dating'].includes(category) || !first) { bar?.remove(); return; }
+    if (bar && bar.dataset.category !== category) { bar.remove(); bar = null; }
     if (!bar) {
       bar = el('div', 'rv-bk-filter');
-      bar.append('Filter rentals:');
-      const type = el('select'); type.setAttribute('aria-label', 'Type'); type.add(new Option('Any type', '')); Object.entries(PROPERTY).forEach(([v, t]) => type.add(new Option(t, v))); type.value = filter.property;
-      const rent = el('select'); rent.setAttribute('aria-label', 'Maximum rent'); rent.add(new Option('Any rent', '')); [300000, 500000, 1000000, 1500000, 2500000, 5000000].forEach(n => rent.add(new Option(`Up to ${money(n)}`, String(n)))); rent.value = filter.maxRent;
-      type.addEventListener('change', () => { filter.property = type.value; decorate(); });
-      rent.addEventListener('change', () => { filter.maxRent = rent.value; decorate(); });
-      bar.append(type, rent);
+      bar.dataset.category = category;
+      if (category === 'dating') {
+        bar.append('Filter profiles:');
+        const intent = el('select'); intent.setAttribute('aria-label', 'Looking for');
+        [['', 'Any intention'], ['dating', 'Dating'], ['relationship', 'Relationship'], ['marriage', 'Marriage']].forEach(([v, t]) => intent.add(new Option(t, v)));
+        intent.value = filter.intent;
+        const minimum = el('select'); minimum.setAttribute('aria-label', 'Minimum age'); minimum.add(new Option('Any age', ''));
+        const maximum = el('select'); maximum.setAttribute('aria-label', 'Maximum age'); maximum.add(new Option('Any age', ''));
+        [18, 21, 25, 30, 35, 40, 50, 60].forEach(n => { minimum.add(new Option(`From ${n}`, String(n))); maximum.add(new Option(`Up to ${n}`, String(n))); });
+        minimum.value = filter.minAge; maximum.value = filter.maxAge;
+        intent.addEventListener('change', () => { filter.intent = intent.value; decorate(); });
+        minimum.addEventListener('change', () => { filter.minAge = minimum.value; decorate(); });
+        maximum.addEventListener('change', () => { filter.maxAge = maximum.value; decorate(); });
+        bar.append(intent, minimum, maximum);
+      } else {
+        bar.append('Filter rentals:');
+        const type = el('select'); type.setAttribute('aria-label', 'Type'); type.add(new Option('Any type', '')); Object.entries(PROPERTY).forEach(([v, t]) => type.add(new Option(t, v))); type.value = filter.property;
+        const rent = el('select'); rent.setAttribute('aria-label', 'Maximum rent'); rent.add(new Option('Any rent', '')); [300000, 500000, 1000000, 1500000, 2500000, 5000000].forEach(n => rent.add(new Option(`Up to ${money(n)}`, String(n)))); rent.value = filter.maxRent;
+        type.addEventListener('change', () => { filter.property = type.value; decorate(); });
+        rent.addEventListener('change', () => { filter.maxRent = rent.value; decorate(); });
+        bar.append(type, rent);
+      }
     }
     const list = first.parentElement;
     if (bar.nextElementSibling !== list) list.insertAdjacentElement('beforebegin', bar);
@@ -333,6 +353,7 @@
     const key = button && LABELS[button.textContent.trim()];
     if (key && event.isTrusted && !button.closest('.rv-pf, [role="radiogroup"]')) { category = key; setTimeout(decorate, 300); }
   }, true);
+  window.addEventListener('revlo:category-change', event => { category = event.detail || 'all'; setTimeout(decorate, 0); });
 
   const params = new URLSearchParams(location.search);
   const outcome = params.get('booking');

@@ -19,6 +19,9 @@ export function cleanDetails(input, category) {
     };
   } else if (category === 'for_sale') {
     details = { price: num(input.price, 1e10), condition: pick(input.condition, ['Brand new', 'Used', 'Refurbished']) };
+  } else if (category === 'dating') {
+    details = { age: num(input.age, 99), intent: pick(input.intent, ['dating', 'relationship', 'marriage']) };
+    if (!Number.isInteger(details.age) || details.age < 18 || !details.intent) return null;
   }
   if (!details) return null;
   details = Object.fromEntries(Object.entries(details).filter(([, v]) => v != null));

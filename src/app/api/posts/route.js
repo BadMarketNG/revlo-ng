@@ -3,6 +3,7 @@
 import { NextResponse, after } from 'next/server';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 import { saveListingExtras } from '@/lib/listingExtras.mjs';
+import { cleanDatingProfile } from '@/lib/datingProfile.mjs';
 import { liveBumps, pinBumped } from '@/lib/bumps.mjs';
 import { aliasTakenByOther, cleanAlias, currentAlias, saveAlias } from '@/lib/community';
 import { cleanTags, flagPostForContactInfo, requireNotSuspended, tagLimit } from '@/lib/moderation';
@@ -127,7 +128,9 @@ export async function POST(request) {
   // NOTE (2026-10-03): 'hot' is the 18-hour option badge holders can pick. It is stored as a 'now' post
   // (shown under the 24-hour tab) with an 18-hour expiry, like posts from people without a badge.
   const hot = requestedDuration === 'hot';
-  const duration = hot ? 'now' : requestedDuration;
+  // A dating profile needs enough time for someone to discover it and reply.
+  // It still appears under Right now for its first day, then under 1 week.
+  const duration = category === 'dating' ? '2m' : hot ? 'now' : requestedDuration;
 
   // Validation
   if (!isEmail(poster_email)) {
@@ -148,8 +151,8 @@ export async function POST(request) {
   if (!await isConfiguredCategory(category)) {
     return NextResponse.json({ error: 'invalid category' }, { status: 400 });
   }
-  if (category === 'lodging' || category === 'dating') {
-    return NextResponse.json({ error: 'This category only accepts reviewed partner sources.' }, { status: 403 });
+  if (category === 'lodging') {
+    return NextResponse.json({ error: 'Lodging currently accepts reviewed partner sources only.' }, { status: 403 });
   }
   if (!['public', 'private'].includes(contact_visibility)) {
     return NextResponse.json({ error: 'invalid contact_visibility' }, { status: 400 });
@@ -169,8 +172,19 @@ export async function POST(request) {
   if (!['images', 'video'].includes(media_type) || (media_type === 'video' && !video_url)) {
     return NextResponse.json({ error: 'invalid media' }, { status: 415 });
   }
+  const datingProfile = category === 'dating'
+    ? cleanDatingProfile({ title, description, location, profile: body?.dating_profile, mediaType: media_type, contactVisibility: contact_visibility })
+    : null;
+  if (datingProfile?.error) return NextResponse.json({ error: datingProfile.error }, { status: 422 });
 
   const cleanEmail = normaliseEmail(poster_email);
+  if (category === 'dating') {
+    const { data: activeProfile, error: profileLookupError } = await supabaseAdmin.from('posts')
+      .select('uid').eq('poster_email', cleanEmail).eq('category', 'dating')
+      .is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1).maybeSingle();
+    if (profileLookupError) return NextResponse.json({ error: 'Could not check your active profile. Try again.' }, { status: 503 });
+    if (activeProfile) return NextResponse.json({ error: 'You already have an active Dating profile. Remove it or wait for it to expire before posting another.' }, { status: 409 });
+  }
   // NOTE (2026-09-30): poster_alias — absent keeps the current alias, '' removes it, text sets it.
   const aliasProvided = body && Object.prototype.hasOwnProperty.call(body, 'poster_alias');
   const aliasInput = aliasProvided ? cleanAlias(body.poster_alias) : null;
@@ -197,7 +211,7 @@ export async function POST(request) {
     return NextResponse.json({ error: `72-hour posts unlock with the Bronze badge at ${publisherStatus.settings.bronze_posts} posts.` }, { status: 403 });
   }
   // ORIGINAL (2026-10-03): if (duration === '2m' && !publisherStatus.trustBadge) {
-  if (duration === '2m' && !['silver', 'gold'].includes(publisherStatus.trustBadge)) {
+  if (duration === '2m' && category !== 'dating' && !['silver', 'gold'].includes(publisherStatus.trustBadge)) {
     return NextResponse.json({ error: `1-week posts unlock with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
   if (duration === '3m' && publisherStatus.trustBadge !== 'gold') {
@@ -311,8 +325,8 @@ export async function POST(request) {
       uid,
       poster_email: cleanEmail,
       source_ip: sourceIp || null,
-      title: title.trim(),
-      description: String(description).slice(0, 5000),
+      title: datingProfile?.title || title.trim(),
+      description: datingProfile?.description || String(description).slice(0, 5000),
       location,
       category,
       header_url,
@@ -351,7 +365,7 @@ export async function POST(request) {
   // NOTE (2026-10-01): posts with phone numbers, emails, links or handles go to admin review.
   await flagPostForContactInfo({ ...data, poster_email: cleanEmail, description: String(description) }).catch((e) => console.error('[post-flags]', e));
   // NOTE (2026-10-02): booking times and structured details (rent, bedrooms, price), when given.
-  await saveListingExtras(supabaseAdmin, data, body).catch((e) => console.error('[listing-extras]', e));
+  await saveListingExtras(supabaseAdmin, data, datingProfile ? { ...body, details: datingProfile.details } : body).catch((e) => console.error('[listing-extras]', e));
   // NOTE (2026-10-02): tell Bing and other IndexNow search engines about the new post page.
   after(() => notifyIndexNow(`https://revlo.ng/p/${data.uid}`));
   if (aliasProvided) {

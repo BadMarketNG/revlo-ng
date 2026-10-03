@@ -20,6 +20,7 @@
     .revlo-samples .rs-label{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px;font-weight:800;font-size:13px}
     .revlo-samples .rs-label span{font-weight:600;font-size:11px;color:#687068}
     .revlo-samples .rs-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+    .revlo-samples [hidden]{display:none!important}
     .revlo-samples .rs-row button{flex:none;padding:0;border:2px solid transparent;border-radius:11px;overflow:hidden;cursor:pointer;background:#eef2ee;position:relative}
     .revlo-samples .rs-row button[aria-pressed="true"]{border-color:#1b5e20}
     .revlo-samples .rs-row button[aria-pressed="true"]::after{content:"✓";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:#fff;font:800 11px/18px system-ui;text-align:center}
@@ -40,6 +41,7 @@
     const transfer = new DataTransfer();
     transfer.items.add(file);
     input.files = transfer.files;
+    input.dataset.revloSample = 'true';
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
@@ -62,6 +64,12 @@
     const { headerInput, iconInput, category } = composerParts(modal);
     const key = category?.value && manifest?.headers?.[category.value] ? category.value : 'general';
     box.querySelector('.rs-cat').textContent = LABELS[key] || 'General';
+    const dating = category?.value === 'dating';
+    box.querySelector('.rs-note').innerHTML = dating
+      ? '<strong>Upload your own profile photo.</strong> Sample header images cannot be used for Dating. An icon can still be a sample.'
+      : '<strong>A header image and an icon are required.</strong> Upload your own with the buttons above, or pick a free sample below.';
+    box.querySelector('.rs-label').hidden = dating;
+    box.querySelector('.rs-headers').hidden = dating;
     const headers = box.querySelector('.rs-headers');
     headers.textContent = '';
     for (const item of manifest.headers[key] || []) {
@@ -88,6 +96,7 @@
     if (!manifest || modal.querySelector('.revlo-samples')) return;
     const { headerInput, category } = composerParts(modal);
     if (!headerInput) return;
+    headerInput.addEventListener('change', (event) => { if (event.isTrusted) { chosen.header = null; headerInput.dataset.revloSample = 'false'; } });
     const banner = headerInput.parentElement;
     const box = document.createElement('section');
     box.className = 'revlo-samples';
@@ -110,6 +119,9 @@
         if (box) { box.classList.add('rs-missing'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         const missing = !body.header_url ? 'a header image' : 'an icon';
         return new Response(JSON.stringify({ error: `Add ${missing} — upload your own or pick a free sample.` }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (body?.category === 'dating' && chosen.header) {
+        return new Response(JSON.stringify({ error: 'Upload your own photo for your Dating profile.' }), { status: 422, headers: { 'Content-Type': 'application/json' } });
       }
     }
     const response = await previousFetch(input, init);
