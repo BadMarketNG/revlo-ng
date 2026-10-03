@@ -5,17 +5,21 @@ import { DATING_FEEDS, datingItem, shortletItem, raypropItem } from '../src/lib/
 const now = Date.parse('2026-10-03T10:00:00Z');
 
 test('Dating imports only recent articles from the two approved Nigerian publishers', () => {
-  const story = { title: 'Love Life: We Met in Lagos', url: 'https://www.zikoko.com/ships/love-life-we-met/', publishedAt: '2026-10-01T08:00:00Z' };
+  const story = { title: 'Love Life: We Met in Lagos', url: 'https://www.zikoko.com/ships/love-life-we-met/', image: 'https://c7684bdb45.mjedge.net/wp-content/uploads/zikoko/story.png', publishedAt: '2026-10-01T08:00:00Z' };
   const item = datingItem(story, DATING_FEEDS[0], now);
   assert.equal(item.category, 'dating');
   assert.equal(item.sourceUrl, story.url);
+  assert.deepEqual(item.photos, [story.image]);
   assert.match(item.description, /not a personal dating profile/);
   assert.equal(datingItem({ ...story, url: 'https://evil.example/ships/love-life-we-met/' }, DATING_FEEDS[0], now), null);
+  assert.equal(datingItem({ ...story, image: 'https://evil.example/cover.png' }, DATING_FEEDS[0], now), null);
+  assert.equal(datingItem({ ...story, image: null }, DATING_FEEDS[0], now), null);
   assert.equal(datingItem({ ...story, publishedAt: '2026-07-01T08:00:00Z' }, DATING_FEEDS[0], now), null);
   assert.equal(datingItem({ ...story, title: 'Teen Love Life: My first date' }, DATING_FEEDS[0], now), null);
   assert.equal(datingItem({ ...story, title: 'Love Life: Call me on +2348012345678' }, DATING_FEEDS[0], now), null);
-  const singles = datingItem({ title: 'A Prayer for the Spouse You Haven’t Met Yet', url: 'https://kissesandhuggs.org/prayer-for-a-spouse/', publishedAt: '2026-10-03T06:00:00Z' }, DATING_FEEDS[1], now);
+  const singles = datingItem({ title: 'A Prayer for the Spouse You Haven’t Met Yet', url: 'https://kissesandhuggs.org/prayer-for-a-spouse/', image: 'https://kissesandhuggs.org/wp-content/uploads/spouse-150x150.jpg', publishedAt: '2026-10-03T06:00:00Z' }, DATING_FEEDS[1], now);
   assert.equal(singles?.source, 'kisses-and-huggs');
+  assert.deepEqual(singles?.photos, ['https://kissesandhuggs.org/wp-content/uploads/spouse.jpg']);
 });
 
 test('Lodging imports require Nigerian approved listings and keep at most three photos', () => {

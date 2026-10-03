@@ -4,9 +4,10 @@ import { availableSlots, cleanBookingRequest, cleanBookingSettings, lagosLabel }
 
 const settings = cleanBookingSettings({ modes: ['viewing', 'call', 'hack'], days: [6, 1, 9], start_time: '10:00', end_time: '12:00', slot_minutes: 60 }, 'rentals');
 
-test('settings are cleaned and only for rentals and for sale', () => {
+test('booking settings allow opted-in vehicle viewings and reject unrelated categories', () => {
   assert.deepEqual(settings, { modes: ['viewing', 'call'], days: [1, 6], start_time: '10:00', end_time: '12:00', slot_minutes: 60 });
   assert.equal(cleanBookingSettings({ modes: ['call'], days: [1], start_time: '10:00', end_time: '12:00' }, 'jobs'), null);
+  assert.deepEqual(cleanBookingSettings({ modes: ['viewing'], days: [1], start_time: '10:00', end_time: '12:00', slot_minutes: 30 }, 'vehicles')?.modes, ['viewing']);
   assert.equal(cleanBookingSettings({ modes: ['call'], days: [1], start_time: '12:00', end_time: '10:00' }, 'rentals'), null);
 });
 

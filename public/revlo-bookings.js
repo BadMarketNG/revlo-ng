@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   // Book a viewing or call (2026-10-02). Additive script:
-  // - Cards of Rentals / For Sale posts that take bookings get "📅 Book a viewing" (or "📞 Book a call").
+  // - Cards of Rentals / For Sale / Vehicles posts that take bookings get "📅 Book a viewing" (or "📞 Book a call").
   // - The booking sheet lists free times (Lagos time); the visitor gives name, phone and email and
   //   confirms by email; the poster accepts or declines by email. Safety notices throughout.
   // - Rentals details become badges on cards ("2 bedrooms · ₦1.5m/year · Serviced") and a filter bar
@@ -16,7 +16,7 @@
   ];
   const PROPERTY = { room: 'Room', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
-  const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Promotions: 'promotions', General: 'general' };
+  const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Vehicles: 'vehicles', Promotions: 'promotions', General: 'general' };
   const extras = { booking: {}, details: {}, bumped: new Set(), outcomes: {} };
   const asked = new Set();
   let category = 'all';
@@ -106,7 +106,7 @@
 
     const choice = { mode: data.modes.includes('viewing') ? 'viewing' : 'call', slot: null };
     const seg = el('div', 'rv-bk-seg');
-    const visitLabel = data.category === 'promotions' ? '🎟️ Reserve' : data.category === 'for_sale' ? '👀 See it' : '🏠 Viewing';
+    const visitLabel = data.category === 'promotions' ? '🎟️ Reserve' : data.category === 'vehicles' ? '🚗 Vehicle viewing' : data.category === 'for_sale' ? '👀 See it' : '🏠 Viewing';
     data.modes.forEach(mode => { const b = el('button', '', mode === 'viewing' ? visitLabel : '📞 Call'); b.type = 'button'; b.setAttribute('aria-pressed', String(choice.mode === mode)); b.addEventListener('click', () => { choice.mode = mode; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }); seg.appendChild(b); });
     if (data.modes.length > 1) sheet.appendChild(seg);
     const byDay = new Map(); data.slots.forEach(s => { const k = dayKey(s); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(s); });
@@ -242,7 +242,7 @@
       const uid = article.id.slice(5);
       const contact = [...article.querySelectorAll('button, a')].find(b => /Contact/.test(b.textContent));
       const cardCategory = article.querySelector('span')?.textContent.trim().toLowerCase();
-      const modes = sample ? (['rentals', 'for sale'].includes(cardCategory) ? ['viewing'] : null) : extras.booking[uid];
+      const modes = sample ? (['rentals', 'for sale', 'vehicles'].includes(cardCategory) ? ['viewing'] : null) : extras.booking[uid];
       const gone = !sample && extras.outcomes[uid];
       if (gone && !article.querySelector('.rv-bk-done')) {
         if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
@@ -251,7 +251,7 @@
         article.querySelector('.rv-bk-btn')?.remove();
       }
       if (modes && contact && !gone && !article.querySelector('.rv-bk-btn')) {
-        const visitText = cardCategory === 'promotions' ? '📅 Book a slot' : cardCategory === 'for sale' ? '📅 Book to see it' : '📅 Book a viewing';
+        const visitText = cardCategory === 'promotions' ? '📅 Book a slot' : cardCategory === 'vehicles' ? '📅 Book a vehicle viewing' : cardCategory === 'for sale' ? '📅 Book to see it' : '📅 Book a viewing';
         const b = el('button', 'rv-bk-btn', modes.includes('viewing') ? visitText : '📞 Book a call'); b.type = 'button';
         b.addEventListener('click', e => { e.stopPropagation(); openBooking(uid, sample); });
         contact.insertAdjacentElement('afterend', b);

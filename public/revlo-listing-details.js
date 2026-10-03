@@ -81,7 +81,7 @@
         }
         const details = structured(body.category);
         if (details) body.details = details;
-        if (state.book && ['rentals', 'for_sale', 'promotions'].includes(body.category)) {
+        if (state.book && ['rentals', 'for_sale', 'vehicles', 'promotions'].includes(body.category)) {
           body.booking = { modes: [state.book_viewing && 'viewing', state.book_call && 'call'].filter(Boolean), days: state.book_days, start_time: state.book_from, end_time: state.book_to, slot_minutes: Number(state.book_slot) };
         }
         init = { ...init, body: JSON.stringify(body) };
@@ -130,7 +130,7 @@
     const rRow2 = document.createElement('div'); rRow2.className = 'rv-ld-row';
     rRow2.append(field('Type', property), field('Bathrooms', input('text', 'bathrooms', { inputMode: 'numeric', placeholder: 'e.g. 2' })), field('Furnishing', furnishing));
     rental.append(rRow1, rRow2);
-    // Booking availability (Rentals and For Sale).
+    // Booking availability for properties, vehicles and promotions.
     const booking = document.createElement('div');
     booking.className = 'rv-ld-booking';
     const toggle = document.createElement('label'); toggle.className = 'rv-ld-toggle';
@@ -163,13 +163,13 @@
     let panel = document.querySelector('.rv-ld');
     if (!panel) { panel = build(); details.insertAdjacentElement('afterend', panel); }
     const category = categoryNow();
-    panel.hidden = !['for_sale', 'promotions', 'rentals'].includes(category);
+    panel.hidden = !['for_sale', 'promotions', 'rentals', 'vehicles'].includes(category);
     panel.querySelector('.rv-ld-sale').hidden = category !== 'for_sale';
     panel.querySelector('.rv-ld-rental').hidden = category !== 'rentals';
-    panel.querySelector('.rv-ld-booking').hidden = !['rentals', 'for_sale', 'promotions'].includes(category);
+    panel.querySelector('.rv-ld-booking').hidden = !['rentals', 'for_sale', 'vehicles', 'promotions'].includes(category);
     // Booking is the poster's choice: ticked by default for Rentals only, until they change it.
     if (!state.bookTouched) {
-      state.book = category === 'rentals';
+      state.book = category === 'rentals' || category === 'vehicles';
       const box = panel.querySelector('.rv-ld-toggle input'); if (box) box.checked = state.book;
       const opts = panel.querySelector('.rv-ld-booking > div'); if (opts) opts.hidden = !state.book;
     }

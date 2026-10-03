@@ -62,7 +62,18 @@ async function fetchRayprop() {
 
 async function publish(item) {
   const { error: claimError } = await supabaseAdmin.from('revlo_discovery_imports').insert({ source: item.source, external_id: item.externalId, source_url: item.sourceUrl });
-  if (claimError) return null; // The source item was already imported in this period.
+  if (claimError) {
+    if (claimError.code !== '23505') throw new Error(`Could not claim ${item.source} import`);
+    // Refresh cards created before source images were enabled. Keep their own
+    // uploaded or editorially chosen cover if one has already replaced the sample.
+    if (item.category === 'dating' && item.photos[0]) {
+      const { data: existing } = await supabaseAdmin.from('revlo_discovery_imports').select('post_uid')
+        .eq('source', item.source).eq('external_id', item.externalId).maybeSingle();
+      if (existing?.post_uid) await supabaseAdmin.from('posts').update({ header_url: item.photos[0] })
+        .eq('uid', existing.post_uid).like('header_url', 'https://revlo.ng/samples/headers/%');
+    }
+    return null;
+  }
   const seed = hash(`${item.source}:${item.externalId}`);
   const headers = item.category === 'lodging' ? ['rentals-2', 'rentals-3', 'rentals-5'] : ['general-1', 'general-3', 'general-4'];
   const uid = makeUid();
