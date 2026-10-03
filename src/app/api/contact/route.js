@@ -11,6 +11,8 @@ import {
   requireRateLimit,
 } from '@/lib/security';
 import { publicOrigin } from '@/lib/publicOrigin';
+// NOTE (2026-10-03, Claude): support enquiries on imported jobs / X posts (additive helper).
+import { supportEnquiryNote } from '@/lib/supportEnquiries.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,13 +101,18 @@ export async function GET(request) {
   if (await findActiveBlock({ email: pending.email }) || await findActiveBlock({ email: post.poster_email })) {
     return htmlResponse('Your email was verified and the message has been sent.', 200);
   }
+  // NOTE (2026-10-03, Claude): for posts by support@revlo.ng (imported jobs, X posts) the enquiry is recorded
+  // for the admin and the email to support gets an internal "original listing" block. Empty for everyone else.
+  const internalNote = await supportEnquiryNote(post, pending);
   const result = await sendEmail({
     to: post.poster_email,
     subject: `Revlo.ng: message about "${post.title}"`,
+    // ORIGINAL (commented out 2026-10-03): the html below ended at the "Reply directly to" line.
+    // NOTE: ${internalNote} appended (empty string except for support@revlo.ng posts).
     html: `<p>You received a verified message about your Revlo.ng post <strong>${escapeHtml(post.title)}</strong> (${post.uid}).</p>
            <p><strong>From:</strong> ${escapeHtml(pending.email)}</p>
            <p><strong>Message:</strong></p><blockquote>${escapeHtml(pending.message)}</blockquote>
-           <p>Reply directly to ${escapeHtml(pending.email)} to respond.</p>`,
+           <p>Reply directly to ${escapeHtml(pending.email)} to respond.</p>${internalNote}`,
     headers: { 'Reply-To': pending.email },
   });
   if (result?.ok === false) return htmlResponse('The message could not be delivered.', 502);

@@ -104,3 +104,13 @@ test('admin budget: lowest of period, month and run share', async () => {
   const blocks = searchBlocks([{ id: 'a', cities: ['Lagos', 'Abuja'], national: false }, { id: 'b', national: true, cities: ['Nigeria'] }], 0);
   assert.deepEqual(blocks.map(b => b.key), ['a:Lagos', 'a:Abuja', 'b:Nigeria']);
 });
+
+test('replies to applicants never point at the private job source', async () => {
+  const { revealsSource } = await import('../src/lib/sourceGuard.mjs');
+  assert.equal(revealsSource('https://ng.jooble.org/desc/123'), true);
+  assert.equal(revealsSource('https://www.careerjet.com.ng/job/abc'), true);
+  assert.equal(revealsSource('I found this on Jooble'), true);
+  assert.equal(revealsSource('https://partner.example/jobs/1', ['partner.example']), true);
+  assert.equal(revealsSource('https://careers.renmoney.com/apply/77 Closing Friday'), false);
+  assert.equal(revealsSource('https://x.com/ada/status/1'), false);
+});

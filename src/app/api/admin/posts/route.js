@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { isValidDuration } from '@/lib/util';
+// NOTE (2026-10-03, Claude): original listing links for support@revlo.ng posts (additive).
+import { SUPPORT_POSTER, originalListings } from '@/lib/originalListing.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,5 +30,8 @@ export async function GET(request) {
     console.error('[admin/posts]', error);
     return NextResponse.json({ error: 'failed' }, { status: 500 });
   }
-  return NextResponse.json({ posts: data });
+  // ORIGINAL (commented out 2026-10-03): return NextResponse.json({ posts: data });
+  // NOTE: imported jobs and X posts (by support@revlo.ng) get original_url / original_kind for the admin.
+  const originals = await originalListings((data || []).filter(p => p.poster_email === SUPPORT_POSTER).map(p => p.uid)).catch(() => ({}));
+  return NextResponse.json({ posts: (data || []).map(p => (originals[p.uid] ? { ...p, original_url: originals[p.uid].url, original_kind: originals[p.uid].kind } : p)) });
 }

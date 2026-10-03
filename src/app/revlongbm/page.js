@@ -5,6 +5,8 @@ import Image from 'next/image';
 import ScamReports from './ScamReports';
 // NOTE (2026-10-03): X feed admin tab (additive).
 import XFeedAdmin from './XFeedAdmin';
+// NOTE (2026-10-03): support enquiries tab (additive).
+import SupportEnquiries from './SupportEnquiries';
 
 const GREEN = '#16803d';
 const RED = '#dc2626';
@@ -42,9 +44,9 @@ export default function AdminPage() {
     // The query string is an external browser value and is intentionally
     // synchronized once after hydration.
     // ORIGINAL (commented out 2026-10-03): if (['stats', 'reports', 'scam', 'posts', 'emails', 'bm', 'features', 'categories', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
-    // NOTE: adds the 'x-feed' tab.
+    // NOTE: adds the 'x-feed' and 'enquiries' tabs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (['stats', 'reports', 'scam', 'posts', 'emails', 'bm', 'features', 'categories', 'x-feed', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'scam', 'enquiries', 'posts', 'emails', 'bm', 'features', 'categories', 'x-feed', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -114,7 +116,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['x-feed', 'X feed'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['enquiries', 'Enquiries'], ['posts', 'All Posts'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['x-feed', 'X feed'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -139,6 +141,7 @@ export default function AdminPage() {
       {tab === 'reports' && <Reports />}
       {tab === 'scam' && <ScamReports />}
       {tab === 'x-feed' && <XFeedAdmin />}
+      {tab === 'enquiries' && <SupportEnquiries />}
       {tab === 'posts' && <AllPosts />}
       {tab === 'emails' && <Emails />}
       {tab === 'bm' && <BMLinks />}
@@ -453,6 +456,8 @@ function AllPosts() {
                           {p.deleted_at && <span style={{ marginLeft: 8, color: RED, fontSize: 12, fontWeight: 700 }}>DELETED</span>}
                           {!p.deleted_at && expired && <span style={{ marginLeft: 8, color: MUTED, fontSize: 12, fontWeight: 700 }}>EXPIRED</span>}
                           <div style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>Contact: {p.poster_email} · IP: {p.source_ip || 'Unavailable'} · {p.views} views · {p.followers} followers</div>
+                          {/* NOTE (2026-10-03, Claude): original listing for imported jobs / X posts (internal only). */}
+                          {p.original_url && <div style={{ fontSize: 13, marginTop: 4 }}><a href={p.original_url} target="_blank" rel="noopener noreferrer" style={{ color: '#b45309', fontWeight: 700 }}>{p.original_kind === 'x' ? 'Original X post ↗' : 'Original listing ↗'}</a> <span style={{ color: MUTED }}>(internal, never send this link to applicants)</span></div>}
                           {p.description && <div style={{ fontSize: 13, color: SUBTLE, marginTop: 6, maxWidth: 520 }}>{p.description}</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
