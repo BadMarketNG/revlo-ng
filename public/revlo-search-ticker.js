@@ -20,7 +20,15 @@
     .rv-st-track{position:absolute;top:0;bottom:0;left:0;display:flex;align-items:center;gap:8px;width:max-content;animation:rv-st-scroll var(--rv-st-dur,90s) linear infinite}
     .rv-st-viewport:hover .rv-st-track,.rv-st-viewport:focus-within .rv-st-track{animation-play-state:paused}
     .rv-st-item{flex:none;border:0;background:#eef6ef;color:#1b5e20;border-radius:999px;padding:6px 11px;font:600 13px/1 system-ui;cursor:pointer;white-space:nowrap}
-    .rv-st-item.rv-st-ending{background:#fff3df;color:#92400e}
+    .rv-st-item.rv-st-ending{display:inline-flex;align-items:center;gap:5px;background:#b45309;color:#fff;font-weight:800;box-shadow:0 0 0 2px rgba(180,83,9,.18)}
+    .rv-st-item.rv-st-ending small{font-weight:700;opacity:.9;font-size:12px}
+    /* Blinks slowly (about once a second, well under any flashing limit) so ending posts stand out. */
+    .rv-st-item.rv-st-ending{animation:rv-st-blink 1.1s ease-in-out infinite}
+    @keyframes rv-st-blink{0%,100%{background:#b45309;box-shadow:0 0 0 2px rgba(180,83,9,.18)}50%{background:#f59e0b;box-shadow:0 0 0 5px rgba(245,158,11,.28)}}
+    .rv-st-item.rv-st-ending:hover,.rv-st-item.rv-st-ending:focus-visible{background:#92400e;color:#fff}
+    .rv-st-dot{width:7px;height:7px;border-radius:50%;background:#fff;animation:rv-st-pulse 1.4s ease-in-out infinite}
+    @keyframes rv-st-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+    @media (prefers-reduced-motion:reduce){.rv-st-dot,.rv-st-item.rv-st-ending{animation:none}}
     .rv-st-item:hover,.rv-st-item:focus-visible{background:#1b5e20;color:#fff;outline:none}
     @keyframes rv-st-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     @media (prefers-reduced-motion:reduce){.rv-st-track{animation:none;position:static}.rv-st-viewport{overflow-x:auto}}
@@ -108,7 +116,17 @@
         button.className = 'rv-st-item';
         button.textContent = item.term;
         // 2026-10-03: tags from posts with under 6 hours left are marked, so people look before they go.
-        if (item.kind === 'ending') { button.classList.add('rv-st-ending'); button.prepend('⏳ '); button.title = 'Ending within 6 hours'; }
+        if (item.kind === 'ending') {
+          const mins = Number(item.endsInMinutes) || 0;
+          const left = mins >= 60 ? `${Math.floor(mins / 60)}h left` : `${Math.max(1, mins)}m left`;
+          button.classList.add('rv-st-ending');
+          button.textContent = '';
+          const dot = document.createElement('span'); dot.className = 'rv-st-dot'; dot.setAttribute('aria-hidden', 'true');
+          const when = document.createElement('small'); when.textContent = ` · ${left}`;
+          button.append(dot, `⏳ ${item.term}`, when);
+          button.title = `A post tagged "${item.term}" ends in ${left.replace(' left', '')}`;
+          button.setAttribute('aria-label', `${item.term}, post ending soon, ${left}`);
+        }
         if (copy) { button.setAttribute('aria-hidden', 'true'); button.tabIndex = -1; }
         button.addEventListener('click', () => { fill(input, item.term); count(item.term); input.focus(); sync(); });
         track.appendChild(button);

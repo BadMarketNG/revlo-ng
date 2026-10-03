@@ -43,7 +43,11 @@ export function buildTicker(pool, now = Date.now(), groupSize = GROUP_SIZE) {
   const unique = [...new Map(pool.filter(p => p && p.term).map(p => [p.term, p])).values()];
   const hasSearchData = unique.some(p => p.score >= 1);
   const taken = new Set();
-  const take = (list, kind) => list.filter(p => !taken.has(p.term)).slice(0, groupSize).map(p => { taken.add(p.term); return { term: p.term, kind }; });
+  const take = (list, kind) => list.filter(p => !taken.has(p.term)).slice(0, groupSize).map(p => {
+    taken.add(p.term);
+    // Ending-soon terms carry the time left, so the ticker can show it ("2h left").
+    return kind === 'ending' ? { term: p.term, kind, endsInMinutes: Math.max(1, Math.round((p.endingAt - now) / 60_000)) } : { term: p.term, kind };
+  });
 
   // Ending soon goes first, so these terms are never crowded out by the other groups.
   const endingCutoff = now + ENDING_HOURS * 3600_000;
