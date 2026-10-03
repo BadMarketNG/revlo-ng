@@ -2,6 +2,7 @@
 // Reads X within the budget (period, month and per-run caps), keeps only posts matching each search, and
 // publishes them as Revlo posts by support@revlo.ng.
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { randomUUID } from 'node:crypto';
 import { oauth1Header } from '@/lib/socialPost.mjs';
 import { makeUid, expiryFor } from '@/lib/util';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
@@ -40,7 +41,7 @@ export async function publishAsPosts(limit = 300) {
     const { data: claimed } = await supabaseAdmin.from('revlo_x_posts').update({ post_uid: uid }).eq('id', item.id).is('post_uid', null).select('id').maybeSingle();
     if (!claimed) continue;
     const { error } = await supabaseAdmin.from('posts').insert({
-      uid, poster_email: X_POSTER, ...xToPost(item), media_type: 'images', gallery: [],
+      uid, poster_email: X_POSTER, ...xToPost(item), media_type: 'images',
       contact_visibility: 'public', followable: true, duration: 'now', expires_at: expiryFor('now'), trust_badge: null, premium_badge: false,
     });
     if (error) { await supabaseAdmin.from('revlo_x_posts').update({ post_uid: null }).eq('id', item.id); console.error('[x-feed] post', error.code || error.message); continue; }
@@ -56,6 +57,15 @@ export async function runXFeed() {
   const { X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET } = process.env;
   if (!X_API_KEY || !X_API_SECRET || !X_ACCESS_TOKEN || !X_ACCESS_SECRET) return { skipped: 'no X keys', published: await publishAsPosts() };
 
+  // The cron and admin Run now share one lease. The conditional UPDATE is atomic:
+  // a second run cannot read the same budget and overwrite the first run's usage.
+  const owner = randomUUID();
+  const { data: lease, error: leaseError } = await supabaseAdmin.from('revlo_x_run_lock')
+    .update({ owner, expires_at: new Date(Date.now() + 120000).toISOString() })
+    .eq('id', true).lt('expires_at', new Date().toISOString()).select('owner').maybeSingle();
+  if (leaseError) throw new Error(`X feed lock unavailable: ${leaseError.message}`);
+  if (!lease) return { skipped: 'another X refresh is running' };
+  try {
   await supabaseAdmin.from('revlo_x_posts').delete().lt('fetched_at', new Date(Date.now() - KEEP_HOURS * 3600000).toISOString());
   const u = await xUsage(settings);
   let runRead = 0, requests = u.todayRequests, stored = 0, stopped = null;
@@ -98,4 +108,8 @@ export async function runXFeed() {
   const result = { read: runRead, periodRead: u.periodRead + runRead, stored, published, stopped };
   console.info('[x-feed]', JSON.stringify(result));
   return result;
+  } finally {
+    await supabaseAdmin.from('revlo_x_run_lock')
+      .update({ owner: null, expires_at: new Date(0).toISOString() }).eq('id', true).eq('owner', owner);
+  }
 }

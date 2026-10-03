@@ -83,6 +83,21 @@ test('X post pictures: first photo as header, second photo or the author picture
   assert.equal(post.thumb_url, 'https://pbs.twimg.com/media/2.jpg');
 });
 
+test('three X photos become one header and two gallery photos', async () => {
+  const { parseSearch, xToPost } = await import('../src/lib/xFeed.mjs');
+  const [source] = parseSearch({
+    data: [{ id: '7', text: 'Sofa for sale Lagos', author_id: 'u', attachments: { media_keys: ['a', 'b', 'c', 'd'] } }],
+    includes: {
+      users: [{ id: 'u', name: 'Seller', username: 'seller' }],
+      media: ['a', 'b', 'c', 'd'].map((key, index) => ({ media_key: key, type: 'photo', url: `https://pbs.twimg.com/media/${index + 1}.jpg` })),
+    },
+  }, { category: 'for_sale', city: 'Lagos' });
+  assert.equal(source.media_urls.length, 3);
+  const post = xToPost(source);
+  assert.equal(post.header_url, 'https://pbs.twimg.com/media/1.jpg');
+  assert.deepEqual(post.gallery, ['https://pbs.twimg.com/media/2.jpg', 'https://pbs.twimg.com/media/3.jpg']);
+});
+
 test('admin searches: whole-word match words, city check unless national', async () => {
   const { matchesSearch } = await import('../src/lib/xFeed.mjs');
   const rent = { match_words: 'to let, flat, self-contain', national: false };

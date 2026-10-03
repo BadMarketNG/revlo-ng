@@ -102,7 +102,10 @@ export function parseSearch(body, { category, city }) {
     if (!user || !tweet.text) return null;
     // ORIGINAL (2026-10-03): only the first photo was kept. NOTE: the first photo is the header and the
     // second photo (or the author's full-size profile picture) is the icon.
-    const photos = (tweet.attachments?.media_keys || []).map(k => media.get(k)).filter(Boolean).map(m => m.url || m.preview_image_url).filter(u => /^https:\/\//.test(u || ''));
+    const photos = [...new Set((tweet.attachments?.media_keys || []).map(k => media.get(k))
+      .filter(m => m?.type === 'photo' || (m && !m.type))
+      .map(m => m.url || m.preview_image_url)
+      .filter(u => /^https:\/\/pbs\.twimg\.com\//.test(u || '')))].slice(0, 3);
     const firstMedia = photos.length ? { url: photos[0] } : null;
     const avatar = /^https:\/\//.test(user.profile_image_url || '') ? user.profile_image_url.replace('_normal.', '_400x400.') : null;
     return {
@@ -114,6 +117,7 @@ export function parseSearch(body, { category, city }) {
       author_username: String(user.username).slice(0, 40),
       author_avatar: /^https:\/\//.test(user.profile_image_url || '') ? user.profile_image_url : null,
       media_url: firstMedia ? firstMedia.url : null,
+      media_urls: photos,
       icon_url: photos[1] || avatar,
       posted_at: tweet.created_at || new Date().toISOString(),
     };
@@ -147,6 +151,8 @@ export function xToPost(post, origin = 'https://revlo.ng') {
   const place = REVLO_PLACES.find(p => p.toLowerCase().startsWith(String(post.city).toLowerCase())) || 'Nigeria';
   const seed = seedOf(post.id);
   const headers = HEADERS[category] || (['gadgets', 'electronics', 'wears', 'vehicles'].includes(category) ? HEADERS.for_sale : HEADERS.general);
+  const photos = [...new Set((Array.isArray(post.media_urls) && post.media_urls.length ? post.media_urls : [post.media_url])
+    .filter(u => typeof u === 'string' && /^https:\/\/pbs\.twimg\.com\//.test(u)))].slice(0, 3);
   return {
     title: title.slice(0, 200),
     // ORIGINAL (2026-10-03): ended with 'Posted on X by Name (@handle): link'. Removed at the owner's request;
@@ -154,9 +160,10 @@ export function xToPost(post, origin = 'https://revlo.ng') {
     description: String(post.text).slice(0, 5000),
     location: place,
     category,
-    header_url: post.media_url && /^https:\/\/pbs\.twimg\.com\//.test(post.media_url) ? post.media_url : `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,
+    header_url: photos[0] || `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,
     // Posts saved before icon_url existed fall back to the author's saved picture (full size).
     thumb_url: [post.icon_url, post.author_avatar && String(post.author_avatar).replace('_normal.', '_400x400.')].find(u => u && /^https:\/\/pbs\.twimg\.com\//.test(u)) || `${origin}/samples/icons/icon-${ICONS[(seed >> 3) % ICONS.length]}.jpg`,
+    gallery: photos.slice(1),
     tags: ['x', category.replace('_', ' ')].filter(t => /^[a-z][a-z ]{1,30}$/.test(t)),
   };
 }
