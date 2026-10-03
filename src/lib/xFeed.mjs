@@ -124,3 +124,31 @@ export function remainingBudget({ todayRead, monthRead, runRead = 0 }) {
   const byMonth = Math.floor(MONTHLY_CAP_USD() / PRICE_PER_POST_USD()) - monthRead;
   return Math.max(0, Math.min(byDay, byMonth, byRun));
 }
+
+// X posts as Revlo posts (2026-10-03, owner's request): created by support@revlo.ng through the normal post
+// fields, with the author credited and the text unedited (X's rules). Contact goes to the author on X, so
+// the post's Revlo contact is private; posts last 24 hours (removed well within X's deletion window).
+const REVLO_PLACES = ['Lagos, Nigeria', 'Abuja FCT', 'Port Harcourt, Rivers'];
+const HEADERS = { jobs: ['jobs-1', 'jobs-2', 'jobs-3', 'jobs-4', 'jobs-5'], rentals: ['rentals-2', 'rentals-3', 'rentals-5'], for_sale: ['for_sale-3', 'for_sale-4', 'for_sale-5'], promotions: ['promotions-1', 'promotions-2', 'promotions-4', 'promotions-5'], general: ['general-1', 'general-3', 'general-4'] };
+const ICONS = ['01', '07', '12', '13', '14'];
+const seedOf = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+export const xPostUrl = post => `https://x.com/${encodeURIComponent(post.author_username)}/status/${encodeURIComponent(post.id)}`;
+
+export function xToPost(post, origin = 'https://revlo.ng') {
+  const category = post.category === 'politics' ? 'general' : post.category;
+  const firstLine = String(post.text).split('\n').map(l => l.trim()).find(l => /[\p{L}\p{N}]{3,}/u.test(l)) || post.text;
+  const clean = firstLine.replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
+  const title = (clean.length > 110 ? `${clean.slice(0, 107).replace(/\s+\S*$/, '')}…` : clean) || `Post from @${post.author_username}`;
+  const place = REVLO_PLACES.find(p => p.toLowerCase().startsWith(String(post.city).toLowerCase())) || 'Nigeria';
+  const seed = seedOf(post.id);
+  const headers = HEADERS[category] || HEADERS.general;
+  return {
+    title: title.slice(0, 200),
+    description: `${post.text}\n\nPosted on X by ${post.author_name} (@${post.author_username}): ${xPostUrl(post)}`.slice(0, 5000),
+    location: place,
+    category,
+    header_url: post.media_url && /^https:\/\/pbs\.twimg\.com\//.test(post.media_url) ? post.media_url : `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,
+    thumb_url: `${origin}/samples/icons/icon-${ICONS[(seed >> 3) % ICONS.length]}.jpg`,
+    tags: ['x', category.replace('_', ' ')].filter(t => /^[a-z][a-z ]{1,30}$/.test(t)),
+  };
+}

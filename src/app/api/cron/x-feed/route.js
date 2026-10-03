@@ -5,7 +5,33 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { oauth1Header } from '@/lib/socialPost.mjs';
-import { BLOCK_POST_CAP, KEEP_HOURS, blocksForRun, buildQuery, isRelevant, parseSearch, periodStart, remainingBudget } from '@/lib/xFeed.mjs';
+import { BLOCK_POST_CAP, KEEP_HOURS, blocksForRun, buildQuery, isRelevant, parseSearch, periodStart, remainingBudget, xToPost } from '@/lib/xFeed.mjs';
+import { makeUid, expiryFor } from '@/lib/util';
+import { notifyIndexNow } from '@/lib/indexNow.mjs';
+
+// NOTE (2026-10-03, owner's request): relevant X posts are published as Revlo posts by support@revlo.ng.
+const X_POSTER = 'support@revlo.ng';
+
+// Publishes cached X posts that do not have a Revlo post yet (newest first), within the last 24 hours.
+async function publishAsPosts(limit = 40) {
+  const { data: pending } = await supabaseAdmin.from('revlo_x_posts').select('*').is('post_uid', null)
+    .gt('fetched_at', new Date(Date.now() - 24 * 3600000).toISOString()).order('posted_at', { ascending: false }).limit(limit);
+  const created = [];
+  for (const item of (pending || []).filter(isRelevant)) {
+    const uid = makeUid();
+    // Claim first so a repeated run cannot publish the same X post twice.
+    const { data: claimed } = await supabaseAdmin.from('revlo_x_posts').update({ post_uid: uid }).eq('id', item.id).is('post_uid', null).select('id').maybeSingle();
+    if (!claimed) continue;
+    const { error } = await supabaseAdmin.from('posts').insert({
+      uid, poster_email: X_POSTER, ...xToPost(item), media_type: 'images', gallery: [],
+      contact_visibility: 'private', followable: false, duration: 'now', expires_at: expiryFor('now'), trust_badge: null, premium_badge: false,
+    });
+    if (error) { await supabaseAdmin.from('revlo_x_posts').update({ post_uid: null }).eq('id', item.id); console.error('[cron:x-feed] post', error.code || error.message); continue; }
+    created.push(uid);
+  }
+  if (created.length) await notifyIndexNow(created.map(u => `https://revlo.ng/p/${u}`));
+  return created.length;
+}
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -30,7 +56,7 @@ export async function GET(request) {
   let secret;
   try { secret = requiredSecret('CRON_SECRET'); } catch { return NextResponse.json({ error: 'service unavailable' }, { status: 503 }); }
   if (!constantTimeBearerMatches(request.headers.get('authorization') || '', secret)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (process.env.X_FEED_ENABLED !== '1') return NextResponse.json({ ok: true, skipped: 'X_FEED_ENABLED is not 1' });
+  if (process.env.X_FEED_ENABLED !== '1') return NextResponse.json({ ok: true, skipped: 'X_FEED_ENABLED is not 1', published: await publishAsPosts() });
   const { X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET } = process.env;
   if (!X_API_KEY || !X_API_SECRET || !X_ACCESS_TOKEN || !X_ACCESS_SECRET) return NextResponse.json({ ok: true, skipped: 'no X keys' });
 
@@ -77,6 +103,7 @@ export async function GET(request) {
     // Today's row keeps today's reads only (the period total is the sum of its days).
     await supabaseAdmin.from('revlo_x_usage').upsert({ day: u.today, posts_read: u.todayStored + (todayRead - u.todayRead), requests });
   }
-  console.info('[cron:x-feed]', JSON.stringify({ todayRead, monthReadBefore: u.monthRead, stored, stopped }));
-  return NextResponse.json({ ok: true, todayRead, stored, stopped });
+  const published = await publishAsPosts();
+  console.info('[cron:x-feed]', JSON.stringify({ todayRead, monthReadBefore: u.monthRead, stored, published, stopped }));
+  return NextResponse.json({ ok: true, todayRead, stored, published, stopped });
 }
