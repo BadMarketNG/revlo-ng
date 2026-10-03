@@ -119,24 +119,50 @@
     } else if ((!dayOnly || any) && empty) empty.remove();
   }
 
+  // ORIGINAL (2026-10-03): the chip copied the "All" button's classes, including its "active" (selected)
+  // look, so it always looked switched on and toggled on top of the selected category.
+  // NOTE: it now behaves like a category choice: unselected by default; selecting it shows every 24-hour
+  // post across all categories (All is selected behind it); choosing any category or All turns it off.
+  let ignoreCategoryClick = false;
   function addChip() {
     // The visible category bar only (the page also keeps hidden copies of some controls).
-    // Placed after "All" now that it covers every category.
-    const jobsButton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'All' && !b.closest('[role="radiogroup"], .rv-pf') && b.offsetParent !== null);
-    if (!jobsButton || jobsButton.parentElement.querySelector('.rv-ur-chip')) return;
-    const chip = jobsButton.cloneNode(false);
-    chip.className = `${jobsButton.className} rv-ur-chip`;
-    chip.removeAttribute('aria-current');
-    chip.type = 'button';
-    chip.textContent = '⚡ Gone in 24h';
-    chip.setAttribute('aria-pressed', 'false');
-    chip.addEventListener('click', () => {
-      dayOnly = !dayOnly;
-      chip.setAttribute('aria-pressed', String(dayOnly));
-      decorateCards();
-    });
-    jobsButton.insertAdjacentElement('afterend', chip);
+    const allButton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'All' && !b.closest('[role="radiogroup"], .rv-pf') && b.offsetParent !== null);
+    if (!allButton) return;
+    let chip = allButton.parentElement.querySelector('.rv-ur-chip');
+    if (!chip) {
+      chip = allButton.cloneNode(false);
+      chip.className = `${allButton.className.replace(/\bactive\b/g, '').trim()} rv-ur-chip`;
+      chip.removeAttribute('aria-current');
+      chip.type = 'button';
+      chip.textContent = '⚡ Gone in 24h';
+      chip.addEventListener('click', () => {
+        dayOnly = !dayOnly;
+        if (dayOnly && !allButton.classList.contains('active')) { ignoreCategoryClick = true; allButton.click(); ignoreCategoryClick = false; }
+        syncChip();
+        decorateCards();
+      });
+      allButton.insertAdjacentElement('afterend', chip);
+    }
+    syncChip();
   }
+  function syncChip() {
+    const allButton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'All' && !b.closest('[role="radiogroup"], .rv-pf') && b.offsetParent !== null);
+    const chip = allButton?.parentElement.querySelector('.rv-ur-chip');
+    if (!chip) return;
+    chip.className = `${allButton.className.replace(/\bactive\b/g, '').trim()} rv-ur-chip${dayOnly ? ' active' : ''}`;
+    chip.setAttribute('aria-pressed', String(dayOnly));
+    // While "Gone in 24h" is selected, it is the highlighted choice, not "All".
+    if (dayOnly) allButton.classList.remove('active');
+  }
+  // Choosing a category (or All) turns "Gone in 24h" off.
+  document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('.revlo-managed-categories button') : null;
+    if (!button || button.classList.contains('rv-ur-chip') || button.classList.contains('rv-al-chip') || ignoreCategoryClick || !dayOnly) return;
+    dayOnly = false; setTimeout(() => { syncChip(); decorateCards(); }, 0);
+  }, true);
+  document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLSelectElement && event.target.classList.contains('revlo-more-categories') && dayOnly) { dayOnly = false; setTimeout(() => { syncChip(); decorateCards(); }, 0); }
+  }, true);
 
   async function load() {
     try {
