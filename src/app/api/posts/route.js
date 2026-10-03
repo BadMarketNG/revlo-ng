@@ -178,13 +178,6 @@ export async function POST(request) {
   if (datingProfile?.error) return NextResponse.json({ error: datingProfile.error }, { status: 422 });
 
   const cleanEmail = normaliseEmail(poster_email);
-  if (category === 'dating') {
-    const { data: activeProfile, error: profileLookupError } = await supabaseAdmin.from('posts')
-      .select('uid').eq('poster_email', cleanEmail).eq('category', 'dating')
-      .is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1).maybeSingle();
-    if (profileLookupError) return NextResponse.json({ error: 'Could not check your active profile. Try again.' }, { status: 503 });
-    if (activeProfile) return NextResponse.json({ error: 'You already have an active Dating profile. Remove it or wait for it to expire before posting another.' }, { status: 409 });
-  }
   // NOTE (2026-09-30): poster_alias — absent keeps the current alias, '' removes it, text sets it.
   const aliasProvided = body && Object.prototype.hasOwnProperty.call(body, 'poster_alias');
   const aliasInput = aliasProvided ? cleanAlias(body.poster_alias) : null;
@@ -196,6 +189,13 @@ export async function POST(request) {
   const publishClaim = verifyToken(publish_token);
   if (!publishClaim || publishClaim.action !== 'publish' || publishClaim.email !== cleanEmail) {
     return NextResponse.json({ error: 'Open the publish link we emailed you to continue.' }, { status: 401 });
+  }
+  if (category === 'dating') {
+    const { data: activeProfile, error: profileLookupError } = await supabaseAdmin.from('posts')
+      .select('uid').eq('poster_email', cleanEmail).eq('category', 'dating')
+      .is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1).maybeSingle();
+    if (profileLookupError) return NextResponse.json({ error: 'Could not check your active profile. Try again.' }, { status: 503 });
+    if (activeProfile) return NextResponse.json({ error: 'You already have an active Dating profile. Remove it or wait for it to expire before posting another.' }, { status: 409 });
   }
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
   // NOTE (2026-10-01): suspended publishers cannot publish.
