@@ -47,7 +47,7 @@ test('focus: jobs, rent, items for sale (per city) and politics (national, news 
   assert.equal(isRelevant({ category: 'politics', city: 'Nigeria', text: 'Senate passes the new electoral bill' }), true);
   assert.equal(isRelevant({ category: 'politics', city: 'Nigeria', text: 'Super Eagles win friendly' }), false);
   assert.deepEqual(SHOWN_FOR.vehicles, ['for_sale']);
-  assert.equal(SHOWN_FOR.promotions, undefined);
+  assert.deepEqual(SHOWN_FOR.promotions, ['promotions']);  // already paid-for posts still show
 });
 
 test('the budget renews every 3 days', async () => {

@@ -49,7 +49,9 @@ export const X_QUERIES = {
 const NATIONAL = new Set(['politics']);
 
 // Which X posts a Revlo category shows (item categories all show the broad "for sale" search).
-export const SHOWN_FOR = { all: ['jobs', 'rentals', 'for_sale', 'politics'], jobs: ['jobs'], rentals: ['rentals'], for_sale: ['for_sale'], gadgets: ['for_sale'], electronics: ['for_sale'], wears: ['for_sale'], vehicles: ['for_sale'], general: ['politics'] };
+// Promotions posts already read (and paid for) keep showing until they expire, though no new
+// Promotions searches run (2026-10-03).
+export const SHOWN_FOR = { all: ['jobs', 'rentals', 'for_sale', 'politics', 'promotions'], jobs: ['jobs'], rentals: ['rentals'], for_sale: ['for_sale'], gadgets: ['for_sale'], electronics: ['for_sale'], wears: ['for_sale'], vehicles: ['for_sale'], general: ['politics'], promotions: ['promotions'] };
 
 export const blockKey = (category, city) => `${category}:${city}`;
 
