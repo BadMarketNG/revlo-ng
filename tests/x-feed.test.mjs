@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildQuery, blocksForRun, parseSearch, remainingBudget } from '../src/lib/xFeed.mjs';
 
 test('queries are original posts only, per category and city', () => {
-  const q = buildQuery('gadgets', 'Lagos');
+  const q = buildQuery('for_sale', 'Lagos');
   assert.match(q, /"Lagos" -is:retweet -is:reply lang:en$/);
   assert.ok(q.length < 512);
   assert.equal(buildQuery('general', 'Lagos'), null);
@@ -36,4 +36,16 @@ test('only real listings for the category and city are kept', async () => {
   assert.equal(isRelevant({ category: 'gadgets', city: 'Lagos', text: 'Clean iPhone 13 for sale in Lagos, DM' }), true);
   assert.equal(isRelevant({ category: 'gadgets', city: 'Lagos', text: 'My iPhone died in Lagos traffic lol' }), false);
   assert.equal(isRelevant({ category: 'rentals', city: 'Port Harcourt', text: '2 bedroom flat to let, Port Harcourt' }), true);
+});
+
+test('focus: jobs, rent, items for sale (per city) and politics (national, news outlets only)', async () => {
+  const { buildQuery, blocksForRun, isRelevant, SHOWN_FOR } = await import('../src/lib/xFeed.mjs');
+  assert.equal(blocksForRun(0).length, 10);
+  const politics = buildQuery('politics', 'Nigeria');
+  assert.match(politics, /from:PremiumTimesng/);
+  assert.doesNotMatch(politics, /"Nigeria"/);
+  assert.equal(isRelevant({ category: 'politics', city: 'Nigeria', text: 'Senate passes the new electoral bill' }), true);
+  assert.equal(isRelevant({ category: 'politics', city: 'Nigeria', text: 'Super Eagles win friendly' }), false);
+  assert.deepEqual(SHOWN_FOR.vehicles, ['for_sale']);
+  assert.equal(SHOWN_FOR.promotions, undefined);
 });

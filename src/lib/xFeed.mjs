@@ -11,8 +11,10 @@ export const KEEP_HOURS = 48;              // cached posts are kept this long
 
 export const X_CITIES = ['Lagos', 'Abuja', 'Port Harcourt'];
 
-// Search terms per Revlo category. Original posts only (no reposts or replies).
-export const X_QUERIES = {
+// ORIGINAL (2026-10-03, first version): nine category searches (jobs, rentals, for sale, gadgets,
+// electronics, wears, vehicles, repairs, promotions) in every city. NOTE: refocused on the owner's four
+// priorities: jobs, rent, items for sale (one broad search) and politics (news outlets only).
+export const X_QUERIES_ORIGINAL = {
   jobs: '(hiring OR vacancy OR "job opening" OR "we are recruiting")',
   rentals: '("to let" OR "for rent" OR "apartment for rent" OR "self contain" OR shortlet)',
   for_sale: '("for sale" OR "selling my" OR "now selling")',
@@ -24,6 +26,20 @@ export const X_QUERIES = {
   // ORIGINAL (2026-10-03): '(promo OR discount OR "% off" OR giveaway)' matched general chatter.
   promotions: '(promo OR discount OR "% off") (shop OR store OR order OR price OR dm)',
 };
+
+// Politics comes only from established news outlets' accounts, to keep rumours and abuse out.
+export const POLITICS_ACCOUNTS = ['PremiumTimesng', 'channelstv', 'MobilePunch', 'vanguardngrnews', 'TheCableng', 'BBCNewsPidgin', 'ARISEtv'];
+export const X_QUERIES = {
+  jobs: X_QUERIES_ORIGINAL.jobs,
+  rentals: X_QUERIES_ORIGINAL.rentals,
+  for_sale: '("for sale" OR selling OR "now selling" OR "dm for price") (phone OR laptop OR car OR shoes OR clothes OR tv OR generator OR furniture OR iphone)',
+  politics: `(${POLITICS_ACCOUNTS.map(a => `from:${a}`).join(' OR ')}) (election OR senate OR governor OR president OR INEC OR assembly OR minister OR party OR tinubu OR policy)`,
+};
+// Politics is national (one search); the others run per city.
+const NATIONAL = new Set(['politics']);
+
+// Which X posts a Revlo category shows (item categories all show the broad "for sale" search).
+export const SHOWN_FOR = { all: ['jobs', 'rentals', 'for_sale', 'politics'], jobs: ['jobs'], rentals: ['rentals'], for_sale: ['for_sale'], gadgets: ['for_sale'], electronics: ['for_sale'], wears: ['for_sale'], vehicles: ['for_sale'], general: ['politics'] };
 
 export const blockKey = (category, city) => `${category}:${city}`;
 
@@ -39,12 +55,14 @@ const RELEVANT = {
   vehicles: /\b(car|toyota|honda|lexus|tokunbo|benz|camry|corolla)\b/i,
   repairs: /\b(repair|technician|we fix|fixing|servicing)\b/i,
   promotions: /\b(promo|discount|% off|\d+%\s?off)\b/i,
+  politics: /\b(election|senate|senator|governor|president|presidency|inec|assembly|minister|party|tinubu|policy|lawmakers?|reps)\b/i,
 };
 const SALE_WORDS = /\b(for sale|selling|price|₦|naira|dm|order)\b/i;
 export function isRelevant(post) {
   const text = String(post.text || '');
   const pattern = RELEVANT[post.category];
   if (!pattern || !pattern.test(text)) return false;
+  if (NATIONAL.has(post.category)) return true;
   if (!new RegExp(`\\b${String(post.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) return false;
   // Item categories must also read like a sale.
   if (['gadgets', 'electronics', 'wears', 'vehicles'].includes(post.category) && !SALE_WORDS.test(text)) return false;
@@ -53,12 +71,12 @@ export function isRelevant(post) {
 export function buildQuery(category, city) {
   const terms = X_QUERIES[category];
   if (!terms) return null;
-  return `${terms} "${city}" -is:retweet -is:reply lang:en`;
+  return NATIONAL.has(category) ? `${terms} -is:retweet -is:reply` : `${terms} "${city}" -is:retweet -is:reply lang:en`;
 }
 
 /** All blocks, rotated so each refresh starts somewhere different (fair use of a small daily cap). */
 export function blocksForRun(runIndex) {
-  const all = Object.keys(X_QUERIES).flatMap(category => X_CITIES.map(city => ({ category, city, key: blockKey(category, city) })));
+  const all = Object.keys(X_QUERIES).flatMap(category => (NATIONAL.has(category) ? ['Nigeria'] : X_CITIES).map(city => ({ category, city, key: blockKey(category, city) })));
   const start = (runIndex * 7) % all.length;
   return [...all.slice(start), ...all.slice(0, start)];
 }
