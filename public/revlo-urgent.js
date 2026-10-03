@@ -107,6 +107,7 @@
       const keep = !dayOnly || Boolean(info);
       article.style.display = keep ? '' : 'none';
     });
+    syncCountLine();
     const empty = document.querySelector('.rv-ur-empty');
     const any = urgent.size > 0;
     if (dayOnly && !any && !empty) {
@@ -117,6 +118,23 @@
       note.querySelector('button').addEventListener('click', () => postButton()?.click());
       feed?.parentElement?.insertBefore(note, feed);
     } else if ((!dayOnly || any) && empty) empty.remove();
+  }
+
+  // The feed's "N live posts · N ideas" line counts everything in the tab; while "Gone in 24h" is on it is
+  // hidden and a line with the 24-hour count shows instead (the original line is left untouched for React).
+  function syncCountLine() {
+    const original = [...document.querySelectorAll('main *')].find(e => !e.classList.contains('rv-ur-count') && e.children.length <= 3 && /^\d+ live posts?/.test(e.textContent.trim()));
+    let mine = document.querySelector('.rv-ur-count');
+    if (!dayOnly || !original) {
+      mine?.remove();
+      document.querySelectorAll('[data-rv-ur-hidden]').forEach(e => { e.style.display = ''; e.removeAttribute('data-rv-ur-hidden'); });
+      return;
+    }
+    const shown = [...document.querySelectorAll('article[id^="post-"]')].filter(a => a.style.display !== 'none').length;
+    if (!mine) { mine = document.createElement(original.tagName); mine.className = `${original.className} rv-ur-count`; original.insertAdjacentElement('afterend', mine); }
+    mine.style.cssText = original.style.cssText; mine.style.display = '';
+    mine.innerHTML = `<strong>${shown}</strong> live post${shown === 1 ? '' : 's'} · gone in 24h`;
+    original.style.display = 'none'; original.setAttribute('data-rv-ur-hidden', '1');
   }
 
   // ORIGINAL (2026-10-03): the chip copied the "All" button's classes, including its "active" (selected)

@@ -21,8 +21,12 @@
   const categoryRequest = (input) => {
     const raw = typeof input === 'string' ? input : input.url;
     const url = new URL(raw, location.origin);
-    if (selectedCategory) url.searchParams.set('category', selectedCategory);
-    else url.searchParams.delete('category');
+    // ORIGINAL (commented out 2026-10-03):
+    // if (selectedCategory) url.searchParams.set('category', selectedCategory);
+    // else url.searchParams.delete('category');
+    // NOTE: the feed always loads the whole tab and filters by category in the browser (instant, and
+    // switching back to All after a tab change no longer shows only the previous category).
+    url.searchParams.delete('category');
     if (typeof input === 'string') return `${url.pathname}${url.search}`;
     return new Request(url.toString(), input);
   };
@@ -68,7 +72,9 @@
     window.dispatchEvent(new CustomEvent("revlo:category-change", { detail: selectedCategory }));
     selectionGeneration += 1;
     renderToolbar();
-    refreshFeed();
+    // ORIGINAL (commented out 2026-10-03): refreshFeed();
+    // NOTE: refreshFeed clicked the hidden original "Jobs" then "All", which reset the feed's own category
+    // filter to All, so real posts never filtered. The feed now filters on revlo:category-change (above).
   }
 
   function renderToolbar() {

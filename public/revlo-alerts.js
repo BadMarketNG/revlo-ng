@@ -84,7 +84,9 @@
     const all = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'All' && !b.closest('[role="radiogroup"], .rv-pf, .rv-al-dialog') && b.offsetParent !== null);
     if (!all || all.parentElement.querySelector('.rv-al-chip')) return;
     const chip = all.cloneNode(false);
-    chip.className = `${all.className} rv-al-chip`;
+    // ORIGINAL (commented out 2026-10-03): chip.className = `${all.className} rv-al-chip`;
+    // NOTE: drop "active" so Alert me never looks selected (it copied All's selected look).
+    chip.className = `${all.className.replace(/\bactive\b/g, '').trim()} rv-al-chip`;
     chip.removeAttribute('aria-current');
     chip.removeAttribute('aria-pressed');
     chip.type = 'button';
