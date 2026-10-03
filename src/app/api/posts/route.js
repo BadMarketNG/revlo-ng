@@ -183,7 +183,13 @@ export async function POST(request) {
   if (media_type === 'video' && !publisherStatus.videoEligible) {
     return NextResponse.json({ error: `Video unlocks with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
-  if (duration === '2m' && !publisherStatus.trustBadge) {
+  // NOTE (2026-10-03): post lengths by badge. No badge: the 'now' option only, lasting 18 hours (shown
+  // under the 24-hour tab). Bronze: 24 hours and 72 hours ('1m'). Silver: + 1 week ('2m'). Gold: + 2½ weeks ('3m').
+  if (duration === '1m' && !publisherStatus.trustBadge) {
+    return NextResponse.json({ error: `72-hour posts unlock with the Bronze badge at ${publisherStatus.settings.bronze_posts} posts.` }, { status: 403 });
+  }
+  // ORIGINAL (2026-10-03): if (duration === '2m' && !publisherStatus.trustBadge) {
+  if (duration === '2m' && !['silver', 'gold'].includes(publisherStatus.trustBadge)) {
     return NextResponse.json({ error: `1-week posts unlock with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
   if (duration === '3m' && publisherStatus.trustBadge !== 'gold') {
@@ -238,7 +244,10 @@ export async function POST(request) {
     return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
   }
 
-  const expires_at = expiryFor(duration);
+  // ORIGINAL (2026-10-03): const expires_at = expiryFor(duration);
+  const expires_at = duration === 'now' && !publisherStatus.trustBadge
+    ? new Date(Date.now() + 18 * 3600000).toISOString()
+    : expiryFor(duration);
   const settings = await getFeatureSettings();
   const postCountAfterPublish = publisherStatus.publishedPosts + 1;
   // ORIGINAL (commented out 2026-09-29): ignored an administrator's badge award or removal.

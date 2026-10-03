@@ -54,7 +54,7 @@ const SECTIONS = [
   ],
   ['How long we keep it',
     [
-      'Posts stop being public when they expire (after 24 hours, 72 hours, 1 week or 2½ weeks, as you choose) or when you delete them.',
+      'Posts stop being public when they expire (after 18 hours, or 24 hours, 72 hours, 1 week or 2½ weeks as your badge allows) or when you delete them.',
       'Records of posts, emails, reports and blocks are kept only as long as needed for safety, dispute resolution and fraud prevention, and are then deleted or anonymised.',
       'Payment records are kept for as long as tax and accounting law requires.',
       'View session IDs rotate every hour. The online-visitor ID stays in your browser until you clear your site data.',

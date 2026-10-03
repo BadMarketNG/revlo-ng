@@ -137,7 +137,8 @@
     if (!publish) return;
     const s = state.publisher.settings;
     const posts = Number(state.publisher.publishedPosts) || 0;
-    const rank = { silver: 1, bronze: 2, gold: 3 }[state.publisher.trustBadge] || 0;
+    // ORIGINAL (2026-10-03): { silver: 1, bronze: 2, gold: 3 }
+    const rank = { bronze: 1, silver: 2, gold: 3 }[state.publisher.trustBadge] || 0;
     const tiers = [
       // ORIGINAL (commented out 2026-09-29):
       // { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: 'Video posts and 2-month posts' },
@@ -145,8 +146,9 @@
       // { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: '3-month posts and the top trust mark' },
       // NOTE: each badge now also gives a multi-post publish link with no time limit
       // (src/lib/revloFeatures.js PUBLISH_LINK_ALLOWANCE). Without a badge, a link is 5 posts (administrator-set) within 30 minutes.
-      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: `Video posts, 1-week posts, and publish links for ${s.silver_link_posts || 50} posts with no time limit` },
-      { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: `A stronger trust mark on every post, and publish links for ${s.bronze_link_posts || 100} posts with no time limit` },
+      // ORIGINAL (2026-10-03): Silver listed first, then Bronze. NOTE: Bronze < Silver < Gold.
+      { key: 'bronze', name: 'Bronze', posts: s.bronze_posts, unlocks: `24-hour and 72-hour posts, and publish links for ${s.bronze_link_posts || 50} posts with no time limit` },
+      { key: 'silver', name: 'Silver', posts: s.silver_posts, unlocks: `Video posts, 1-week posts, a stronger trust mark, and publish links for ${s.silver_link_posts || 100} posts with no time limit` },
       { key: 'gold', name: 'Gold', posts: s.gold_posts, unlocks: `2½-week posts, the top trust mark, and publish links for ${s.gold_link_posts || 200} posts with no time limit` },
     ].map((tier, index) => ({ ...tier, earned: rank >= index + 1 || posts >= tier.posts }));
     const current = [...tiers].reverse().find((tier) => tier.earned);

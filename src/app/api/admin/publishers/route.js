@@ -23,7 +23,7 @@ export async function POST(request) {
   const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) : '';
   let override;
   if (body.action === 'award') {
-    if (!['silver', 'bronze', 'gold'].includes(body.badge)) return NextResponse.json({ error: 'Choose Silver, Bronze or Gold.' }, { status: 400 });
+    if (!['bronze', 'silver', 'gold'].includes(body.badge)) return NextResponse.json({ error: 'Choose Bronze, Silver or Gold.' }, { status: 400 });
     override = body.badge;
   } else if (body.action === 'remove') {
     override = 'none';

@@ -523,7 +523,7 @@ function UsersAndEmail() {
             <p style={{ margin: '4px 0', color: MUTED }}>Administrator setting: {overrideText}</p>
             <textarea style={{ ...inp, marginTop: 10, minHeight: 70 }} placeholder="Reason (optional, included in the email)" value={reason} onChange={(e) => setReason(e.target.value.slice(0, 500))} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-              {['silver', 'bronze', 'gold'].map((badge) => (
+              {['bronze', 'silver', 'gold'].map((badge) => (
                 <button key={badge} style={miniBtn('#b8860b')} disabled={busy} onClick={() => change('award', badge)}>Award {BADGE_LABEL[badge]}</button>
               ))}
               <button style={miniBtn(RED)} disabled={busy} onClick={() => change('remove')}>Remove badge</button>

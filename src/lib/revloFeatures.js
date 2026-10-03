@@ -1,13 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normaliseEmail } from '@/lib/revloBlocklist';
 
+// ORIGINAL (2026-10-03): silver_posts 100, bronze_posts 500, silver_link_posts 50, bronze_link_posts 100
+// (Silver came first). NOTE: badge order is now Bronze < Silver < Gold (owner's request).
 export const DEFAULT_FEATURE_SETTINGS = Object.freeze({
-  silver_posts: 100,
-  bronze_posts: 500,
+  bronze_posts: 100,
+  silver_posts: 500,
   gold_posts: 1500,
   normal_link_posts: 5,
-  silver_link_posts: 50,
-  bronze_link_posts: 100,
+  bronze_link_posts: 50,
+  silver_link_posts: 100,
   gold_link_posts: 200,
   premium_min_posts: 10,
   premium_price_kobo: 500000,
@@ -37,9 +39,10 @@ export function earnedBadge(count, settings, override = null) {
   // NOTE: 'none' is an administrator removal and means no badge at any post count.
   if (override === 'none') return null;
   if (override) return override;
+  // ORIGINAL (2026-10-03): gold, then bronze, then silver (Silver was the first badge).
   if (count >= settings.gold_posts) return 'gold';
-  if (count >= settings.bronze_posts) return 'bronze';
   if (count >= settings.silver_posts) return 'silver';
+  if (count >= settings.bronze_posts) return 'bronze';
   return null;
 }
 
@@ -63,7 +66,8 @@ export async function getPublisherStatus(email) {
     earnedTrustBadge: earnedBadge(publishedPosts, settings),
     premiumActive: Boolean(premium),
     premiumUntil: premium?.active_until || null,
-    videoEligible: Boolean(trustBadge),
+    // ORIGINAL (2026-10-03): videoEligible: Boolean(trustBadge) (any badge, when Silver was the first one).
+    videoEligible: trustBadge === 'silver' || trustBadge === 'gold',
     premiumEligible: publishedPosts >= settings.premium_min_posts,
     settings: publicSettings(settings),
   };
@@ -103,7 +107,8 @@ export async function incrementPublisherPosts(email) {
 // ── Publish link allowance by badge (2026-09-29) ─────────────────────────────
 // Posts one emailed publish link can create. Badge links have no time limit;
 // normal links allow one post within 30 minutes.
-export const PUBLISH_LINK_ALLOWANCE = Object.freeze({ silver: 50, bronze: 100, gold: 200 });
+// ORIGINAL (2026-10-03): { silver: 50, bronze: 100, gold: 200 }
+export const PUBLISH_LINK_ALLOWANCE = Object.freeze({ bronze: 50, silver: 100, gold: 200 });
 export const NORMAL_LINK_MINUTES = 30;
 
 // ORIGINAL (commented out 2026-09-29): fixed allowances only.

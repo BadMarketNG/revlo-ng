@@ -78,7 +78,7 @@ const SECTIONS = [
   ['Badges and Premium',
     [
       'Silver, Bronze and Gold badges are earned by publishing genuine, verified posts over time. Premium Green is a paid badge.',
-      'Badges unlock longer posts and video: Silver unlocks 1-week posts and video, and Gold unlocks 2½-week posts. Everyone can post for 24 hours or 72 hours.',
+      'Badges unlock longer posts and video: Bronze unlocks 24-hour and 72-hour posts, Silver unlocks 1-week posts and video, and Gold unlocks 2½-week posts. Without a badge, posts appear under the 24-hour tab and stay up for 18 hours.',
       'Badges show activity and payment, not a guarantee of identity, quality or trustworthiness. Always do your own checks.',
       'Trying to game badges (for example with fake or duplicate posts) will lead to the badge being removed and the account blocked.',
       'Revlo may remove any badge from a publisher who breaks these rules.',

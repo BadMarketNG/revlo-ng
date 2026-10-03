@@ -4,8 +4,10 @@
   // Gold. (2026-10-03: was 2 months / 3 months; the form labels are now 7d / 17½d.) The server enforces this in /api/posts; here the choices are shown
   // as locked in the form.
   const RULES = [
-    // ORIGINAL (2026-10-03): match: /^60d/ and /^90d/
-    { match: /^7d/, badge: 'Silver', ok: (b) => Boolean(b), posts: (s) => s?.silver_posts || 100 },
+    // ORIGINAL (2026-10-03): match: /^60d/ and /^90d/; Silver ok: Boolean(b), posts 100.
+    // NOTE: Bronze (first badge) unlocks 72 hours; Silver 1 week; Gold 2½ weeks.
+    { match: /^72h/, badge: 'Bronze', ok: (b) => Boolean(b), posts: (s) => s?.bronze_posts || 100 },
+    { match: /^7d/, badge: 'Silver', ok: (b) => b === 'silver' || b === 'gold', posts: (s) => s?.silver_posts || 500 },
     { match: /^17½d/, badge: 'Gold', ok: (b) => b === 'gold', posts: (s) => s?.gold_posts || 1500 },
   ];
 
@@ -24,6 +26,15 @@
     const group = document.querySelector('[role="radiogroup"][aria-label="Duration"]');
     if (!group) return;
     const status = publisher();
+    // NOTE (2026-10-03): without a badge a post stays up 18 hours (shown under the 24-hour tab); say so once.
+    let note = group.parentElement?.querySelector('.revlo-badge-length-note');
+    if (!status?.trustBadge && !note) {
+      note = document.createElement('p');
+      note.className = 'revlo-badge-length-note';
+      note.style.cssText = 'margin:6px 2px 0;font:600 12px/1.4 system-ui;color:#6b6b6b';
+      note.textContent = `Without a badge, posts stay up for 18 hours. Bronze (${status?.settings?.bronze_posts || 100} posts) unlocks 24 and 72 hours.`;
+      group.insertAdjacentElement('afterend', note);
+    } else if (status?.trustBadge && note) note.remove();
     const buttons = [...group.querySelectorAll('button[role="radio"]')];
     for (const button of buttons) {
       const rule = RULES.find((r) => r.match.test(button.textContent.trim()));
