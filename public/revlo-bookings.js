@@ -16,11 +16,11 @@
   ];
   const PROPERTY = { room: 'Room', self_contain: 'Self-contain', '1_bed': '1 bedroom', '2_bed': '2 bedrooms', '3_bed': '3 bedrooms', '4_bed': '4+ bedrooms', shop: 'Shop', office: 'Office' };
   const FURNISH = { furnished: 'Furnished', unfurnished: 'Unfurnished', serviced: 'Serviced' };
-  const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Vehicles: 'vehicles', Dating: 'dating', Promotions: 'promotions', General: 'general' };
+  const LABELS = { All: 'all', Jobs: 'jobs', Rentals: 'rentals', 'For Sale': 'for_sale', Vehicles: 'vehicles', Promotions: 'promotions', General: 'general' };
   const extras = { booking: {}, details: {}, bumped: new Set(), outcomes: {} };
   const asked = new Set();
   let category = 'all';
-  const filter = { property: '', maxRent: '', minAge: '', maxAge: '', intent: '' };
+  const filter = { property: '', maxRent: '' };
 
   const style = document.createElement('style');
   style.textContent = `
@@ -90,19 +90,25 @@
     dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-label', 'Book a viewing or call');
     const sheet = el('div', 'rv-bk-sheet');
     const closeBtn = el('button', 'rv-bk-close', '×'); closeBtn.type = 'button'; closeBtn.setAttribute('aria-label', 'Close');
-    sheet.append(closeBtn, el('h3', '', 'Book a time'));
-    const sub = el('p', 'rv-bk-sub', 'Loading free times…'); sheet.appendChild(sub);
+    sheet.append(closeBtn, el('h3', '', sample ? 'How viewing requests work' : 'Request a viewing time'));
+    const sub = el('p', 'rv-bk-sub', 'Loading viewing times…'); sheet.appendChild(sub);
     dialog.appendChild(sheet); document.body.appendChild(dialog);
     const close = () => { dialog.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = e => { if (e.key === 'Escape') close(); };
     closeBtn.addEventListener('click', close); dialog.addEventListener('click', e => { if (e.target === dialog) close(); }); document.addEventListener('keydown', onKey);
-    if (sample) { sub.textContent = 'This is an example post. On real Rentals and For Sale posts you pick a free time here, and the poster confirms by email.'; sheet.appendChild(safetyBox()); return; }
+    if (sample) {
+      sub.textContent = 'This is an example listing, so there is no seller to book. On a live rental or vehicle post:';
+      const steps = el('ol', 'rv-bk-sub');
+      ['Choose a time to propose.', 'Enter your name, phone and email.', 'Confirm the request using the email link.', 'The poster accepts or declines and you get their answer by email.'].forEach(step => steps.appendChild(el('li', '', step)));
+      sheet.append(steps, safetyBox());
+      return;
+    }
 
     let data;
     try { const r = await fetch(`/api/bookings/slots?uid=${encodeURIComponent(uid)}`, { cache: 'no-store' }); data = await r.json(); if (!r.ok) throw new Error(data.error); }
     catch (error) { sub.textContent = error.message || 'Could not load times. Please try again.'; return; }
     sub.textContent = `${data.title}${data.location ? ` · ${data.location}` : ''}`;
-    if (!data.slots.length) { sheet.append(el('p', 'rv-bk-msg err', 'No free times left for this post. Try Contact instead.'), safetyBox()); return; }
+    if (!data.slots.length) { sheet.append(el('p', 'rv-bk-msg err', 'No viewing times are available to request. Try Contact instead.'), safetyBox()); return; }
 
     const choice = { mode: data.modes.includes('viewing') ? 'viewing' : 'call', slot: null };
     const seg = el('div', 'rv-bk-seg');
@@ -117,7 +123,7 @@
       byDay.get(key).forEach(s => { const b = el('button', 'rv-bk-slot', timeLabel(s)); b.type = 'button'; b.setAttribute('aria-pressed', String(choice.slot === s)); b.addEventListener('click', () => { choice.slot = s; slots.querySelectorAll('.rv-bk-slot').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }); slots.appendChild(b); });
     };
     [...byDay.keys()].forEach(key => { const d = lagos(byDay.get(key)[0]); const b = el('button', 'rv-bk-day'); b.type = 'button'; b.dataset.key = key; b.append(DAYS[d.getUTCDay()], el('small', '', `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`)); b.addEventListener('click', () => showDay(key)); days.appendChild(b); });
-    sheet.append(el('div', 'rv-bk-sub', 'Pick a day and time (Lagos time)'), days, slots);
+    sheet.append(el('div', 'rv-bk-sub', data.proposed ? 'Suggest a day and time (Lagos time). This is a request; the poster must confirm it.' : 'Pick a day and time (Lagos time)'), days, slots);
     showDay(byDay.keys().next().value);
 
     const form = el('form', 'rv-bk-form'); form.noValidate = true;
@@ -233,8 +239,6 @@
     if (details.furnishing) out.push(FURNISH[details.furnishing]);
     if (details.price) out.push(money(details.price));
     if (details.condition) out.push(details.condition);
-    if (details.age) out.push(`${details.age} years old`);
-    if (details.intent) out.push({ dating: 'Looking to date', relationship: 'Seeking a relationship', marriage: 'Seeking marriage' }[details.intent]);
     return out.filter(Boolean);
   }
 
@@ -244,7 +248,8 @@
       const uid = article.id.slice(5);
       const contact = [...article.querySelectorAll('button, a')].find(b => /Contact/.test(b.textContent));
       const cardCategory = article.querySelector('span')?.textContent.trim().toLowerCase();
-      const modes = sample ? (['rentals', 'for sale', 'vehicles'].includes(cardCategory) ? ['viewing'] : null) : extras.booking[uid];
+      const modes = article.dataset.postType === 'wanted' ? null : sample ? (['rentals', 'for sale', 'vehicles'].includes(cardCategory) ? ['viewing'] : null)
+        : extras.booking[uid] || (['rentals', 'vehicles'].includes(cardCategory) ? ['viewing'] : null);
       const gone = !sample && extras.outcomes[uid];
       if (gone && !article.querySelector('.rv-bk-done')) {
         if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
@@ -254,7 +259,7 @@
       }
       if (modes && contact && !gone && !article.querySelector('.rv-bk-btn')) {
         const visitText = cardCategory === 'promotions' ? '📅 Book a slot' : cardCategory === 'vehicles' ? '📅 Book a vehicle viewing' : cardCategory === 'for sale' ? '📅 Book to see it' : '📅 Book a viewing';
-        const b = el('button', 'rv-bk-btn', modes.includes('viewing') ? visitText : '📞 Book a call'); b.type = 'button';
+        const b = el('button', 'rv-bk-btn', sample ? '📅 How viewing works' : modes.includes('viewing') ? visitText : '📞 Book a call'); b.type = 'button';
         b.addEventListener('click', e => { e.stopPropagation(); openBooking(uid, sample); });
         contact.insertAdjacentElement('afterend', b);
       }
@@ -269,7 +274,7 @@
         link.addEventListener('click', e => { e.stopPropagation(); openBump(uid); });
         footer.insertAdjacentElement('beforebegin', link);
         const verb = { rentals: 'let', 'for sale': 'sold', jobs: 'filled' }[cardCategory];
-        if (verb && !extras.outcomes[uid]) {
+        if (verb && article.dataset.postType !== 'wanted' && !extras.outcomes[uid]) {
           const mark = el('button', 'rv-bk-bump-link', `✓ Mark as ${verb}`); mark.type = 'button'; mark.style.marginLeft = '10px';
           mark.addEventListener('click', e => { e.stopPropagation(); openMarkGone(uid, verb); });
           link.insertAdjacentElement('afterend', mark);
@@ -285,8 +290,7 @@
       }
       // Rentals filter: hide cards that do not match (cards without details are hidden only while a filter is set).
       const d = details || {};
-      const hide = (category === 'rentals' && ((filter.property && d.property !== filter.property) || (filter.maxRent && !(d.rent && d.rent <= Number(filter.maxRent)))))
-        || (category === 'dating' && ((filter.intent && d.intent !== filter.intent) || (filter.minAge && !(d.age >= Number(filter.minAge))) || (filter.maxAge && !(d.age <= Number(filter.maxAge)))));
+      const hide = category === 'rentals' && ((filter.property && d.property !== filter.property) || (filter.maxRent && !(d.rent && d.rent <= Number(filter.maxRent))));
       if (hide) article.dataset.rvBkHidden = '1'; else delete article.dataset.rvBkHidden;
     });
     filterBar();
@@ -295,32 +299,17 @@
   function filterBar() {
     const first = document.querySelector('article[id^="post-"]');
     let bar = document.querySelector('.rv-bk-filter');
-    if (!['rentals', 'dating'].includes(category) || !first) { bar?.remove(); return; }
+    if (category !== 'rentals' || !first) { bar?.remove(); return; }
     if (bar && bar.dataset.category !== category) { bar.remove(); bar = null; }
     if (!bar) {
       bar = el('div', 'rv-bk-filter');
       bar.dataset.category = category;
-      if (category === 'dating') {
-        bar.append('Filter profiles:');
-        const intent = el('select'); intent.setAttribute('aria-label', 'Looking for');
-        [['', 'Any intention'], ['dating', 'Dating'], ['relationship', 'Relationship'], ['marriage', 'Marriage']].forEach(([v, t]) => intent.add(new Option(t, v)));
-        intent.value = filter.intent;
-        const minimum = el('select'); minimum.setAttribute('aria-label', 'Minimum age'); minimum.add(new Option('Any age', ''));
-        const maximum = el('select'); maximum.setAttribute('aria-label', 'Maximum age'); maximum.add(new Option('Any age', ''));
-        [18, 21, 25, 30, 35, 40, 50, 60].forEach(n => { minimum.add(new Option(`From ${n}`, String(n))); maximum.add(new Option(`Up to ${n}`, String(n))); });
-        minimum.value = filter.minAge; maximum.value = filter.maxAge;
-        intent.addEventListener('change', () => { filter.intent = intent.value; decorate(); });
-        minimum.addEventListener('change', () => { filter.minAge = minimum.value; decorate(); });
-        maximum.addEventListener('change', () => { filter.maxAge = maximum.value; decorate(); });
-        bar.append(intent, minimum, maximum);
-      } else {
-        bar.append('Filter rentals:');
-        const type = el('select'); type.setAttribute('aria-label', 'Type'); type.add(new Option('Any type', '')); Object.entries(PROPERTY).forEach(([v, t]) => type.add(new Option(t, v))); type.value = filter.property;
-        const rent = el('select'); rent.setAttribute('aria-label', 'Maximum rent'); rent.add(new Option('Any rent', '')); [300000, 500000, 1000000, 1500000, 2500000, 5000000].forEach(n => rent.add(new Option(`Up to ${money(n)}`, String(n)))); rent.value = filter.maxRent;
-        type.addEventListener('change', () => { filter.property = type.value; decorate(); });
-        rent.addEventListener('change', () => { filter.maxRent = rent.value; decorate(); });
-        bar.append(type, rent);
-      }
+      bar.append('Filter rentals:');
+      const type = el('select'); type.setAttribute('aria-label', 'Type'); type.add(new Option('Any type', '')); Object.entries(PROPERTY).forEach(([v, t]) => type.add(new Option(t, v))); type.value = filter.property;
+      const rent = el('select'); rent.setAttribute('aria-label', 'Maximum rent'); rent.add(new Option('Any rent', '')); [300000, 500000, 1000000, 1500000, 2500000, 5000000].forEach(n => rent.add(new Option(`Up to ${money(n)}`, String(n)))); rent.value = filter.maxRent;
+      type.addEventListener('change', () => { filter.property = type.value; decorate(); });
+      rent.addEventListener('change', () => { filter.maxRent = rent.value; decorate(); });
+      bar.append(type, rent);
     }
     const list = first.parentElement;
     if (bar.nextElementSibling !== list) list.insertAdjacentElement('beforebegin', bar);
@@ -328,9 +317,10 @@
 
   // Hero: call to action and chip.
   function hero() {
-    const post = [...document.querySelectorAll('button')].find(b => /Post something/.test(b.textContent) && b.offsetParent !== null);
+    document.querySelectorAll('article .rv-bk-cta').forEach(button => button.remove());
+    const post = [...document.querySelectorAll('button')].find(b => /Post something/.test(b.textContent) && b.offsetParent !== null && !b.closest('article'));
     if (post && !document.querySelector('.rv-bk-cta')) {
-      const cta = el('button', 'rv-bk-cta', '📅 Book a viewing'); cta.type = 'button';
+      const cta = el('button', 'rv-bk-cta', '📅 Find a place to view'); cta.type = 'button';
       cta.addEventListener('click', () => {
         const rentals = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Rentals' && b.offsetParent !== null);
         category = 'rentals'; rentals?.click();
@@ -338,12 +328,15 @@
       });
       post.insertAdjacentElement('afterend', cta);
     }
+    const heroActions = post?.parentElement;
+    const helper = heroActions && [...heroActions.querySelectorAll('span')].find(s => /Takes a minute\. Your email is never shown\./.test(s.textContent));
+    if (helper) helper.textContent = 'Pick a time to request. Confirm by email. The poster replies with a yes or no.';
     // The hero's feature chips are spans with an emoji and a label; add one after "No comments or debates".
     const pill = [...document.querySelectorAll('#revlo-header-details span.revlo-theme-muted-surface')].find(e => /No comments or debates/.test(e.textContent));
     if (pill && !pill.parentElement.querySelector('.rv-bk-chip')) {
       const copy = pill.cloneNode(false); copy.classList.add('rv-bk-chip');
       const icon = el('span', '', '📅'); icon.setAttribute('aria-hidden', 'true');
-      copy.append(icon, 'Viewings booked online');
+      copy.append(icon, 'Request viewings online');
       pill.insertAdjacentElement('afterend', copy);
     }
   }

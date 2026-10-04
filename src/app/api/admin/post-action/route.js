@@ -4,6 +4,7 @@ import { isAdminRequest } from '@/lib/adminAuth';
 import { expiryFor, isValidDuration } from '@/lib/util';
 import { isConfiguredCategory } from '@/lib/revloCategories';
 import { addAutomaticBlocks } from '@/lib/revloBlocklist';
+import { hasPostLink } from '@/lib/postLinks.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,9 @@ export async function POST(request) {
     update = { duration, expires_at: expiryFor(duration) };
     detail = { duration };
   } else if (action === 'edit') {
+    if (hasPostLink(title, description)) {
+      return NextResponse.json({ error: 'Remove links to other sites from the post.' }, { status: 422 });
+    }
     update = {};
     if (typeof title === 'string' && title.trim().length >= 2) update.title = title.trim();
     if (typeof description === 'string') update.description = description.slice(0, 5000);

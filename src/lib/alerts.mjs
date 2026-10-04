@@ -13,11 +13,13 @@ export function cleanAlert(body) {
   const category = Object.hasOwn(ALERT_CATEGORIES, body?.category) ? body.category : 'all';
   const area = ALERT_AREAS.includes(body?.area) ? body.area : 'all';
   const keyword = String(body?.keyword || '').replace(/[^\p{L}\p{N}&' -]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) || null;
-  return { value: { email, category, area, keyword } };
+  const post_type = body?.post_type === 'wanted' ? 'wanted' : 'offer';
+  return { value: { email, category, area, keyword, post_type } };
 }
 
 /** Whether a post matches an alert (the cron's query already narrows by category and date). */
 export function matches(alert, post) {
+  if ((alert.post_type || 'offer') !== (post.post_type || 'offer')) return false;
   if (alert.category !== 'all' && post.category !== alert.category) return false;
   if (alert.area !== 'all') {
     const place = String(post.location || '').toLowerCase();
@@ -32,6 +34,7 @@ export function matches(alert, post) {
 }
 
 export function describeAlert(alert) {
-  const what = alert.category === 'all' ? 'new posts' : `new ${ALERT_CATEGORIES[alert.category]} posts`;
+  const type = alert.post_type === 'wanted' ? 'requests' : 'offers';
+  const what = alert.category === 'all' ? `new ${type}` : `new ${ALERT_CATEGORIES[alert.category]} ${type}`;
   return `${what}${alert.keyword ? ` mentioning “${alert.keyword}”` : ''}${alert.area === 'all' ? ' anywhere in Nigeria' : ` in ${alert.area}`}`;
 }

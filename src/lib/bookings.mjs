@@ -9,6 +9,19 @@ const LAGOS_OFFSET_MS = 3600000;
 export const BOOKING_DAYS_AHEAD = 14;
 export const MIN_NOTICE_MS = 2 * 3600000; // no bookings starting within two hours
 
+// Imported and older property/vehicle posts have no seller-entered hours. A
+// visitor may propose a time; it is never presented as confirmed availability.
+export function bookingSettingsFor(post, settings) {
+  if (post?.post_type === 'wanted') return null;
+  if (settings) return { ...settings, proposed: false };
+  if (!['rentals', 'vehicles'].includes(post?.category)) return null;
+  return {
+    modes: ['viewing'], days: [0, 1, 2, 3, 4, 5, 6],
+    start_time: '09:00', end_time: '18:00', slot_minutes: 30,
+    proposed: true,
+  };
+}
+
 const minutes = t => { const m = HHMM.exec(t); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
 
 /** Cleans the poster's availability from the post form; null when booking is off or invalid. */

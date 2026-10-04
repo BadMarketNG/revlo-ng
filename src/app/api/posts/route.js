@@ -3,7 +3,8 @@
 import { NextResponse, after } from 'next/server';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 import { saveListingExtras } from '@/lib/listingExtras.mjs';
-import { cleanDatingProfile } from '@/lib/datingProfile.mjs';
+import { hasPostLink, postWithoutLinks } from '@/lib/postLinks.mjs';
+import { cleanWanted } from '@/lib/wanted.mjs';
 import { liveBumps, pinBumped } from '@/lib/bumps.mjs';
 import { aliasTakenByOther, cleanAlias, currentAlias, saveAlias } from '@/lib/community';
 import { cleanTags, flagPostForContactInfo, requireNotSuspended, tagLimit } from '@/lib/moderation';
@@ -34,7 +35,7 @@ export const dynamic = 'force-dynamic';
 //   'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,created_at,expires_at';
 // NOTE: poster_alias is the publisher's chosen public alias, shown before the city.
 const PUBLIC_COLS =
-  'uid,title,description,location,category,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,poster_alias,tags,created_at,expires_at';
+  'uid,title,description,location,category,post_type,budget_max,needed_by,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,trust_badge,premium_badge,poster_alias,tags,created_at,expires_at';
 
 // A post's duration is how long it stays live from publication. Every post
 // appears under "Right now" for its first 24 hours, then moves to the tab for
@@ -46,17 +47,22 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const duration = searchParams.get('duration') || 'now';
   const category = searchParams.get('category');
+  const postType = searchParams.get('post_type');
   if (!isValidDuration(duration)) {
     return NextResponse.json({ error: 'invalid duration' }, { status: 400 });
   }
   if (category && !await isConfiguredCategory(category)) {
     return NextResponse.json({ error: 'invalid category' }, { status: 400 });
   }
+  if (postType && !['offer', 'wanted'].includes(postType)) {
+    return NextResponse.json({ error: 'invalid post type' }, { status: 400 });
+  }
 
   let query = supabaseAdmin
     .from('posts')
     .select(PUBLIC_COLS)
     .is('deleted_at', null)
+    .neq('category', 'dating')
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(100);
@@ -65,6 +71,7 @@ export async function GET(request) {
     ? query.gt('created_at', firstDayStart)
     : query.eq('duration', duration).lte('created_at', firstDayStart);
   if (category) query = query.eq('category', category);
+  if (postType) query = query.eq('post_type', postType);
 
   // ORIGINAL (commented out 2026-10-01): const { data, error } = await query;
   const { data: rows, error } = await query;
@@ -75,10 +82,13 @@ export async function GET(request) {
   }
   // NOTE: search tags are shown as #hashtags after the description, which also
   // makes them findable by the feed's search box.
-  const data = (rows || []).map((post) => (post.tags?.length ? { ...post, description: `${post.description || ''}\n\n${post.tags.map((tag) => `#${tag}`).join(' ')}` } : post));
+  const data = (rows || []).map((row) => {
+    const post = postWithoutLinks(row);
+    return post.tags?.length ? { ...post, description: `${post.description || ''}\n\n${post.tags.map((tag) => `#${tag}`).join(' ')}` } : post;
+  });
   const existingSeed = request.cookies.get(FEED_SESSION_COOKIE)?.value;
   const feedSeed = isFeedSessionSeed(existingSeed) ? existingSeed : createFeedSessionSeed();
-  const context = `${duration}:${category || 'all'}`;
+  const context = `${duration}:${category || 'all'}:${postType || 'all'}`;
   // ORIGINAL (commented out 2026-10-02): const response = NextResponse.json({ posts: saltedSessionOrder(data, feedSeed, context) });
   // NOTE: posts bumped in the last 24 hours (paid, labelled "Bumped") are pinned above the shuffled feed.
   const bumped = await liveBumps(supabaseAdmin).catch(() => []);
@@ -112,6 +122,9 @@ export async function POST(request) {
     description = '',
     location,
     category = 'general',
+    post_type = 'offer',
+    budget_max = null,
+    needed_by = null,
     header_url = null,
     thumb_url = null,
     gallery = [],
@@ -128,9 +141,8 @@ export async function POST(request) {
   // NOTE (2026-10-03): 'hot' is the 18-hour option badge holders can pick. It is stored as a 'now' post
   // (shown under the 24-hour tab) with an 18-hour expiry, like posts from people without a badge.
   const hot = requestedDuration === 'hot';
-  // A dating profile needs enough time for someone to discover it and reply.
-  // It still appears under Right now for its first day, then under 1 week.
-  const duration = category === 'dating' ? '2m' : hot ? 'now' : requestedDuration;
+  const wanted = post_type === 'wanted';
+  const duration = wanted ? '1m' : hot ? 'now' : requestedDuration;
 
   // Validation
   if (!isEmail(poster_email)) {
@@ -145,11 +157,17 @@ export async function POST(request) {
   if (!location || typeof location !== 'string') {
     return NextResponse.json({ error: 'location required' }, { status: 400 });
   }
+  if (hasPostLink(title, description, location)) {
+    return NextResponse.json({ error: 'Remove links to other sites from your post. People can use Contact on Revlo instead.' }, { status: 422 });
+  }
   if (!isValidDuration(duration)) {
     return NextResponse.json({ error: 'valid duration required' }, { status: 400 });
   }
   if (!await isConfiguredCategory(category)) {
     return NextResponse.json({ error: 'invalid category' }, { status: 400 });
+  }
+  if (!['offer', 'wanted'].includes(post_type)) {
+    return NextResponse.json({ error: 'invalid post type' }, { status: 400 });
   }
   if (category === 'lodging') {
     return NextResponse.json({ error: 'Lodging currently accepts reviewed partner sources only.' }, { status: 403 });
@@ -162,7 +180,7 @@ export async function POST(request) {
   // Every post needs its own header image and icon, uploaded to Revlo storage
   // (publishers without photos pick a free sample in the post form).
   const fromStorage = (value) => typeof value === 'string' && value.startsWith(storagePrefix) && value.length <= 500;
-  if (!fromStorage(header_url) || !fromStorage(thumb_url) || header_url === thumb_url) {
+  if (!wanted && (!fromStorage(header_url) || !fromStorage(thumb_url) || header_url === thumb_url)) {
     return NextResponse.json({ error: 'Add a header image and an icon — upload your own or pick a free sample.' }, { status: 422 });
   }
   if (gallery != null && (!Array.isArray(gallery) || gallery.length > 5
@@ -172,11 +190,8 @@ export async function POST(request) {
   if (!['images', 'video'].includes(media_type) || (media_type === 'video' && !video_url)) {
     return NextResponse.json({ error: 'invalid media' }, { status: 415 });
   }
-  const datingProfile = category === 'dating'
-    ? cleanDatingProfile({ title, description, location, profile: body?.dating_profile, mediaType: media_type, contactVisibility: contact_visibility })
-    : null;
-  if (datingProfile?.error) return NextResponse.json({ error: datingProfile.error }, { status: 422 });
-
+  const wantedFields = wanted ? cleanWanted({ ...body, category, contact_visibility, media_type, video_url, header_url, thumb_url, gallery }) : null;
+  if (wantedFields?.error) return NextResponse.json({ error: wantedFields.error }, { status: 422 });
   const cleanEmail = normaliseEmail(poster_email);
   // NOTE (2026-09-30): poster_alias — absent keeps the current alias, '' removes it, text sets it.
   const aliasProvided = body && Object.prototype.hasOwnProperty.call(body, 'poster_alias');
@@ -190,13 +205,6 @@ export async function POST(request) {
   if (!publishClaim || publishClaim.action !== 'publish' || publishClaim.email !== cleanEmail) {
     return NextResponse.json({ error: 'Open the publish link we emailed you to continue.' }, { status: 401 });
   }
-  if (category === 'dating') {
-    const { data: activeProfile, error: profileLookupError } = await supabaseAdmin.from('posts')
-      .select('uid').eq('poster_email', cleanEmail).eq('category', 'dating')
-      .is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1).maybeSingle();
-    if (profileLookupError) return NextResponse.json({ error: 'Could not check your active profile. Try again.' }, { status: 503 });
-    if (activeProfile) return NextResponse.json({ error: 'You already have an active Dating profile. Remove it or wait for it to expire before posting another.' }, { status: 409 });
-  }
   if (await findActiveBlock({ email: cleanEmail, ip: sourceIp })) return blockedResponse();
   // NOTE (2026-10-01): suspended publishers cannot publish.
   const suspended = await requireNotSuspended(cleanEmail, 'publish new posts');
@@ -207,11 +215,11 @@ export async function POST(request) {
   }
   // NOTE (2026-10-03): post lengths by badge. No badge: the 'now' option only, lasting 18 hours (shown
   // under the 24-hour tab). Bronze: 24 hours and 72 hours ('1m'). Silver: + 1 week ('2m'). Gold: + 2½ weeks ('3m').
-  if (duration === '1m' && !publisherStatus.trustBadge) {
+  if (duration === '1m' && !wanted && !publisherStatus.trustBadge) {
     return NextResponse.json({ error: `72-hour posts unlock with the Bronze badge at ${publisherStatus.settings.bronze_posts} posts.` }, { status: 403 });
   }
   // ORIGINAL (2026-10-03): if (duration === '2m' && !publisherStatus.trustBadge) {
-  if (duration === '2m' && category !== 'dating' && !['silver', 'gold'].includes(publisherStatus.trustBadge)) {
+  if (duration === '2m' && !['silver', 'gold'].includes(publisherStatus.trustBadge)) {
     return NextResponse.json({ error: `1-week posts unlock with the Silver badge at ${publisherStatus.settings.silver_posts} posts.` }, { status: 403 });
   }
   if (duration === '3m' && publisherStatus.trustBadge !== 'gold') {
@@ -267,7 +275,7 @@ export async function POST(request) {
   }
 
   // ORIGINAL (2026-10-03): const expires_at = expiryFor(duration);
-  const expires_at = duration === 'now' && (hot || !publisherStatus.trustBadge)
+  const expires_at = wanted ? wantedFields.expires_at : duration === 'now' && (hot || !publisherStatus.trustBadge)
     ? new Date(Date.now() + 18 * 3600000).toISOString()
     : expiryFor(duration);
   const settings = await getFeatureSettings();
@@ -325,17 +333,20 @@ export async function POST(request) {
       uid,
       poster_email: cleanEmail,
       source_ip: sourceIp || null,
-      title: datingProfile?.title || title.trim(),
-      description: datingProfile?.description || String(description).slice(0, 5000),
+      title: title.trim(),
+      description: String(description).slice(0, 5000),
       location,
       category,
+      post_type,
+      budget_max: wantedFields?.budget_max ?? null,
+      needed_by: wantedFields?.needed_by ?? null,
       header_url,
       thumb_url,
       media_type,
       video_url: media_type === 'video' ? video_url : null,
       gallery: Array.isArray(gallery) ? gallery : [],
       contact_visibility,
-      followable: !!followable,
+      followable: wanted ? false : !!followable,
       duration,
       expires_at,
       trust_badge: trustBadge,
@@ -365,7 +376,7 @@ export async function POST(request) {
   // NOTE (2026-10-01): posts with phone numbers, emails, links or handles go to admin review.
   await flagPostForContactInfo({ ...data, poster_email: cleanEmail, description: String(description) }).catch((e) => console.error('[post-flags]', e));
   // NOTE (2026-10-02): booking times and structured details (rent, bedrooms, price), when given.
-  await saveListingExtras(supabaseAdmin, data, datingProfile ? { ...body, details: datingProfile.details } : body).catch((e) => console.error('[listing-extras]', e));
+  await saveListingExtras(supabaseAdmin, data, body).catch((e) => console.error('[listing-extras]', e));
   // NOTE (2026-10-02): tell Bing and other IndexNow search engines about the new post page.
   after(() => notifyIndexNow(`https://revlo.ng/p/${data.uid}`));
   if (aliasProvided) {

@@ -28,7 +28,8 @@ export async function POST(request) {
   } catch {
     return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
   }
-  const { email } = body || {};
+  const { email, purpose } = body || {};
+  if (purpose && purpose !== 'wanted') return NextResponse.json({ error: 'invalid purpose' }, { status: 400 });
   if (!isEmail(email))
     return NextResponse.json({ error: 'valid email required' }, { status: 400 });
   const cleanEmail = normaliseEmail(email);
@@ -55,7 +56,9 @@ export async function POST(request) {
   } catch {
     allowance = 1;
   }
-  if (allowance > 1) return sendBadgeLink(cleanEmail, allowance, hasBadge);
+  // A Wanted link must return to its own form. Replace an outstanding root-form link
+  // even when this publisher has a one-post allowance.
+  if (allowance > 1 || purpose === 'wanted') return sendBadgeLink(cleanEmail, allowance, hasBadge, purpose);
 
   try {
     if (await hasActiveMagicLink(cleanEmail)) return NextResponse.json({ ok: true });
@@ -73,7 +76,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
   }
   const base = publicOrigin();
-  const link = `${base}/?token=${encodeURIComponent(token)}`;
+  const link = `${base}${purpose === 'wanted' ? '/wanted' : '/'}?token=${encodeURIComponent(token)}`;
 
   try {
     const reserved = await beginMagicLinkAudit({
@@ -117,7 +120,7 @@ const BADGE_LINK_LIFETIME_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
 const NORMAL_LINK_LIFETIME_MS = 30 * 60 * 1000;
 
-async function sendBadgeLink(cleanEmail, allowance, hasBadge = true) {
+async function sendBadgeLink(cleanEmail, allowance, hasBadge = true, purpose = null) {
   const lifetimeMs = hasBadge ? BADGE_LINK_LIFETIME_MS : NORMAL_LINK_LIFETIME_MS;
   const emailLimited = await requireRateLimit({ action: 'magic-link:email:hour', key: cleanEmail, limit: 3, windowSeconds: 3600 });
   if (emailLimited) return emailLimited;
@@ -144,14 +147,16 @@ async function sendBadgeLink(cleanEmail, allowance, hasBadge = true) {
     console.error('[magic-link:badge:audit]', (supersedeError || insertError).code);
     return NextResponse.json({ error: 'service unavailable' }, { status: 503 });
   }
-  const link = `${publicOrigin()}/?token=${encodeURIComponent(token)}`;
+  const link = `${publicOrigin()}${purpose === 'wanted' ? '/wanted' : '/'}?token=${encodeURIComponent(token)}`;
   const sent = await sendEmail({
     to: cleanEmail,
     subject: 'Your Revlo.ng publish link',
     html: wrapEmail(`
       <p style="margin:0 0 16px;">${hasBadge
         ? `Thanks to your Revlo badge, this link publishes up to <strong>${allowance} posts</strong> and does not expire with time. Open it each time you want to post.`
-        : `This link publishes up to <strong>${allowance} posts</strong> within <strong>30 minutes</strong>. Open it each time you want to post. Earn a Revlo badge for links with more posts and no time limit.`}</p>
+        : allowance === 1
+          ? 'This one-post link expires in <strong>30 minutes</strong>.'
+          : `This link publishes up to <strong>${allowance} posts</strong> within <strong>30 minutes</strong>. Open it each time you want to post. Earn a Revlo badge for links with more posts and no time limit.`}</p>
       <a href="${link}"
          style="display:inline-block;background:#1B5E20;color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:24px;">
         Continue Publishing

@@ -1,307 +1,399 @@
 {
- "license": "Unsplash License (https://unsplash.com/license): free to use, attribution not required.",
- "headers": {
-  "jobs": [
-   {
-    "src": "/samples/headers/jobs-1.jpg",
-    "alt": "woman sits of sofa while using tablet computer",
-    "photographer": "Christina @ wocintechchat.com M",
-    "source": "https://unsplash.com/photos/woman-sits-of-sofa-while-using-tablet-computer-eZ8g_7Sh0J0"
-   },
-   {
-    "src": "/samples/headers/jobs-2.jpg",
-    "alt": "a man in a suit smiling",
-    "photographer": "Raymond Owusu-Afriyie",
-    "source": "https://unsplash.com/photos/a-man-in-a-suit-smiling-wmFFRa51OoA"
-   },
-   {
-    "src": "/samples/headers/jobs-3.jpg",
-    "alt": "Two construction workers are taking a break",
-    "photographer": "David Geneugelijk",
-    "source": "https://unsplash.com/photos/two-construction-workers-are-taking-a-break-d4j5hns6sj8"
-   },
-   {
-    "src": "/samples/headers/jobs-4.jpg",
-    "alt": "a doctor listening to a patient with a stethoscope",
-    "photographer": "National Cancer Institute",
-    "source": "https://unsplash.com/photos/a-doctor-listening-to-a-patient-with-a-stethoscope-0brH8nlXv0M"
-   },
-   {
-    "src": "/samples/headers/jobs-5.jpg",
-    "alt": "A woman with long braids using a laptop at a desk in a workspace",
-    "photographer": "Daniel Thomas",
-    "source": "https://unsplash.com/photos/woman-using-laptop-in-workspace-HA-0i0E7sq4"
-   }
-  ],
-  "rentals": [
-   {
-    "src": "/samples/headers/rentals-1.jpg",
-    "alt": "a house with a stone wall",
-    "photographer": "Tope. A Asokere",
-    "source": "https://unsplash.com/photos/a-house-with-a-stone-wall-2b_p8kU6Lu8"
-   },
-   {
-    "src": "/samples/headers/rentals-2.jpg",
-    "alt": "A living room with a large green couch",
-    "photographer": "Prydumano Design",
-    "source": "https://unsplash.com/photos/a-living-room-with-a-large-green-couch-VZ2z8ozzy10"
-   },
-   {
-    "src": "/samples/headers/rentals-3.jpg",
-    "alt": "white bed with white and black throw pillows",
-    "photographer": "Point3D Commercial Imaging Ltd.",
-    "source": "https://unsplash.com/photos/white-bed-with-white-and-black-throw-pillows-0jmXOqUhpTQ"
-   },
-   {
-    "src": "/samples/headers/rentals-4.jpg",
-    "alt": "white and red wooden house miniature on brown table",
-    "photographer": "Tierra Mallorca",
-    "source": "https://unsplash.com/photos/white-and-red-wooden-house-miniature-on-brown-table-rgJ1J8SDEAY"
-   },
-   {
-    "src": "/samples/headers/rentals-5.jpg",
-    "alt": "a very tall building with lots of windows",
-    "photographer": "LT Ngema",
-    "source": "https://unsplash.com/photos/a-very-tall-building-with-lots-of-windows-_y1yaMuMoic"
-   }
-  ],
-  "for_sale": [
-   {
-    "src": "/samples/headers/for_sale-1.jpg",
-    "alt": "a group of cars parked",
-    "photographer": "Ivan Kazlouskij",
-    "source": "https://unsplash.com/photos/a-group-of-cars-parked-euFJPwObDWI"
-   },
-   {
-    "src": "/samples/headers/for_sale-2.jpg",
-    "alt": "Bustling outdoor market with vendors and shoppers",
-    "photographer": "Wietse Jongsma",
-    "source": "https://unsplash.com/photos/bustling-outdoor-market-with-vendors-and-shoppers--OAYEZu641U"
-   },
-   {
-    "src": "/samples/headers/for_sale-3.jpg",
-    "alt": "space gray iPhone 6",
-    "photographer": "Jonas Lee",
-    "source": "https://unsplash.com/photos/space-gray-iphone-6-o6elTKWZ5bI"
-   },
-   {
-    "src": "/samples/headers/for_sale-4.jpg",
-    "alt": "green fabric sofa",
-    "photographer": "Phillip Goldsberry",
-    "source": "https://unsplash.com/photos/green-fabric-sofa-fZuleEfeA1Q"
-   },
-   {
-    "src": "/samples/headers/for_sale-5.jpg",
-    "alt": "a man standing next to a white car",
-    "photographer": "Boitumelo",
-    "source": "https://unsplash.com/photos/a-man-standing-next-to-a-white-car-U4G3rJj6uJ0"
-   }
-  ],
-  "promotions": [
-   {
-    "src": "/samples/headers/promotions-1.jpg",
-    "alt": "A barista makes coffee with a smile",
-    "photographer": "Mugabi Owen",
-    "source": "https://unsplash.com/photos/a-barista-makes-coffee-with-a-smile-g0-VSbPrOnc"
-   },
-   {
-    "src": "/samples/headers/promotions-2.jpg",
-    "alt": "Woman in orange dress at fruit market",
-    "photographer": "K Studios",
-    "source": "https://unsplash.com/photos/woman-in-orange-dress-at-fruit-market-YRQUBUhR64c"
-   },
-   {
-    "src": "/samples/headers/promotions-3.jpg",
-    "alt": "Hand holding colorful shopping bags against a white background",
-    "photographer": "Iuliia Pilipeichenko",
-    "source": "https://unsplash.com/photos/hand-holding-colorful-shopping-bags-against-a-white-background-mS_QzcElEAo"
-   },
-   {
-    "src": "/samples/headers/promotions-4.jpg",
-    "alt": "stage light front of audience",
-    "photographer": "Yvette de Wit",
-    "source": "https://unsplash.com/photos/stage-light-front-of-audience-NYrVisodQ2M"
-   },
-   {
-    "src": "/samples/headers/promotions-5.jpg",
-    "alt": "Fried chicken with rice, vegetables, and tomato",
-    "photographer": "Omar Hakeem",
-    "source": "https://unsplash.com/photos/fried-chicken-with-rice-vegetables-and-tomato-u1RYfBGbtCo"
-   }
-  ],
-  "general": [
-   {
-    "src": "/samples/headers/general-1.jpg",
-    "alt": "Traffic on a bridge leads to a cityscape",
-    "photographer": "Vitalis Nwenyi",
-    "source": "https://unsplash.com/photos/traffic-on-a-bridge-leads-to-a-cityscape-xjqrUuUNs7o"
-   },
-   {
-    "src": "/samples/headers/general-2.jpg",
-    "alt": "a large bridge over a body of water at night",
-    "photographer": "Opeyemi Adisa",
-    "source": "https://unsplash.com/photos/a-large-bridge-over-a-body-of-water-at-night-Ww2j734hEcA"
-   },
-   {
-    "src": "/samples/headers/general-3.jpg",
-    "alt": "a woman standing in front of a group of children",
-    "photographer": "Emmanuel Ikwuegbu",
-    "source": "https://unsplash.com/photos/a-woman-standing-in-front-of-a-group-of-children-VC6MGt9ZoBA"
-   },
-   {
-    "src": "/samples/headers/general-4.jpg",
-    "alt": "the sun is setting over the mountains in the desert",
-    "photographer": "Bernd \ud83d\udcf7 Dittrich",
-    "source": "https://unsplash.com/photos/the-sun-is-setting-over-the-mountains-in-the-desert-MtSNmVcjXa8"
-   },
-   {
-    "src": "/samples/headers/general-5.jpg",
-    "alt": "2 boys and 2 girls posing for photo",
-    "photographer": "LaShawn Dobbs",
-    "source": "https://unsplash.com/photos/2-boys-and-2-girls-posing-for-photo--vmYS9bent4"
-   }
+  "license": "Unsplash License (https://unsplash.com/license): free to use, attribution not required.",
+  "headers": {
+    "jobs": [
+      {
+        "src": "/samples/headers/jobs-1.jpg",
+        "alt": "woman sits of sofa while using tablet computer",
+        "photographer": "Christina @ wocintechchat.com M",
+        "source": "https://unsplash.com/photos/woman-sits-of-sofa-while-using-tablet-computer-eZ8g_7Sh0J0"
+      },
+      {
+        "src": "/samples/headers/jobs-2.jpg",
+        "alt": "a man in a suit smiling",
+        "photographer": "Raymond Owusu-Afriyie",
+        "source": "https://unsplash.com/photos/a-man-in-a-suit-smiling-wmFFRa51OoA"
+      },
+      {
+        "src": "/samples/headers/jobs-3.jpg",
+        "alt": "Two construction workers are taking a break",
+        "photographer": "David Geneugelijk",
+        "source": "https://unsplash.com/photos/two-construction-workers-are-taking-a-break-d4j5hns6sj8"
+      },
+      {
+        "src": "/samples/headers/jobs-4.jpg",
+        "alt": "a doctor listening to a patient with a stethoscope",
+        "photographer": "National Cancer Institute",
+        "source": "https://unsplash.com/photos/a-doctor-listening-to-a-patient-with-a-stethoscope-0brH8nlXv0M"
+      },
+      {
+        "src": "/samples/headers/jobs-5.jpg",
+        "alt": "A woman with long braids using a laptop at a desk in a workspace",
+        "photographer": "Daniel Thomas",
+        "source": "https://unsplash.com/photos/woman-using-laptop-in-workspace-HA-0i0E7sq4"
+      },
+      {
+        "src": "/samples/headers/jobs-6.jpg",
+        "alt": "Two warehouse colleagues discussing work",
+        "photographer": "Centre for Ageing Better",
+        "source": "https://unsplash.com/photos/ZlOlRnWk8zU"
+      },
+      {
+        "src": "/samples/headers/jobs-7.jpg",
+        "alt": "Worker in a warehouse aisle",
+        "photographer": "Mauricio Gutiérrez",
+        "source": "https://unsplash.com/photos/SoiVEdJKzhY"
+      },
+      {
+        "src": "/samples/headers/jobs-8.jpg",
+        "alt": "Warehouse worker on a ladder",
+        "photographer": "Kseniia Ilinykh",
+        "source": "https://unsplash.com/photos/cNyDTmtBQbc"
+      },
+      {
+        "src": "/samples/headers/jobs-9.jpg",
+        "alt": "Workers and parcels in a distribution centre",
+        "photographer": "Remy Gieling",
+        "source": "https://unsplash.com/photos/qqtE2yX7POI"
+      },
+      {
+        "src": "/samples/headers/jobs-10.jpg",
+        "alt": "Warehouse staff speaking at a workbench",
+        "photographer": "Centre for Ageing Better",
+        "source": "https://unsplash.com/photos/j3ay5s6Irlk"
+      },
+      {
+        "src": "/samples/headers/jobs-11.jpg",
+        "alt": "Technician working beside storage shelves",
+        "photographer": "NSYS Group",
+        "source": "https://unsplash.com/photos/WIPoOLzoFvk"
+      },
+      {
+        "src": "/samples/headers/jobs-12.jpg",
+        "alt": "Forklift in a warehouse aisle",
+        "photographer": "Kseniia Ilinykh",
+        "source": "https://unsplash.com/photos/82ZiY5pzl1c"
+      },
+      {
+        "src": "/samples/headers/jobs-13.jpg",
+        "alt": "Team meeting around a conference table",
+        "photographer": "Christina @ wocintechchat.com M",
+        "source": "https://unsplash.com/photos/faEfWCdOKIg"
+      },
+      {
+        "src": "/samples/headers/jobs-14.jpg",
+        "alt": "Professional reviewing documents at a computer",
+        "photographer": "Emmanuel Ikwuegbu",
+        "source": "https://unsplash.com/photos/h5xEHzfepNk"
+      }
+    ],
+    "rentals": [
+      {
+        "src": "/samples/headers/rentals-1.jpg",
+        "alt": "a house with a stone wall",
+        "photographer": "Tope. A Asokere",
+        "source": "https://unsplash.com/photos/a-house-with-a-stone-wall-2b_p8kU6Lu8"
+      },
+      {
+        "src": "/samples/headers/rentals-2.jpg",
+        "alt": "A living room with a large green couch",
+        "photographer": "Prydumano Design",
+        "source": "https://unsplash.com/photos/a-living-room-with-a-large-green-couch-VZ2z8ozzy10"
+      },
+      {
+        "src": "/samples/headers/rentals-3.jpg",
+        "alt": "white bed with white and black throw pillows",
+        "photographer": "Point3D Commercial Imaging Ltd.",
+        "source": "https://unsplash.com/photos/white-bed-with-white-and-black-throw-pillows-0jmXOqUhpTQ"
+      },
+      {
+        "src": "/samples/headers/rentals-4.jpg",
+        "alt": "white and red wooden house miniature on brown table",
+        "photographer": "Tierra Mallorca",
+        "source": "https://unsplash.com/photos/white-and-red-wooden-house-miniature-on-brown-table-rgJ1J8SDEAY"
+      },
+      {
+        "src": "/samples/headers/rentals-5.jpg",
+        "alt": "a very tall building with lots of windows",
+        "photographer": "LT Ngema",
+        "source": "https://unsplash.com/photos/a-very-tall-building-with-lots-of-windows-_y1yaMuMoic"
+      },
+      {
+        "src": "/samples/headers/rentals-6.jpg",
+        "alt": "Kitchen and dining area in an apartment",
+        "photographer": "Rafael Hoyos Weht",
+        "source": "https://unsplash.com/photos/8PKGjZ2GzuQ"
+      },
+      {
+        "src": "/samples/headers/rentals-7.jpg",
+        "alt": "Bright furnished living room",
+        "photographer": "Francesca Tosolini",
+        "source": "https://unsplash.com/photos/tHkJAMcO3QE"
+      },
+      {
+        "src": "/samples/headers/rentals-8.jpg",
+        "alt": "Open plan apartment with living area",
+        "photographer": "Davide Colonna",
+        "source": "https://unsplash.com/photos/DZrZhVd_wR0"
+      }
+    ],
+    "for_sale": [
+      {
+        "src": "/samples/headers/for_sale-1.jpg",
+        "alt": "a group of cars parked",
+        "photographer": "Ivan Kazlouskij",
+        "source": "https://unsplash.com/photos/a-group-of-cars-parked-euFJPwObDWI"
+      },
+      {
+        "src": "/samples/headers/for_sale-2.jpg",
+        "alt": "Bustling outdoor market with vendors and shoppers",
+        "photographer": "Wietse Jongsma",
+        "source": "https://unsplash.com/photos/bustling-outdoor-market-with-vendors-and-shoppers--OAYEZu641U"
+      },
+      {
+        "src": "/samples/headers/for_sale-3.jpg",
+        "alt": "space gray iPhone 6",
+        "photographer": "Jonas Lee",
+        "source": "https://unsplash.com/photos/space-gray-iphone-6-o6elTKWZ5bI"
+      },
+      {
+        "src": "/samples/headers/for_sale-4.jpg",
+        "alt": "green fabric sofa",
+        "photographer": "Phillip Goldsberry",
+        "source": "https://unsplash.com/photos/green-fabric-sofa-fZuleEfeA1Q"
+      },
+      {
+        "src": "/samples/headers/for_sale-5.jpg",
+        "alt": "a man standing next to a white car",
+        "photographer": "Boitumelo",
+        "source": "https://unsplash.com/photos/a-man-standing-next-to-a-white-car-U4G3rJj6uJ0"
+      }
+    ],
+    "promotions": [
+      {
+        "src": "/samples/headers/promotions-1.jpg",
+        "alt": "A barista makes coffee with a smile",
+        "photographer": "Mugabi Owen",
+        "source": "https://unsplash.com/photos/a-barista-makes-coffee-with-a-smile-g0-VSbPrOnc"
+      },
+      {
+        "src": "/samples/headers/promotions-2.jpg",
+        "alt": "Woman in orange dress at fruit market",
+        "photographer": "K Studios",
+        "source": "https://unsplash.com/photos/woman-in-orange-dress-at-fruit-market-YRQUBUhR64c"
+      },
+      {
+        "src": "/samples/headers/promotions-3.jpg",
+        "alt": "Hand holding colorful shopping bags against a white background",
+        "photographer": "Iuliia Pilipeichenko",
+        "source": "https://unsplash.com/photos/hand-holding-colorful-shopping-bags-against-a-white-background-mS_QzcElEAo"
+      },
+      {
+        "src": "/samples/headers/promotions-4.jpg",
+        "alt": "stage light front of audience",
+        "photographer": "Yvette de Wit",
+        "source": "https://unsplash.com/photos/stage-light-front-of-audience-NYrVisodQ2M"
+      },
+      {
+        "src": "/samples/headers/promotions-5.jpg",
+        "alt": "Fried chicken with rice, vegetables, and tomato",
+        "photographer": "Omar Hakeem",
+        "source": "https://unsplash.com/photos/fried-chicken-with-rice-vegetables-and-tomato-u1RYfBGbtCo"
+      }
+    ],
+    "general": [
+      {
+        "src": "/samples/headers/general-1.jpg",
+        "alt": "Traffic on a bridge leads to a cityscape",
+        "photographer": "Vitalis Nwenyi",
+        "source": "https://unsplash.com/photos/traffic-on-a-bridge-leads-to-a-cityscape-xjqrUuUNs7o"
+      },
+      {
+        "src": "/samples/headers/general-2.jpg",
+        "alt": "a large bridge over a body of water at night",
+        "photographer": "Opeyemi Adisa",
+        "source": "https://unsplash.com/photos/a-large-bridge-over-a-body-of-water-at-night-Ww2j734hEcA"
+      },
+      {
+        "src": "/samples/headers/general-3.jpg",
+        "alt": "a woman standing in front of a group of children",
+        "photographer": "Emmanuel Ikwuegbu",
+        "source": "https://unsplash.com/photos/a-woman-standing-in-front-of-a-group-of-children-VC6MGt9ZoBA"
+      },
+      {
+        "src": "/samples/headers/general-4.jpg",
+        "alt": "the sun is setting over the mountains in the desert",
+        "photographer": "Bernd 📷 Dittrich",
+        "source": "https://unsplash.com/photos/the-sun-is-setting-over-the-mountains-in-the-desert-MtSNmVcjXa8"
+      },
+      {
+        "src": "/samples/headers/general-5.jpg",
+        "alt": "2 boys and 2 girls posing for photo",
+        "photographer": "LaShawn Dobbs",
+        "source": "https://unsplash.com/photos/2-boys-and-2-girls-posing-for-photo--vmYS9bent4"
+      }
+    ],
+    "vehicles": [
+      {
+        "src": "/samples/headers/vehicles-1.jpg",
+        "alt": "Row of cars parked for sale",
+        "photographer": "Obi",
+        "source": "https://unsplash.com/photos/aZKJEvydrNM"
+      },
+      {
+        "src": "/samples/headers/vehicles-2.jpg",
+        "alt": "Blue car parked beside a glass building",
+        "photographer": "Arvid Skywalker",
+        "source": "https://unsplash.com/photos/ZvVNJOnV3ho"
+      },
+      {
+        "src": "/samples/headers/vehicles-3.jpg",
+        "alt": "Vehicle transporter carrying cars",
+        "photographer": "Cooper White",
+        "source": "https://unsplash.com/photos/q36Yp9RpHa0"
+      }
+    ]
+  },
+  "icons": [
+    {
+      "src": "/samples/icons/icon-01.jpg",
+      "label": "Briefcase",
+      "alt": "black leather sling bag on brown wooden round table",
+      "photographer": "Alexandr Sadkov",
+      "source": "https://unsplash.com/photos/black-leather-sling-bag-on-brown-wooden-round-table-BnG4KWAzt9c"
+    },
+    {
+      "src": "/samples/icons/icon-02.jpg",
+      "label": "House & keys",
+      "alt": "white and red wooden house miniature on brown table",
+      "photographer": "Tierra Mallorca",
+      "source": "https://unsplash.com/photos/white-and-red-wooden-house-miniature-on-brown-table-rgJ1J8SDEAY"
+    },
+    {
+      "src": "/samples/icons/icon-03.jpg",
+      "label": "Shopping bags",
+      "alt": "Hand holding colorful shopping bags against a white background",
+      "photographer": "Iuliia Pilipeichenko",
+      "source": "https://unsplash.com/photos/hand-holding-colorful-shopping-bags-against-a-white-background-mS_QzcElEAo"
+    },
+    {
+      "src": "/samples/icons/icon-04.jpg",
+      "label": "Megaphone",
+      "alt": "A red and white bullhorn is in a golden bowl",
+      "photographer": "Igor Omilaev",
+      "source": "https://unsplash.com/photos/a-red-and-white-bullhorn-is-in-a-golden-bowl-8UX9VsB16Ak"
+    },
+    {
+      "src": "/samples/icons/icon-05.jpg",
+      "label": "Car key",
+      "alt": "a car key with a remote control attached to it",
+      "photographer": "Barry A",
+      "source": "https://unsplash.com/photos/a-car-key-with-a-remote-control-attached-to-it-0A_Yx4qwSb8"
+    },
+    {
+      "src": "/samples/icons/icon-06.jpg",
+      "label": "Smartphone",
+      "alt": "A smartphone with a colorful app interface beside a laptop keyboard on",
+      "photographer": "Rahul Chakraborty",
+      "source": "https://unsplash.com/photos/smartphone-and-laptop-workspace-xsGxhtAsfSA"
+    },
+    {
+      "src": "/samples/icons/icon-07.jpg",
+      "label": "Laptop",
+      "alt": "open macbook air on wooden desk",
+      "photographer": "Howard Bouchevereau",
+      "source": "https://unsplash.com/photos/open-macbook-air-on-wooden-desk-RSCirJ70NDM"
+    },
+    {
+      "src": "/samples/icons/icon-08.jpg",
+      "label": "Handshake",
+      "alt": "two people shaking hands",
+      "photographer": "Cytonn Photography",
+      "source": "https://unsplash.com/photos/two-people-shaking-hands-n95VMLxqM2I"
+    },
+    {
+      "src": "/samples/icons/icon-09.jpg",
+      "label": "Jollof rice",
+      "alt": "Jollof rice in a white dish with grilled fish, skewers, and fresh vege",
+      "photographer": "Keesha's Kitchen",
+      "source": "https://unsplash.com/photos/jollof-rice-with-grilled-fish-dinner-PqG32DYCTM8"
+    },
+    {
+      "src": "/samples/icons/icon-10.jpg",
+      "label": "Sofa",
+      "alt": "a brown leather couch sitting on top of a white floor",
+      "photographer": "personalgraphic.com",
+      "source": "https://unsplash.com/photos/a-brown-leather-couch-sitting-on-top-of-a-white-floor-4Co4l84sJWg"
+    },
+    {
+      "src": "/samples/icons/icon-11.jpg",
+      "label": "Tools",
+      "alt": "Vintage tools including an axe, hammer, gloves, and metal implements o",
+      "photographer": "Todd Quackenbush",
+      "source": "https://unsplash.com/photos/vintage-tools-on-dark-wooden-planks-IClZBVw5W5A"
+    },
+    {
+      "src": "/samples/icons/icon-12.jpg",
+      "label": "Shop front",
+      "alt": "group of people inside cafe",
+      "photographer": "Andrew Leu",
+      "source": "https://unsplash.com/photos/group-of-people-inside-cafe-_L3YMlqc9NA"
+    },
+    {
+      "src": "/samples/icons/icon-13.jpg",
+      "label": "Clothes rack",
+      "alt": "closeup of hanged shirts on rack",
+      "photographer": "Parker Burchfield",
+      "source": "https://unsplash.com/photos/closeup-of-hanged-shirts-on-rack-tvG4WvjgsEY"
+    },
+    {
+      "src": "/samples/icons/icon-14.jpg",
+      "label": "Delivery box",
+      "alt": "shallow focus photo of brown cardboard box",
+      "photographer": "Brandable Box",
+      "source": "https://unsplash.com/photos/shallow-focus-photo-of-brown-cardboard-box-8mCsyImZRGY"
+    },
+    {
+      "src": "/samples/icons/icon-15.jpg",
+      "label": "Tickets",
+      "alt": "tickets signboard on wooden surface",
+      "photographer": "Benjamin Sharpe",
+      "source": "https://unsplash.com/photos/tickets-signboard-on-wooden-surface-nZU5FEgdmY0"
+    },
+    {
+      "src": "/samples/icons/icon-16.jpg",
+      "label": "Salon",
+      "alt": "A barber in a denim apron blow-drying a man's hair in a salon",
+      "photographer": "delfina pan",
+      "source": "https://unsplash.com/photos/barber-blow-drying-hair-in-salon-wJoB8D3hnzc"
+    },
+    {
+      "src": "/samples/icons/icon-17.jpg",
+      "label": "Fitness",
+      "alt": "pair of black dumbbells",
+      "photographer": "Alora Griffiths",
+      "source": "https://unsplash.com/photos/pair-of-black-dumbbells-zEAX0E0KJxs"
+    },
+    {
+      "src": "/samples/icons/icon-18.jpg",
+      "label": "Books",
+      "alt": "assorted title book lot",
+      "photographer": "Ed Robertson",
+      "source": "https://unsplash.com/photos/assorted-title-book-lot-eeSdJfLfx1A"
+    },
+    {
+      "src": "/samples/icons/icon-19.jpg",
+      "label": "Camera",
+      "alt": "black Canon EOS Rebel-series DSLR camera",
+      "photographer": "Andrew Hutchings",
+      "source": "https://unsplash.com/photos/black-canon-eos-rebel-series-dslr-camera-W2Dta_Yiwfw"
+    },
+    {
+      "src": "/samples/icons/icon-20.jpg",
+      "label": "Garden",
+      "alt": "Lush flower beds and manicured shrubs in The Butchart Gardens in Victo",
+      "photographer": "Jan Canty",
+      "source": "https://unsplash.com/photos/flower-beds-in-the-butchart-gardens-KcQuXaHCSPE"
+    }
   ]
- },
- "icons": [
-  {
-   "src": "/samples/icons/icon-01.jpg",
-   "label": "Briefcase",
-   "alt": "black leather sling bag on brown wooden round table",
-   "photographer": "Alexandr Sadkov",
-   "source": "https://unsplash.com/photos/black-leather-sling-bag-on-brown-wooden-round-table-BnG4KWAzt9c"
-  },
-  {
-   "src": "/samples/icons/icon-02.jpg",
-   "label": "House & keys",
-   "alt": "white and red wooden house miniature on brown table",
-   "photographer": "Tierra Mallorca",
-   "source": "https://unsplash.com/photos/white-and-red-wooden-house-miniature-on-brown-table-rgJ1J8SDEAY"
-  },
-  {
-   "src": "/samples/icons/icon-03.jpg",
-   "label": "Shopping bags",
-   "alt": "Hand holding colorful shopping bags against a white background",
-   "photographer": "Iuliia Pilipeichenko",
-   "source": "https://unsplash.com/photos/hand-holding-colorful-shopping-bags-against-a-white-background-mS_QzcElEAo"
-  },
-  {
-   "src": "/samples/icons/icon-04.jpg",
-   "label": "Megaphone",
-   "alt": "A red and white bullhorn is in a golden bowl",
-   "photographer": "Igor Omilaev",
-   "source": "https://unsplash.com/photos/a-red-and-white-bullhorn-is-in-a-golden-bowl-8UX9VsB16Ak"
-  },
-  {
-   "src": "/samples/icons/icon-05.jpg",
-   "label": "Car key",
-   "alt": "a car key with a remote control attached to it",
-   "photographer": "Barry A",
-   "source": "https://unsplash.com/photos/a-car-key-with-a-remote-control-attached-to-it-0A_Yx4qwSb8"
-  },
-  {
-   "src": "/samples/icons/icon-06.jpg",
-   "label": "Smartphone",
-   "alt": "A smartphone with a colorful app interface beside a laptop keyboard on",
-   "photographer": "Rahul Chakraborty",
-   "source": "https://unsplash.com/photos/smartphone-and-laptop-workspace-xsGxhtAsfSA"
-  },
-  {
-   "src": "/samples/icons/icon-07.jpg",
-   "label": "Laptop",
-   "alt": "open macbook air on wooden desk",
-   "photographer": "Howard Bouchevereau",
-   "source": "https://unsplash.com/photos/open-macbook-air-on-wooden-desk-RSCirJ70NDM"
-  },
-  {
-   "src": "/samples/icons/icon-08.jpg",
-   "label": "Handshake",
-   "alt": "two people shaking hands",
-   "photographer": "Cytonn Photography",
-   "source": "https://unsplash.com/photos/two-people-shaking-hands-n95VMLxqM2I"
-  },
-  {
-   "src": "/samples/icons/icon-09.jpg",
-   "label": "Jollof rice",
-   "alt": "Jollof rice in a white dish with grilled fish, skewers, and fresh vege",
-   "photographer": "Keesha's Kitchen",
-   "source": "https://unsplash.com/photos/jollof-rice-with-grilled-fish-dinner-PqG32DYCTM8"
-  },
-  {
-   "src": "/samples/icons/icon-10.jpg",
-   "label": "Sofa",
-   "alt": "a brown leather couch sitting on top of a white floor",
-   "photographer": "personalgraphic.com",
-   "source": "https://unsplash.com/photos/a-brown-leather-couch-sitting-on-top-of-a-white-floor-4Co4l84sJWg"
-  },
-  {
-   "src": "/samples/icons/icon-11.jpg",
-   "label": "Tools",
-   "alt": "Vintage tools including an axe, hammer, gloves, and metal implements o",
-   "photographer": "Todd Quackenbush",
-   "source": "https://unsplash.com/photos/vintage-tools-on-dark-wooden-planks-IClZBVw5W5A"
-  },
-  {
-   "src": "/samples/icons/icon-12.jpg",
-   "label": "Shop front",
-   "alt": "group of people inside cafe",
-   "photographer": "Andrew Leu",
-   "source": "https://unsplash.com/photos/group-of-people-inside-cafe-_L3YMlqc9NA"
-  },
-  {
-   "src": "/samples/icons/icon-13.jpg",
-   "label": "Clothes rack",
-   "alt": "closeup of hanged shirts on rack",
-   "photographer": "Parker Burchfield",
-   "source": "https://unsplash.com/photos/closeup-of-hanged-shirts-on-rack-tvG4WvjgsEY"
-  },
-  {
-   "src": "/samples/icons/icon-14.jpg",
-   "label": "Delivery box",
-   "alt": "shallow focus photo of brown cardboard box",
-   "photographer": "Brandable Box",
-   "source": "https://unsplash.com/photos/shallow-focus-photo-of-brown-cardboard-box-8mCsyImZRGY"
-  },
-  {
-   "src": "/samples/icons/icon-15.jpg",
-   "label": "Tickets",
-   "alt": "tickets signboard on wooden surface",
-   "photographer": "Benjamin Sharpe",
-   "source": "https://unsplash.com/photos/tickets-signboard-on-wooden-surface-nZU5FEgdmY0"
-  },
-  {
-   "src": "/samples/icons/icon-16.jpg",
-   "label": "Salon",
-   "alt": "A barber in a denim apron blow-drying a man's hair in a salon",
-   "photographer": "delfina pan",
-   "source": "https://unsplash.com/photos/barber-blow-drying-hair-in-salon-wJoB8D3hnzc"
-  },
-  {
-   "src": "/samples/icons/icon-17.jpg",
-   "label": "Fitness",
-   "alt": "pair of black dumbbells",
-   "photographer": "Alora Griffiths",
-   "source": "https://unsplash.com/photos/pair-of-black-dumbbells-zEAX0E0KJxs"
-  },
-  {
-   "src": "/samples/icons/icon-18.jpg",
-   "label": "Books",
-   "alt": "assorted title book lot",
-   "photographer": "Ed Robertson",
-   "source": "https://unsplash.com/photos/assorted-title-book-lot-eeSdJfLfx1A"
-  },
-  {
-   "src": "/samples/icons/icon-19.jpg",
-   "label": "Camera",
-   "alt": "black Canon EOS Rebel-series DSLR camera",
-   "photographer": "Andrew Hutchings",
-   "source": "https://unsplash.com/photos/black-canon-eos-rebel-series-dslr-camera-W2Dta_Yiwfw"
-  },
-  {
-   "src": "/samples/icons/icon-20.jpg",
-   "label": "Garden",
-   "alt": "Lush flower beds and manicured shrubs in The Butchart Gardens in Victo",
-   "photographer": "Jan Canty",
-   "source": "https://unsplash.com/photos/flower-beds-in-the-butchart-gardens-KcQuXaHCSPE"
-  }
- ]
 }

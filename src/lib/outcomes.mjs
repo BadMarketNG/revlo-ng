@@ -5,8 +5,10 @@ export const OUTCOMES = {
   for_sale: { outcome: 'sold', verb: 'Sold' },
   jobs: { outcome: 'filled', verb: 'Filled' },
 };
-export const outcomeFor = category => OUTCOMES[category] || { outcome: 'done', verb: 'Done' };
-export const VERBS = { let: 'Let', sold: 'Sold', filled: 'Filled', done: 'Done' };
+export const outcomeFor = (category, postType = 'offer') => postType === 'wanted'
+  ? { outcome: 'found', verb: 'Found' }
+  : OUTCOMES[category] || { outcome: 'done', verb: 'Done' };
+export const VERBS = { let: 'Let', sold: 'Sold', filled: 'Filled', done: 'Done', found: 'Found' };
 
 /** "under an hour", "3 hours", "2 days" (rounded down, so the claim is never flattering). */
 export function duration(hours) {

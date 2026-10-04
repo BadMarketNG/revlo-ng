@@ -17,7 +17,7 @@ export async function POST(request) {
   if (!/^[A-Za-z0-9-]{4,24}$/.test(uid) || !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return NextResponse.json({ error: 'Enter the email you used for this post.' }, { status: 400 });
   const limited = await requireRateLimit({ action: 'outcome:ip', key: requestIp(request), limit: 10, windowSeconds: 3600 });
   if (limited) return limited;
-  const { data: post } = await supabaseAdmin.from('posts').select('uid,title,category,poster_email').eq('uid', uid).is('deleted_at', null).maybeSingle();
+  const { data: post } = await supabaseAdmin.from('posts').select('uid,title,category,post_type,poster_email').eq('uid', uid).is('deleted_at', null).maybeSingle();
   if (post && String(post.poster_email).toLowerCase() === email) await sendEmail({ to: email, ...markEmail(post) });
   return NextResponse.json(SAME);
 }

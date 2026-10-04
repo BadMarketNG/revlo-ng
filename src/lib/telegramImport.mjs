@@ -1,4 +1,5 @@
 // Telegram partner import (2026-10-02): turns a channel post into Revlo post fields.
+import { stripPostLinks } from './postLinks.mjs';
 
 const RULES = [
   ['jobs', /\b(hiring|vacanc(y|ies)|job (opening|alert|offer)|we are recruiting|recruitment|apply (now|via|here|before)|salary|cv to|send (your )?cv|position:|graduate trainee|internship)\b/i],
@@ -30,7 +31,7 @@ export function splitPost(text) {
   const first = lines[at].replace(/^[^\p{L}\p{N}₦]+/u, '').replace(/[*_~`]+/g, '').replace(/\s+/g, ' ').trim();
   const title = first.length > 120 ? `${first.slice(0, 117).replace(/\s+\S*$/, '')}…` : first;
   const rest = lines.slice(at + 1).join('\n');
-  return { title, description: (rest || first).slice(0, 4500) };
+  return { title: stripPostLinks(title), description: stripPostLinks((rest || first).slice(0, 4500)) };
 }
 
 /** Fields for a Revlo post from a Telegram message and its channel's settings. */
@@ -39,7 +40,7 @@ export function telegramToPost(message, channel) {
   const { title, description } = splitPost(text);
   if (!title || title.length < 3) return null;
   const category = classify(text, channel.default_category);
-  const credit = channel.credit ? `\n\nShared from Telegram: ${channel.credit_name || (channel.username ? `@${channel.username}` : channel.title)}` : '';
+  const credit = channel.credit ? `\n\nShared from Telegram: ${stripPostLinks(channel.credit_name || (channel.username ? `@${channel.username}` : channel.title))}` : '';
   return {
     title: title.slice(0, 200),
     description: `${description}${credit}`.slice(0, 5000),

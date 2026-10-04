@@ -1,12 +1,13 @@
 (() => {
   'use strict';
   // A header image and an icon are required on every post. Publishers without
-  // their own photos can pick a free sample (Unsplash License): five headers
-  // per category and twenty icons. A chosen sample goes through the post form's
+  // their own photos can pick a free stock photo (Unsplash License).
+  // A chosen sample goes through the post form's
   // own image inputs, so it is resized and uploaded like any other photo.
-  const LABELS = { jobs: 'Jobs', rentals: 'Rentals', for_sale: 'For Sale', promotions: 'Promotions', general: 'General' };
+  const LABELS = { jobs: 'Jobs', rentals: 'Rentals', for_sale: 'For Sale', vehicles: 'Vehicles', promotions: 'Promotions', general: 'General' };
   let manifest = null;
   let chosen = { header: null, icon: null };
+  let expanded = { header: false, icon: false };
 
   fetch('/samples/manifest.json').then((r) => r.json()).then((data) => { manifest = data; }).catch(() => {});
 
@@ -19,12 +20,13 @@
     .revlo-samples.rs-missing .rs-note{color:#c62828}
     .revlo-samples .rs-label{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px;font-weight:800;font-size:13px}
     .revlo-samples .rs-label span{font-weight:600;font-size:11px;color:#687068}
-    .revlo-samples .rs-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+    .revlo-samples .rs-row{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:4px;max-height:250px;overflow-y:auto}
     .revlo-samples [hidden]{display:none!important}
+    .revlo-samples .rs-more{margin-top:6px;padding:5px 0;border:0;background:none;color:#1b5e20;text-decoration:underline;font:700 12.5px system-ui;cursor:pointer}
     .revlo-samples .rs-row button{flex:none;padding:0;border:2px solid transparent;border-radius:11px;overflow:hidden;cursor:pointer;background:#eef2ee;position:relative}
     .revlo-samples .rs-row button[aria-pressed="true"]{border-color:#1b5e20}
     .revlo-samples .rs-row button[aria-pressed="true"]::after{content:"✓";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:#fff;font:800 11px/18px system-ui;text-align:center}
-    .revlo-samples .rs-headers img{width:128px;height:72px;object-fit:cover;display:block}
+    .revlo-samples .rs-headers img{width:112px;height:66px;object-fit:cover;display:block}
     .revlo-samples .rs-icons img{width:52px;height:52px;object-fit:cover;display:block}
   `;
   document.head.appendChild(style);
@@ -64,15 +66,12 @@
     const { headerInput, iconInput, category } = composerParts(modal);
     const key = category?.value && manifest?.headers?.[category.value] ? category.value : 'general';
     box.querySelector('.rs-cat').textContent = LABELS[key] || 'General';
-    const dating = category?.value === 'dating';
-    box.querySelector('.rs-note').innerHTML = dating
-      ? '<strong>Upload your own profile photo.</strong> Sample header images cannot be used for Dating. An icon can still be a sample.'
-      : '<strong>A header image and an icon are required.</strong> Upload your own with the buttons above, or pick a free sample below.';
-    box.querySelector('.rs-label').hidden = dating;
-    box.querySelector('.rs-headers').hidden = dating;
+    box.querySelector('.rs-note').innerHTML = '<strong>A header image and an icon are required.</strong> Upload your own with the buttons above, or pick a real stock photo below.';
     const headers = box.querySelector('.rs-headers');
     headers.textContent = '';
-    for (const item of manifest.headers[key] || []) {
+    const headerItems = manifest.headers[key] || [];
+    const sortedHeaders = [...headerItems].sort((a, b) => Number(b.src === chosen.header) - Number(a.src === chosen.header));
+    for (const item of (expanded.header ? sortedHeaders : sortedHeaders.slice(0, 4))) {
       headers.appendChild(thumbButton(item, chosen.header === item.src, async () => {
         chosen.header = item.src;
         box.classList.remove('rs-missing');
@@ -80,9 +79,14 @@
         if (headerInput) await apply(headerInput, item.src);
       }));
     }
+    const moreHeaders = box.querySelector('.rs-more-headers');
+    moreHeaders.hidden = headerItems.length <= 4;
+    moreHeaders.textContent = expanded.header ? 'Show fewer photos' : `See ${headerItems.length - 4} more photos`;
     const icons = box.querySelector('.rs-icons');
     icons.textContent = '';
-    for (const item of manifest.icons || []) {
+    const iconItems = manifest.icons || [];
+    const sortedIcons = [...iconItems].sort((a, b) => Number(b.src === chosen.icon) - Number(a.src === chosen.icon));
+    for (const item of (expanded.icon ? sortedIcons : sortedIcons.slice(0, 8))) {
       icons.appendChild(thumbButton(item, chosen.icon === item.src, async () => {
         chosen.icon = item.src;
         box.classList.remove('rs-missing');
@@ -90,6 +94,9 @@
         if (iconInput) await apply(iconInput, item.src);
       }));
     }
+    const moreIcons = box.querySelector('.rs-more-icons');
+    moreIcons.hidden = iconItems.length <= 8;
+    moreIcons.textContent = expanded.icon ? 'Show fewer icons' : `See ${iconItems.length - 8} more icons`;
   }
 
   function mount(modal) {
@@ -100,9 +107,11 @@
     const banner = headerInput.parentElement;
     const box = document.createElement('section');
     box.className = 'revlo-samples';
-    box.innerHTML = '<p class="rs-note"><strong>A header image and an icon are required.</strong> Upload your own with the buttons above, or pick a free sample below.</p><div class="rs-label">Sample headers · <span class="rs-cat">General</span></div><div class="rs-row rs-headers"></div><div class="rs-label">Sample icons <span>20 to choose from</span></div><div class="rs-row rs-icons"></div>';
+    box.innerHTML = '<p class="rs-note"><strong>A header image and an icon are required.</strong> Upload your own with the buttons above, or pick a real stock photo below.</p><div class="rs-label">Stock photos · <span class="rs-cat">General</span></div><div class="rs-row rs-headers"></div><button type="button" class="rs-more rs-more-headers"></button><div class="rs-label">Square icons</div><div class="rs-row rs-icons"></div><button type="button" class="rs-more rs-more-icons"></button>';
     banner.parentElement.insertBefore(box, banner.nextSibling);
-    category?.addEventListener('change', () => setTimeout(() => render(box, modal), 0));
+    box.querySelector('.rs-more-headers').addEventListener('click', () => { expanded.header = !expanded.header; render(box, modal); });
+    box.querySelector('.rs-more-icons').addEventListener('click', () => { expanded.icon = !expanded.icon; render(box, modal); });
+    category?.addEventListener('change', () => { expanded.header = false; setTimeout(() => render(box, modal), 0); });
     render(box, modal);
   }
 
@@ -119,9 +128,6 @@
         if (box) { box.classList.add('rs-missing'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         const missing = !body.header_url ? 'a header image' : 'an icon';
         return new Response(JSON.stringify({ error: `Add ${missing} — upload your own or pick a free sample.` }), { status: 422, headers: { 'Content-Type': 'application/json' } });
-      }
-      if (body?.category === 'dating' && chosen.header) {
-        return new Response(JSON.stringify({ error: 'Upload your own photo for your Dating profile.' }), { status: 422, headers: { 'Content-Type': 'application/json' } });
       }
     }
     const response = await previousFetch(input, init);

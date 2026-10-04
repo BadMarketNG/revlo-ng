@@ -22,8 +22,8 @@ export async function GET(request) {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 86400000).toISOString();
   const [{ data: alerts }, { data: posts }] = await Promise.all([
-    supabaseAdmin.from('revlo_alerts').select('id,email,category,area,keyword,token,last_sent_at').not('confirmed_at', 'is', null).is('unsubscribed_at', null).limit(5000),
-    supabaseAdmin.from('posts').select('uid,title,description,location,category,created_at').is('deleted_at', null).gt('expires_at', now.toISOString()).gt('created_at', dayAgo).order('created_at', { ascending: false }).limit(2000),
+    supabaseAdmin.from('revlo_alerts').select('id,email,category,area,keyword,post_type,token,last_sent_at').not('confirmed_at', 'is', null).is('unsubscribed_at', null).limit(5000),
+    supabaseAdmin.from('posts').select('uid,title,description,location,category,post_type,created_at').is('deleted_at', null).gt('expires_at', now.toISOString()).gt('created_at', dayAgo).order('created_at', { ascending: false }).limit(2000),
   ]);
   let sent = 0;
   for (const alert of alerts ?? []) {

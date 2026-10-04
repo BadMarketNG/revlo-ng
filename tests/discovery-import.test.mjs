@@ -26,7 +26,8 @@ test('Lodging imports require Nigerian approved listings and keep at most three 
   assert.equal(item.category, 'lodging');
   assert.equal(item.photos.length, 3);
   assert.equal(item.location, 'Lagos, Nigeria');
-  assert.match(item.description, /Book and pay only on the provider/);
+  assert.match(item.description, /Use Contact on Revlo/);
+  assert.doesNotMatch(item.description, /https?:\/\//);
   assert.equal(shortletItem({ ...raw, location: { city: 'Accra', country: 'Ghana' } }, now), null);
   assert.equal(shortletItem({ ...raw, minimumDays: 90 }, now), null);
   assert.equal(shortletItem({ ...raw, name: 'Call +2348012345678 for a room' }, now), null);

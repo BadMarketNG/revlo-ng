@@ -1,10 +1,11 @@
 // Curated short-stay listings. No guest data, payments or booking credentials
 // are copied into Revlo posts.
 import { decodeText } from './partnerFeed.mjs';
+import { stripPostLinks } from './postLinks.mjs';
 
 export const DISCOVERY_POSTER = 'support@revlo.ng';
 const NIGERIAN_CITIES = new Set(['lagos', 'abuja', 'port harcourt', 'ibadan', 'kano', 'enugu', 'kaduna', 'benin city', 'abeokuta', 'owerri', 'uyo', 'warri', 'jos', 'ilorin']);
-const safeText = (value, max = 200) => decodeText(value).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+const safeText = (value, max = 200) => stripPostLinks(decodeText(value).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ')).slice(0, max);
 const safeSourceUrl = (value, hosts) => {
   try {
     const url = new URL(value);
@@ -35,7 +36,7 @@ export function shortletItem(raw, now = Date.now()) {
   return {
     source: 'shortlet', externalId: `${id}:${new Date(now).toISOString().slice(0, 10)}`, sourceUrl: url, duration: 'now',
     title, category: 'lodging', location: `${city}, Nigeria`, photos,
-    description: `${area ? `${area}, ${city}. ` : ''}Listed from ₦${Math.round(amount).toLocaleString('en-NG')} per night on Shortlet. Check current dates, price and booking terms with the provider: ${url}\n\nBook and pay only on the provider's site. Revlo does not collect a deposit for this stay.`,
+    description: `${area ? `${area}, ${city}. ` : ''}Listed from ₦${Math.round(amount).toLocaleString('en-NG')} per night on Shortlet. Use Contact on Revlo to ask about dates, price and booking terms. Do not pay a deposit before confirming the stay.`,
   };
 }
 
@@ -53,6 +54,6 @@ export function raypropItem(raw, now = Date.now()) {
   return {
     source: 'rayprop', externalId: `${id}:${new Date(now).toISOString().slice(0, 10)}`, sourceUrl: url, duration: 'now',
     title, category: 'lodging', location: `${city}, Nigeria`, photos,
-    description: `${safeText(raw?.neighborhood, 70) || city}, ${city}. Listed from ₦${Math.round(price).toLocaleString('en-NG')} per night on RayProp. Check current dates, price and booking terms with the provider: ${url}\n\nBook and pay only on the provider's site. Revlo does not collect a deposit for this stay.`,
+    description: `${safeText(raw?.neighborhood, 70) || city}, ${city}. Listed from ₦${Math.round(price).toLocaleString('en-NG')} per night on RayProp. Use Contact on Revlo to ask about dates, price and booking terms. Do not pay a deposit before confirming the stay.`,
   };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { postWithoutLinks } from '@/lib/postLinks.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 //   'uid,title,description,location,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,created_at,expires_at';
 // NOTE: includes the publisher's public alias.
 const PUBLIC_COLS =
-  'uid,title,description,location,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,poster_alias,tags,created_at,expires_at';
+  'uid,title,description,location,category,post_type,budget_max,needed_by,header_url,thumb_url,media_type,video_url,gallery,contact_visibility,followable,duration,views,followers,poster_alias,tags,created_at,expires_at';
 
 // GET /api/posts/[uid] -> fetch one post. Feed views are recorded only after
 // the post's scroll-progress rail is completed (see /api/posts/[uid]/view).
@@ -31,5 +32,5 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'not found or expired' }, { status: 404 });
   }
 
-  return NextResponse.json({ post: data });
+  return NextResponse.json({ post: postWithoutLinks(data) });
 }

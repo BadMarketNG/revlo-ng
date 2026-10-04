@@ -1,5 +1,6 @@
 // "From X" strip (2026-10-03): which X searches to run and how to read the results.
 // Cost: X charges per post read. Visitors never trigger X calls; a scheduled job does, within caps.
+import { stripPostLinks } from './postLinks.mjs';
 
 export const PRICE_PER_POST_USD = () => Number(process.env.X_PRICE_PER_POST || 0.005);
 export const MONTHLY_CAP_USD = () => Number(process.env.X_FEED_MONTHLY_USD || 20);
@@ -146,7 +147,7 @@ export const xPostUrl = post => `https://x.com/${encodeURIComponent(post.author_
 export function xToPost(post, origin = 'https://revlo.ng') {
   const category = post.category === 'politics' ? 'general' : post.category;
   const firstLine = String(post.text).split('\n').map(l => l.trim()).find(l => /[\p{L}\p{N}]{3,}/u.test(l)) || post.text;
-  const clean = firstLine.replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
+  const clean = stripPostLinks(firstLine).replace(/\s+/g, ' ').trim();
   const title = (clean.length > 110 ? `${clean.slice(0, 107).replace(/\s+\S*$/, '')}…` : clean) || `Post from @${post.author_username}`;
   const place = REVLO_PLACES.find(p => p.toLowerCase().startsWith(String(post.city).toLowerCase())) || 'Nigeria';
   const seed = seedOf(post.id);
@@ -157,7 +158,7 @@ export function xToPost(post, origin = 'https://revlo.ng') {
     title: title.slice(0, 200),
     // ORIGINAL (2026-10-03): ended with 'Posted on X by Name (@handle): link'. Removed at the owner's request;
     // the owner is implementing attribution their own way (revlo_x_posts keeps the author and link).
-    description: String(post.text).slice(0, 5000),
+    description: stripPostLinks(String(post.text).slice(0, 5000)),
     location: place,
     category,
     header_url: photos[0] || `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,

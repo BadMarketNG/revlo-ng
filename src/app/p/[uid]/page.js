@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { postWithoutLinks } from '@/lib/postLinks.mjs';
 import { serializeJsonForHtml } from '@/lib/security';
 import { publicOrigin } from '@/lib/publicOrigin';
 import { jobPostingFor, nigerianAddress } from '@/lib/jobPosting.mjs';
@@ -11,24 +12,27 @@ async function getPost(uid) {
     .from('posts')
     // ORIGINAL (commented out 2026-10-02): .select('uid,title,description,location,category,header_url,thumb_url,created_at')
     // NOTE: expires_at and poster_alias added for the Google for Jobs markup (validThrough, employer).
-    .select('uid,title,description,location,category,header_url,thumb_url,created_at,expires_at,poster_alias')
+    .select('uid,title,description,location,category,post_type,budget_max,needed_by,header_url,thumb_url,created_at,expires_at,poster_alias')
     .eq('uid', uid)
     .is('deleted_at', null)
     .gt('expires_at', new Date().toISOString())
     .maybeSingle();
-  return data;
+  return postWithoutLinks(data);
 }
 
 // NOTE (2026-10-02): the employer for Google for Jobs: the imported job's employer, else the
 // publisher's public alias. Job posts with neither keep the ordinary markup.
 // NOTE (2026-10-02): Rentals / For Sale posts that take bookings link to the booking sheet.
 async function takesBookings(post) {
-  if (post.category !== 'rentals' && post.category !== 'for_sale') return false;
+  if (post.post_type === 'wanted') return false;
+  if (post.category !== 'rentals' && post.category !== 'for_sale' && post.category !== 'vehicles') return false;
+  if (post.category === 'rentals' || post.category === 'vehicles') return true;
   const { data } = await supabaseAdmin.from('revlo_booking_settings').select('post_uid').eq('post_uid', post.uid).maybeSingle();
   return Boolean(data);
 }
 
 async function getEmployer(post) {
+  if (post.post_type === 'wanted') return null;
   if (post.category !== 'jobs') return null;
   const { data } = await supabaseAdmin.from('revlo_imported_jobs').select('company').eq('post_uid', post.uid).maybeSingle();
   return data?.company || post.poster_alias || null;
@@ -82,9 +86,9 @@ export default async function PostPage({ params }) {
   const employer = await getEmployer(post);
   const bookable = await takesBookings(post);
   // NOTE (2026-10-02): job posts with an employer use JobPosting markup (Google for Jobs).
-  const jobPosting = jobPostingFor(post, { employer, origin: APP_URL });
+  const jobPosting = post.post_type === 'wanted' ? null : jobPostingFor(post, { employer, origin: APP_URL });
   // NOTE (2026-10-02): For Sale posts with a price use Product markup; Promotions with an event date use Event markup.
-  const listingMarkup = productFor(post, { origin: APP_URL })
+  const listingMarkup = post.post_type === 'wanted' ? null : productFor(post, { origin: APP_URL })
     || eventFor(post, { origin: APP_URL, organizer: post.poster_alias, address: nigerianAddress(post.location) });
   const socialPosting = {
     '@context': 'https://schema.org',
@@ -110,9 +114,14 @@ export default async function PostPage({ params }) {
         <img src={post.header_url} alt="" style={{ width: '100%', borderRadius: 12, marginBottom: 20, display: 'block' }} />
       )}
       <h1 style={{ fontSize: 24, marginBottom: 8 }}>{post.title}</h1>
+      {post.post_type === 'wanted' && <strong style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 99, background: '#f8b83f', color: '#392400' }}>WANTED</strong>}
       {/* ORIGINAL (2026-10-02): <p style={{ color: '#666', marginBottom: 16 }}>{post.location}</p> */}
       {/* NOTE: job posts also show the employer and how to apply, which Google needs visible on the page. */}
       <p style={{ color: '#666', marginBottom: 16 }}>{[jobPosting ? employer : null, post.location].filter(Boolean).join(' · ')}</p>
+      {post.post_type === 'wanted' && <p style={{ color: '#355842', marginBottom: 16 }}>
+        {post.budget_max ? `Maximum budget: ₦${Number(post.budget_max).toLocaleString('en-NG')}` : 'Budget open'}
+        {post.needed_by ? ` · Needed by ${new Date(post.needed_by).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
+      </p>}
       {post.description && (
         // ORIGINAL (2026-10-02): <p style={{ lineHeight: 1.6, marginBottom: 24, color: '#333' }}>{post.description}</p>
         // NOTE: keeps line breaks, so the "Price:", "When:" and "Where:" lines read as lines.

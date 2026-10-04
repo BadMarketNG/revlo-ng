@@ -38,11 +38,9 @@
       const anchor = document.querySelector('.rv-st-pinned') || countLine.closest('main > *');
       anchor?.insertAdjacentElement('afterend', box);
     }
-    box.querySelector('h3').textContent = category === 'Dating' ? `No dating profiles${where} right now.` : `No ${what}${where} right now. Be the first!`;
-    box.querySelector('p').textContent = category === 'Dating'
-      ? 'Profiles appear only when adults choose to post themselves. Your email stays private and you can remove your post.'
-      : 'Posts on Revlo come down when their time is up, so new ones appear all the time.';
-    box.querySelector('.post').textContent = category === 'Dating' ? '＋ Post your profile' : '＋ Post one free';
+    box.querySelector('h3').textContent = `No ${what}${where} right now. Be the first!`;
+    box.querySelector('p').textContent = 'Posts on Revlo come down when their time is up, so new ones appear all the time.';
+    box.querySelector('.post').textContent = '＋ Post one free';
   }
 
   let queued = false;

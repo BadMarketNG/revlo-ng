@@ -2,7 +2,7 @@ import LegalPage, { CONTACT_EMAIL } from '@/components/LegalPage';
 
 export const metadata = {
   title: 'Community Rules — Revlo.ng',
-  description: 'What you can and cannot post on Revlo.ng, including Dating profiles, jobs, rentals and sales.',
+  description: 'What you can and cannot post on Revlo.ng, including jobs, rentals and sales.',
   alternates: { canonical: '/rules' },
 };
 
@@ -22,6 +22,13 @@ const SECTIONS = [
       'Choose the correct category and location. Do not post the same thing repeatedly or in several categories to gain visibility.',
       'Remove or let your post expire as soon as the job is filled, the property is let or the item is sold.',
     ]],
+  ['Wanted requests',
+    [
+      'Ask only for a real item, rental, service or work you currently need. State your area, budget if relevant, and when you need an answer.',
+      'Wanted requests are text-only and expire by the deadline you choose, within three days. Mark one as found when you have what you need.',
+      'Do not use Wanted to advertise something you sell, recruit people for a job, request prohibited goods or services, or solicit advance payments. Work requests must be about your own availability.',
+      'Keep phone numbers, email addresses, links and private documents out of the post. Responders use Revlo Contact.',
+    ]],
   ['Jobs',
     [
       'Only post real vacancies that you are authorised to fill. Include the role, location, and pay or pay range where possible.',
@@ -38,15 +45,6 @@ const SECTIONS = [
       'Do not ask for inspection fees or deposits before a viewing. Renters should never pay for a property they have not seen.',
       'Photos and descriptions must match the actual property and its condition.',
       'Shortlets must be genuine, available on the dates offered and legal in their location.',
-    ]],
-  ['Dating profiles',
-    [
-      'Only post your own profile if you are 18 or older and want to be contacted about dating. Do not post for someone else.',
-      'Use your own current photo. Do not use a stock image, another person’s photo, or an AI-generated person.',
-      'Give your age honestly and use a city or broad area, never a home or work address.',
-      'Keep phone numbers, email addresses, social handles and links out of the profile. Use Revlo Contact, which verifies a sender’s email before delivering a message.',
-      'No requests for money, gifts, travel fares or deposits; no harassment, sexual services or explicit content.',
-      'Revlo does not independently verify someone’s identity or age. Report a suspicious profile and stop contact if someone asks for money or private documents.',
     ]],
   ['For sale',
     [

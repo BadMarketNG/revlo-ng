@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireRateLimit } from '@/lib/security';
 import { requestIp } from '@/lib/revloBlocklist';
 import { sendEmail } from '@/lib/email';
-import { availableSlots, cleanBookingRequest } from '@/lib/bookings.mjs';
+import { availableSlots, bookingSettingsFor, cleanBookingRequest } from '@/lib/bookings.mjs';
 import { esc, safetyHtml, what, when } from '@/lib/bookingPages.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -23,13 +23,14 @@ export async function POST(request) {
 
   const now = new Date();
   const [{ data: post }, { data: settings }] = await Promise.all([
-    supabaseAdmin.from('posts').select('uid,title,category,expires_at').eq('uid', uid).is('deleted_at', null).gt('expires_at', now.toISOString()).maybeSingle(),
+    supabaseAdmin.from('posts').select('uid,title,category,post_type,expires_at').eq('uid', uid).is('deleted_at', null).gt('expires_at', now.toISOString()).maybeSingle(),
     supabaseAdmin.from('revlo_booking_settings').select('*').eq('post_uid', uid).maybeSingle(),
   ]);
-  if (!post || !settings) return NextResponse.json({ error: 'This post does not take bookings.' }, { status: 404 });
-  if (!settings.modes.includes(input.value.mode)) return NextResponse.json({ error: `This post does not take ${input.value.mode === 'call' ? 'calls' : 'viewings'}.` }, { status: 400 });
+  const bookingSettings = bookingSettingsFor(post, settings);
+  if (!post || !bookingSettings) return NextResponse.json({ error: 'This post does not take bookings.' }, { status: 404 });
+  if (!bookingSettings.modes.includes(input.value.mode)) return NextResponse.json({ error: `This post does not take ${input.value.mode === 'call' ? 'calls' : 'viewings'}.` }, { status: 400 });
   const { data: taken } = await supabaseAdmin.from('revlo_bookings').select('slot_start').eq('post_uid', uid).in('status', ['requested', 'accepted']).gte('slot_start', now.toISOString());
-  const free = availableSlots(settings, { now: now.getTime(), expiresAt: post.expires_at, taken: (taken ?? []).map(t => t.slot_start) });
+  const free = availableSlots(bookingSettings, { now: now.getTime(), expiresAt: bookingSettings.proposed ? new Date(now.getTime() + 7 * 86400000) : post.expires_at, taken: (taken ?? []).map(t => t.slot_start) });
   if (!free.includes(input.value.slot)) return NextResponse.json({ error: 'That time is no longer free. Please choose another.' }, { status: 409 });
 
   const booking = { post_uid: uid, mode: input.value.mode, slot_start: input.value.slot, name: input.value.name, email: input.value.email, phone: input.value.phone, note: input.value.note, visitor_token: token(), poster_token: token() };

@@ -42,6 +42,7 @@
     dialog.innerHTML = `<div class="rv-al-sheet"><button type="button" class="rv-al-close" aria-label="Close">×</button>
       <h3 id="rv-al-title">Alert me</h3><p>Get one email a day when new posts match. Free, no account.</p>
       <form novalidate>
+        <label>Notify me about<select name="post_type"><option value="offer">Offers and listings</option><option value="wanted">Wanted requests</option></select></label>
         <label>What are you looking for?<select name="category"></select></label>
         <div class="rv-al-row"><label>Area<select name="area"></select></label><label>Keyword (optional)<input name="keyword" maxlength="40" placeholder="e.g. self contained"></label></div>
         <label>Your email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
@@ -67,7 +68,7 @@
       if (!form.email.value.trim() || !form.email.checkValidity()) { msg.classList.add('err'); msg.textContent = 'Enter a valid email address.'; form.email.focus(); return; }
       button.disabled = true; msg.textContent = 'Saving…';
       try {
-        const response = await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: form.email.value, category: form.category.value, area: form.area.value, keyword: form.keyword.value }) });
+        const response = await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: form.email.value, post_type: form.post_type.value, category: form.category.value, area: form.area.value, keyword: form.keyword.value }) });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || 'Something went wrong. Please try again.');
         form.querySelectorAll('label, .rv-al-go, .rv-al-fine').forEach(el => { el.hidden = true; });

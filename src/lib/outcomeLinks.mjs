@@ -9,7 +9,7 @@ export function markLink(post) {
 }
 
 export function markEmail(post, { prompt = false } = {}) {
-  const { verb } = outcomeFor(post.category);
+  const { verb } = outcomeFor(post.category, post.post_type);
   const link = markLink(post);
   return {
     subject: (prompt ? `Did it go? ${post.title}` : `Mark your Revlo post as ${verb.toLowerCase()}: ${post.title}`).slice(0, 150),
