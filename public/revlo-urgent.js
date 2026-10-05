@@ -9,7 +9,7 @@
   //   (2026-10-02: widened from jobs only at the owner's request.)
   // 24-hour posts already exist (the "24h · Today" duration, stored as "now"); they count as a normal post.
 
-  const URGENT_PROMPT = 'Need a response today?';
+  const PROMPTS = ['Need staff today?', 'Room free this weekend?', 'Selling before you travel?', 'Promotion ends tonight?'];
   const G = '#1b5e20';
   let urgent = new Map(); // uid -> { category, expiresAt }
   let dayOnly = false;
@@ -17,7 +17,7 @@
   const style = document.createElement('style');
   style.textContent = `
     .rv-ur-line{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:16px;padding:12px 14px;border-radius:14px;background:#fff7e6;border:1px solid #f3dfb0}
-    .rv-ur-prompt{font:800 17px/1.2 system-ui;color:#3d2a00;min-width:12ch}
+    .rv-ur-prompt{font:800 17px/1.2 system-ui;color:#3d2a00;min-width:25ch}
     .rv-ur-btn{border:0;border-radius:12px;background:#b45309;color:#fff;font:700 14px system-ui;padding:10px 14px;cursor:pointer}
     .rv-ur-btn:hover{background:#92400e}
     .rv-ur-badge{position:absolute;z-index:3;top:12px;right:12px;display:inline-flex;align-items:center;gap:6px;background:#b45309;color:#fff;border-radius:999px;padding:5px 10px;font:800 11.5px/1 system-ui;letter-spacing:.02em;box-shadow:0 4px 12px rgba(0,0,0,.18)}
@@ -54,7 +54,14 @@
     line.innerHTML = '<span class="rv-ur-prompt" aria-live="polite"></span><button type="button" class="rv-ur-btn">Post a 24-hour listing</button>';
     (intro || h1).insertAdjacentElement('afterend', line);
     const prompt = line.querySelector('.rv-ur-prompt');
-    prompt.textContent = URGENT_PROMPT;
+    prompt.textContent = PROMPTS[0];
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let index = 0;
+      setInterval(() => {
+        index = (index + 1) % PROMPTS.length;
+        prompt.textContent = PROMPTS[index];
+      }, 4200);
+    }
     // The form opens on the 24h duration by default; this simply opens it.
     line.querySelector('button').addEventListener('click', () => postButton()?.click());
   }
