@@ -18,6 +18,11 @@ const CITIES = [
 ];
 const MAX_NEW = 12;
 const MAX_PER_SOURCE = { myjobmag: 6, nigeriapropertycentre: 6, facebook: 3 };
+const MAX_SOURCE_CITY = {
+  myjobmag: { Lagos: 4, Abuja: 1, 'Port Harcourt': 1 },
+  nigeriapropertycentre: { Lagos: 4, Abuja: 2, 'Port Harcourt': 1 },
+  facebook: { Lagos: 2, Abuja: 1, 'Port Harcourt': 1 },
+};
 
 async function fetchPage(url) {
   const response = await fetch(url, {
@@ -34,7 +39,7 @@ async function fetchPage(url) {
 async function collect(now) {
   const tasks = CITIES.flatMap(city => [
     { source: 'myjobmag', city: city.name, url: `https://www.myjobmag.com/jobs-location/${city.job}`, parse: myJobMagItems },
-    { source: 'nigeriapropertycentre', city: city.name, url: `https://nigeriapropertycentre.com/for-rent/${city.property}`, parse: propertyCentreItems },
+    ...(process.env.REVLO_NPC_ENABLED === '1' ? [{ source: 'nigeriapropertycentre', city: city.name, url: `https://nigeriapropertycentre.com/for-rent/${city.property}`, parse: propertyCentreItems }] : []),
   ]);
   const facebookPages = [...new Set((process.env.REVLO_PUBLIC_FACEBOOK_PAGES || 'https://www.facebook.com/JobbermanNigeria')
     .split(/[\s,]+/).map(facebookEmbedUrl).filter(Boolean))].slice(0, 5);
@@ -106,21 +111,30 @@ export async function GET(request) {
   const { data: live, error: liveError } = await supabaseAdmin.from('posts').select('header_url')
     .eq('poster_email', DISCOVERY_POSTER).is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1000);
   if (liveError) return NextResponse.json({ error: 'Could not check active images' }, { status: 503 });
+  const dayStart = new Date();
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const { data: importedToday, error: dayError } = await supabaseAdmin.from('revlo_discovery_imports')
+    .select('source,post_uid').gte('imported_at', dayStart.toISOString()).not('post_uid', 'is', null).limit(1000);
+  if (dayError) return NextResponse.json({ error: 'Could not check daily import limits' }, { status: 503 });
+  const publicImportsToday = (importedToday || []).filter(row => Object.hasOwn(MAX_PER_SOURCE, row.source));
   const usedImages = new Set((live || []).map(row => row.header_url).filter(Boolean));
   const added = [];
   const byCity = Object.fromEntries(CITIES.map(city => [city.name, 0]));
-  const bySource = { myjobmag: 0, nigeriapropertycentre: 0, facebook: 0 };
+  const bySource = Object.fromEntries(Object.keys(MAX_PER_SOURCE).map(source => [source, publicImportsToday.filter(row => row.source === source).length]));
+  const bySourceCity = Object.fromEntries(Object.keys(MAX_PER_SOURCE).map(source => [source, Object.fromEntries(CITIES.map(city => [city.name, 0]))]));
   for (const item of orderCandidates(candidates)) {
-    if (added.length >= MAX_NEW) break;
+    if (publicImportsToday.length + added.length >= MAX_NEW) break;
     if (byCity[item.city] >= CITIES.find(city => city.name === item.city)?.cap) continue;
     if (bySource[item.source] >= MAX_PER_SOURCE[item.source]) continue;
+    if (bySourceCity[item.source][item.city] >= MAX_SOURCE_CITY[item.source][item.city]) continue;
     const uid = await publish(item, usedImages);
     if (!uid) continue;
     added.push(uid);
     byCity[item.city] += 1;
     bySource[item.source] += 1;
+    bySourceCity[item.source][item.city] += 1;
   }
   if (added.length) await notifyIndexNow(added.map(uid => `https://revlo.ng/p/${uid}`));
-  console.info('[cron:import-public]', JSON.stringify({ candidates: candidates.length, published: added.length, bySource, failures }));
-  return NextResponse.json({ ok: true, candidates: candidates.length, published: added.length, bySource, failures });
+  console.info('[cron:import-public]', JSON.stringify({ candidates: candidates.length, published: added.length, byCity, bySource, failures }));
+  return NextResponse.json({ ok: true, candidates: candidates.length, published: added.length, byCity, bySource, failures });
 }
