@@ -5,12 +5,14 @@ export const STOCK_PHOTOS = {
   jobs: [
     ...Array.from({ length: 14 }, (_, index) => ({ name: `jobs-${index + 1}`, topic: index === 3 ? 'medical' : index >= 5 && index <= 11 ? 'warehouse' : 'office' })),
     ...[12902862,12902876,12903153,12903349,12911261,13450788,19895883,5324920,6592397,6803551,6930581,7438090,7580707,7964513,7988117,7993573,8691820,8837374].map(id => ({ name: `jobs-p${id}`, id, topic: 'office', alt: 'Professional at work' })),
+    ...[9301248,30689114,3869649,36765731,5669604,7979415,5668496,5060563,36766701].map(id => ({ name: `jobs-p${id}`, id, topic: 'office', alt: 'Professional at work' })),
     ...[5430213,5722166,6097749,6098051,6303643].map(id => ({ name: `jobs-p${id}`, id, topic: 'medical', alt: 'Healthcare professional at work' })),
     ...[17018103,17842832,33694019,34054464,9679179].map(id => ({ name: `jobs-p${id}`, id, topic: 'electrical', alt: 'Electrical technician at work' })),
     ...[31112238,31199532,31199539,4487365,4483938,4483861].map(id => ({ name: `jobs-p${id}`, id, topic: 'warehouse', alt: 'Warehouse worker at work' })),
     ...[11358072,18703556,4199488,6925800,8422732].map(id => ({ name: `jobs-p${id}`, id, topic: 'retail', alt: 'Retail worker at work' })),
     ...[9462742,6466493].map(id => ({ name: `jobs-p${id}`, id, topic: 'cleaning', alt: 'Housekeeping staff at work' })),
     ...[14959638,163945].map(id => ({ name: `jobs-p${id}`, id, topic: 'driving', alt: 'Person driving a car' })),
+    ...[5835278,9200178,4571555,4687853,4571550,4606331,6169127,6173272,26839258].map(id => ({ name: `jobs-p${id}`, id, topic: 'driving', alt: 'Person driving a car' })),
   ],
   rentals: [
     ...Array.from({ length: 8 }, (_, index) => ({ name: `rentals-${index + 1}`, topic: 'property' })),
