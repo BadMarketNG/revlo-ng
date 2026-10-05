@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
-import { buildDigest, buildShortDigest, postToFacebook, postToX } from '@/lib/socialPost.mjs';
+import { buildDigest, buildShortDigest, postToFacebook, postToX, socialCardForCounts } from '@/lib/socialPost.mjs';
 import { headline } from '@/lib/outcomes.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,8 @@ export async function GET(request) {
   const { data: shared } = await supabaseAdmin.from('revlo_outcomes').select('outcome,label,hours').eq('share', true).gt('resolved_at', new Date(now.getTime() - 86400000).toISOString()).order('hours').limit(3);
   const results = (shared ?? []).map(r => `${headline(r.outcome, Number(r.hours))}: ${r.label}`);
   const long = buildDigest(counts, { url: link, bookable: bookable || 0, results });
-  const short = buildShortDigest(counts, { url: link });
+  const card = socialCardForCounts(counts, now.getTime());
+  const short = buildShortDigest(counts, { url: `https://revlo.ng/today/${card.slug}` });
   if (!long) return NextResponse.json({ ok: true, posted: false, reason: 'no new posts' });
   const [facebook, x] = await Promise.all([
     postToFacebook(long, link).catch(e => ({ ok: false, error: e?.name })),

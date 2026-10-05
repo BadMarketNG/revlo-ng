@@ -42,8 +42,8 @@ function signedRequest(path, payload) {
 // Send an email. If SES isn't configured, we log and no-op so the app still
 // works in development without email set up.
 // NOTE (2026-10-01): every send is recorded in revlo_email_log (no bodies) for the admin Email log.
-export async function sendEmail({ to, subject, html, headers }) {
-  const result = await sendEmailUnlogged({ to, subject, html, headers });
+export async function sendEmail({ to, subject, html, headers, attachments }) {
+  const result = await sendEmailUnlogged({ to, subject, html, headers, attachments });
   await logEmailSend(to, subject, result);
   return result;
 }
@@ -62,7 +62,7 @@ async function logEmailSend(to, subject, result) {
 }
 
 // ORIGINAL name (renamed 2026-10-01): export async function sendEmail({ to, subject, html, headers }) {
-async function sendEmailUnlogged({ to, subject, html, headers }) {
+async function sendEmailUnlogged({ to, subject, html, headers, attachments }) {
   if (!configured) {
     console.log('[email:skipped] SES is not configured. Would send:', { to, subject });
     return { skipped: true };
@@ -82,6 +82,13 @@ async function sendEmailUnlogged({ to, subject, html, headers }) {
           Html: { Data: fullHtml, Charset: 'UTF-8' },
           Text: { Data: htmlToText(fullHtml), Charset: 'UTF-8' },
         },
+        ...(attachments?.length ? { Attachments: attachments.map(({ filename, contentType, content }) => ({
+          FileName: filename,
+          ContentType: contentType,
+          ContentDisposition: 'ATTACHMENT',
+          ContentTransferEncoding: 'BASE64',
+          RawContent: Buffer.from(content).toString('base64'),
+        })) } : {}),
         ...(headerList.length ? { Headers: headerList } : {}),
       },
     },

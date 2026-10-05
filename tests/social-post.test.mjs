@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDigest, buildShortDigest, oauth1Header } from '../src/lib/socialPost.mjs';
+import { buildDigest, buildShortDigest, oauth1Header, socialCardForCounts, socialCardFromSlug } from '../src/lib/socialPost.mjs';
 
 // The expected value is HMAC-SHA1 of the signature base string published in X's OAuth docs, computed
 // independently, so this checks that the base string is built exactly as documented.
@@ -25,8 +25,18 @@ test('daily digests', async () => {
   const short = buildShortDigest({ jobs: 12, rentals: 5 });
   assert.ok(short.length <= 280);
   assert.match(short, /12 jobs, 5 rooms and rentals/);
+  assert.match(short, /^Looking for work\?/);
   const { lagosDay } = await import('../src/lib/socialPost.mjs');
   assert.equal(lagosDay(Date.parse('2026-10-02T23:30:00Z')), 'Sat 3 Oct'); // already Saturday in Lagos
+});
+
+test('daily social cards rotate real stock photos and keep a stable dated URL', () => {
+  const first = socialCardForCounts({ jobs: 8, rentals: 2 }, Date.UTC(2026, 9, 5));
+  const next = socialCardForCounts({ jobs: 8, rentals: 2 }, Date.UTC(2026, 9, 6));
+  assert.equal(first.category, 'jobs');
+  assert.notEqual(first.image, next.image);
+  assert.deepEqual(socialCardFromSlug(first.slug), { date: '2026-10-05', category: 'jobs', image: first.image });
+  assert.equal(socialCardFromSlug('2026-10-05-jobs-9'), null);
 });
 
 test('daily digest lists shared results', async () => {

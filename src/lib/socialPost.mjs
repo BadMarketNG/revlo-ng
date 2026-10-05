@@ -35,9 +35,33 @@ export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, no
 export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.now() } = {}) {
   const parts = LABELS.filter(([key]) => counts[key] > 0).map(([key, one, many]) => `${counts[key]} ${counts[key] === 1 ? one : many}`);
   if (!parts.length) return null;
-  let text = `New on Revlo, ${lagosDay(now)}: ${parts.join(', ')}. Free to post, no sign-up. Look before they expire:`;
+  const lead = counts.jobs ? 'Looking for work?' : counts.rentals ? 'Looking for a place?' : counts.for_sale ? 'Looking for a deal?' : 'See what is new in Nigeria.';
+  let text = `${lead} New on Revlo, ${lagosDay(now)}: ${parts.join(', ')}. Browse while they are live:`;
   if (text.length > 280 - 24) text = `${text.slice(0, 280 - 26)}…`;
   return `${text} ${url}`;
+}
+
+// These are existing, licensed real stock photos, shown as illustrations of
+// categories rather than pictures of any particular listing.
+const SOCIAL_CARDS = {
+  jobs: ['/samples/headers/jobs-1.jpg', '/samples/headers/jobs-p36766701.jpg', '/samples/headers/jobs-p36765731.jpg'],
+  rentals: ['/samples/headers/rentals-2.jpg', '/samples/headers/rentals-3.jpg'],
+  for_sale: ['/samples/headers/for_sale-3.jpg', '/samples/headers/for_sale-4.jpg'],
+};
+
+export function socialCardForCounts(counts, now = Date.now()) {
+  const category = ['jobs', 'rentals', 'for_sale'].sort((a, b) => (counts[b] || 0) - (counts[a] || 0))[0];
+  const selected = counts[category] ? category : 'jobs';
+  const day = new Date(now + 3600000).toISOString().slice(0, 10);
+  const index = Math.floor(Date.parse(`${day}T00:00:00Z`) / 86400000) % SOCIAL_CARDS[selected].length;
+  return { slug: `${day}-${selected}-${index + 1}`, category, image: SOCIAL_CARDS[selected][index] };
+}
+
+export function socialCardFromSlug(slug) {
+  const match = /^(\d{4}-\d{2}-\d{2})-(jobs|rentals|for_sale)-([1-3])$/.exec(String(slug || ''));
+  if (!match) return null;
+  const image = SOCIAL_CARDS[match[2]][Number(match[3]) - 1];
+  return image ? { date: match[1], category: match[2], image } : null;
 }
 
 const enc = value => encodeURIComponent(value).replace(/[!'()*]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
