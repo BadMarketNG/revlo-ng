@@ -365,11 +365,19 @@ function Reports() {
 
 function AllPosts() {
   const [rows, setRows] = useState(null);
+  const [previewPost, setPreviewPost] = useState(null);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('all');
   const [editingUid, setEditingUid] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '', category: 'general' });
   const categories = useCategoryCatalogue();
+
+  useEffect(() => {
+    if (!previewPost) return;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setPreviewPost(null); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [previewPost]);
 
   const load = useCallback(() => { fetch('/api/admin/posts?all=1').then((r) => r.json()).then((d) => setRows(d.posts || [])); }, []);
   useEffect(() => { load(); }, [load]);
@@ -464,6 +472,7 @@ function AllPosts() {
                           <select defaultValue={p.duration} onChange={(e) => act(p.uid, 'change_duration', { duration: e.target.value })} style={{ ...inp, width: 'auto', padding: '6px 8px' }}>
                             {Object.entries(DUR_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                           </select>
+                          <button onClick={() => setPreviewPost(p)} style={miniBtn(GREEN)}>View as visitor</button>
                           <button onClick={() => startEdit(p)} style={miniBtn(BLUE)}>Edit</button>
                           {p.deleted_at
                             ? <button onClick={() => act(p.uid, 'restore')} style={miniBtn(GREEN)}>Restore</button>
@@ -480,6 +489,44 @@ function AllPosts() {
         })}
         {filtered.length === 0 && <p style={{ color: MUTED }}>No posts match.</p>}
       </div>
+      {previewPost && (
+        <div role="presentation" onClick={() => setPreviewPost(null)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.72)', display: 'grid', placeItems: 'center', padding: 16 }}>
+          <div role="dialog" aria-modal="true" aria-label={`Visitor preview: ${previewPost.title}`} onClick={(event) => event.stopPropagation()} style={{ width: 'min(100%, 760px)', maxHeight: '90vh', overflowY: 'auto', background: '#fffdf6', color: '#29362c', borderRadius: 14, boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #d8dfcf' }}>
+              <div><strong>Visitor preview</strong><div style={{ fontSize: 13, color: '#647065' }}>How this post appears to people browsing Revlo</div></div>
+              <button onClick={() => setPreviewPost(null)} aria-label="Close preview" style={miniBtn('#374151')}>Close</button>
+            </div>
+            {previewPost.media_type === 'video' && previewPost.video_url ? (
+              <video src={previewPost.video_url} controls poster={previewPost.header_url || undefined} style={{ display: 'block', width: '100%', maxHeight: 360, background: '#111' }} />
+            ) : previewPost.post_type !== 'wanted' && previewPost.header_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewPost.header_url} alt="Post cover" style={{ display: 'block', width: '100%', maxHeight: 360, objectFit: 'cover' }} />
+            ) : null}
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ borderRadius: 99, padding: '5px 10px', background: '#e5ece0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>{categories.find((category) => category.slug === previewPost.category)?.label || CAT_LABEL[previewPost.category] || previewPost.category}</span>
+                {previewPost.post_type === 'wanted' && <span style={{ borderRadius: 99, padding: '5px 10px', background: '#f8b83f', color: '#392400', fontSize: 12, fontWeight: 700 }}>WANTED</span>}
+                {(previewPost.deleted_at || new Date(previewPost.expires_at) < new Date()) && <span style={{ color: '#a23c32', fontSize: 12, fontWeight: 700 }}>NO LONGER PUBLIC</span>}
+              </div>
+              <h2 style={{ fontSize: 26, margin: '0 0 10px' }}>{previewPost.title}</h2>
+              <div style={{ color: '#58655a', marginBottom: 16 }}>📍 {previewPost.location || 'Location not specified'}</div>
+              <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, overflowWrap: 'anywhere' }}>{previewPost.description || 'No description provided.'}</p>
+              {Array.isArray(previewPost.gallery) && previewPost.gallery.length > 0 && <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '16px 0' }}>
+                {previewPost.gallery.slice(0, 3).map((url, index) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={`${url}-${index}`} src={url} alt={`Post photo ${index + 1}`} style={{ width: 110, height: 82, objectFit: 'cover', borderRadius: 8 }} />
+                ))}
+              </div>}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 20 }}>
+                <span style={{ ...miniBtn(GREEN), background: GREEN, color: 'white', cursor: 'default' }}>✉ Contact</span>
+                <span style={{ ...miniBtn(GREEN), cursor: 'default' }}>🔔 Follow</span>
+                {!previewPost.deleted_at && new Date(previewPost.expires_at) >= new Date() && <a href={`/app.html#post-${encodeURIComponent(previewPost.uid)}`} target="_blank" rel="noopener noreferrer" style={{ ...miniBtn(BLUE), textDecoration: 'none' }}>Open live post ↗</a>}
+              </div>
+              <p style={{ fontSize: 12, color: '#647065', marginBottom: 0 }}>Preview only. Contact and Follow are shown for layout; use Open live post to test the public page.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
