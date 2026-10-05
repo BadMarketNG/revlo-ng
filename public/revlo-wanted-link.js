@@ -33,7 +33,7 @@
       const link = document.createElement('a');
       link.href = '/wanted';
       link.className = 'revlo-wanted-link';
-      link.textContent = 'Ask and be given';
+      link.textContent = 'Ask for what you need';
       button.insertAdjacentElement('afterend', link);
     }
     document.querySelectorAll('article[data-post-type="wanted"]:not([data-sample])').forEach((article) => {
