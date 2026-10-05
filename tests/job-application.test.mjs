@@ -17,3 +17,13 @@ test('job applications require a valid adult identity, cover letter and PDF or D
   assert.match(validateJobApplication({ ...valid, bytes: Buffer.alloc(110), filename: 'cv.pdf' }).error, /PDF or DOCX/);
   assert.match(validateJobApplication({ ...valid, bytes: Buffer.alloc(4 * 1024 * 1024 + 1) }).error, /under 4 MB/);
 });
+
+test('an optional camera photo is private attachment data and must be a small image', () => {
+  assert.equal(validateJobApplication(valid).photo, null);
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(110)]);
+  const withPhoto = validateJobApplication({ ...valid, photoFilename: 'camera.jpg', photoBytes: jpeg });
+  assert.equal(withPhoto.photo.contentType, 'image/jpeg');
+  assert.equal(withPhoto.photo.filename, 'camera.jpg');
+  assert.match(validateJobApplication({ ...valid, photoFilename: 'bad.jpg', photoBytes: Buffer.alloc(110) }).error, /JPEG, PNG or WebP/);
+  assert.match(validateJobApplication({ ...valid, photoFilename: 'big.jpg', photoBytes: Buffer.alloc(200 * 1024 + 1) }).error, /under 200 KB/);
+});

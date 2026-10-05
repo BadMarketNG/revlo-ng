@@ -1,8 +1,9 @@
 const PDF = 'application/pdf';
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const MAX_CV_BYTES = 4 * 1024 * 1024;
+export const MAX_PHOTO_BYTES = 200 * 1024;
 
-export function validateJobApplication({ name, birthDate, coverLetter, filename, bytes }) {
+export function validateJobApplication({ name, birthDate, coverLetter, filename, bytes, photoFilename, photoBytes }) {
   const cleanName = String(name || '').trim().replace(/\s+/g, ' ');
   const cleanLetter = String(coverLetter || '').trim();
   const date = String(birthDate || '');
@@ -18,6 +19,18 @@ export function validateJobApplication({ name, birthDate, coverLetter, filename,
   const pdf = /\.pdf$/i.test(safeFilename) && bytes.subarray(0, 5).toString() === '%PDF-';
   const docx = /\.docx$/i.test(safeFilename) && bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
   if (!pdf && !docx) return { error: 'Upload a PDF or DOCX CV.' };
+  let photo = null;
+  if (photoBytes) {
+    if (!Buffer.isBuffer(photoBytes) || photoBytes.length < 100 || photoBytes.length > MAX_PHOTO_BYTES) {
+      return { error: 'Choose a photo under 200 KB. The form can reduce it before sending.' };
+    }
+    const jpg = photoBytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]));
+    const png = photoBytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const webp = photoBytes.subarray(0, 4).toString() === 'RIFF' && photoBytes.subarray(8, 12).toString() === 'WEBP';
+    if (!jpg && !png && !webp) return { error: 'Choose a JPEG, PNG or WebP photo.' };
+    photo = { filename: String(photoFilename || 'applicant-photo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100),
+      contentType: jpg ? 'image/jpeg' : png ? 'image/png' : 'image/webp', bytes: photoBytes };
+  }
   return { name: cleanName, birthDate: date, coverLetter: cleanLetter, filename: safeFilename,
-    contentType: pdf ? PDF : DOCX, bytes };
+    contentType: pdf ? PDF : DOCX, bytes, photo };
 }
