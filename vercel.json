@@ -13,6 +13,10 @@
       "schedule": "30 4 * * *"
     },
     {
+      "path": "/api/cron/import-public",
+      "schedule": "15 7 * * *"
+    },
+    {
       "path": "/api/cron/alerts",
       "schedule": "0 6 * * *"
     },
