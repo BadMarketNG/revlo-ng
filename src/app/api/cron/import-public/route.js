@@ -48,9 +48,15 @@ async function collect(now) {
   for (let index = 0; index < tasks.length; index += 1) {
     const result = results[index];
     if (result.status === 'fulfilled') candidates.push(...result.value);
-    else failures.push(`${tasks[index].source}:${tasks[index].city || 'page'}`);
+    else failures.push(`${tasks[index].source}:${tasks[index].city || 'page'}:${String(result.reason?.message || result.reason?.cause?.code || 'failed').slice(0, 80)}`);
   }
-  return { candidates, failures };
+  const seenListings = new Set();
+  return { candidates: candidates.filter(item => {
+    const key = `${item.category}:${item.city}:${item.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()}`;
+    if (seenListings.has(key)) return false;
+    seenListings.add(key);
+    return true;
+  }), failures };
 }
 
 function orderCandidates(items) {
