@@ -39,7 +39,7 @@ export default function PostCreationPreviews() {
   const [refreshedAt, setRefreshedAt] = useState(null);
   const [now, setNow] = useState(0);
   const [response, setResponse] = useState('contact');
-  const [showCreation, setShowCreation] = useState(false);
+  const [previewMode, setPreviewMode] = useState('response');
   const [bookingSlots, setBookingSlots] = useState(null);
 
   useEffect(() => {
@@ -77,8 +77,15 @@ export default function PostCreationPreviews() {
   const field = { display: 'block', width: '100%', boxSizing: 'border-box', border: `1px solid ${border}`, borderRadius: 10, background: '#fff', padding: '12px 14px', color: '#46556b', font: 'inherit' };
 
   return <section style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 14, padding: 24 }}>
-    <h2 style={{ margin: '0 0 6px', color: '#172033' }}>Visitor response forms</h2>
-    <p style={{ color: muted, margin: '0 0 18px' }}>See what someone fills in when responding to a current post. Preview only: no email, booking or application is sent.</p>
+    <h2 style={{ margin: '0 0 6px', color: '#172033' }}>User-facing previews</h2>
+    <p style={{ color: muted, margin: '0 0 18px' }}>Inspect both sides of a post. These previews do not publish, email or book anything.</p>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24, borderBottom: `1px solid ${border}`, paddingBottom: 16 }}>
+      <button type="button" onClick={() => setPreviewMode('response')} style={choice(previewMode === 'response')}>Visitor response forms</button>
+      <button type="button" onClick={() => setPreviewMode('creation')} style={choice(previewMode === 'creation')}>Post creator preview</button>
+    </div>
+    {previewMode === 'response' ? <>
+    <h3 style={{ margin: '0 0 6px' }}>Respond to a post</h3>
+    <p style={{ color: muted, margin: '0 0 18px' }}>See what someone fills in when responding to a current post.</p>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
       <button type="button" onClick={() => { setResponse('contact'); setSelected('for_sale'); setRequestType(false); }} style={choice(response === 'contact')}>✉ Contact poster</button>
       <button type="button" onClick={() => { setResponse('booking'); setSelected('rentals'); setRequestType(false); }} style={choice(response === 'booking')}>📅 Request a viewing</button>
@@ -86,8 +93,9 @@ export default function PostCreationPreviews() {
       <button type="button" onClick={() => { setResponse('follow'); setSelected('jobs'); setRequestType(false); }} style={choice(response === 'follow')}>🔔 Follow poster</button>
     </div>
     <ResponseForm response={response} live={live} bookingSlots={bookingSlots?.uid === live?.uid ? bookingSlots : null} field={field} />
-    <details style={{ margin: '22px 0' }} open={showCreation} onToggle={(event) => setShowCreation(event.currentTarget.open)}><summary style={{ cursor: 'pointer', color: green, fontWeight: 800 }}>Also inspect the listing creation flow</summary></details>
-    {showCreation && <div>
+    </> : <div>
+    <h3 style={{ margin: '0 0 6px' }}>Create a post</h3>
+    <p style={{ color: muted, margin: '0 0 18px' }}>See the offer and wanted forms, sample fields, and how published posts appear in the feed.</p>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
       <button type="button" onClick={() => setRequestType(false)} style={choice(!requestType)}>Offer something</button>
       <button type="button" onClick={() => { setRequestType(true); if (!wantedExamples[selected]) setSelected('for_sale'); }} style={choice(requestType)}>Post what you need</button>
@@ -194,7 +202,7 @@ function ResponseForm({ response, live, bookingSlots, field }) {
     </>}
     {response === 'booking' && <>
       <p style={{ color: muted }}>Suggest a day and time (Lagos time). This is a request; the poster must confirm it.</p>
-      {bookingSlots?.slots?.length ? <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{bookingSlots.slots.slice(0, 6).map((slot) => <span key={slot} style={{ ...choice(false), cursor: 'default' }}>{new Date(slot).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>)}</div> : <p style={{ color: '#8a4b09' }}>{bookingSlots ? 'No viewing times are currently available for this post.' : 'Loading current viewing times…'}</p>}
+      {bookingSlots?.slots?.length ? <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{bookingSlots.slots.slice(0, 6).map((slot) => <span key={slot} style={{ ...choice(false), cursor: 'default' }}>{new Date(slot).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>)}</div> : <p style={{ color: '#8a4b09' }}>{!live ? 'No live rental post is available to show viewing times.' : bookingSlots ? 'No viewing times are currently available for this post.' : 'Loading current viewing times…'}</p>}
       <label style={label}>Your name<input readOnly style={field} /></label>
       <label style={label}>Phone<input type="tel" readOnly placeholder="0803 123 4567" style={field} /></label>
       <label style={label}>Email (to confirm)<input type="email" readOnly style={field} /></label>
