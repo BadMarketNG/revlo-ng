@@ -46,6 +46,49 @@ export function myJobMagItems(html, city, now = Date.now()) {
   }).get().filter(Boolean);
 }
 
+export function joblessSeeds(html) {
+  const $ = load(html);
+  const perCity = { Lagos: 0, Abuja: 0, 'Port Harcourt': 0 };
+  return $('a[href^="/jobs/"]').map((_, element) => {
+    const row = $(element);
+    const path = row.attr('href');
+    const cityText = row.find('.space-y-1\\.5 > div').first().find('span.line-clamp-1').first().text().trim();
+    const city = CITIES.find(name => new RegExp(`^${name}$`, 'i').test(cityText));
+    const ageText = row.find('.space-y-1\\.5 > div').eq(1).text();
+    const hours = Number(ageText.match(/(\d+)\s+hours?\s+ago/i)?.[1]);
+    const days = Number(ageText.match(/(\d+)\s+days?\s+ago/i)?.[1]);
+    const fresh = /Posted\s+(?:about\s+)?(?:an?\s+hour|\d+\s+hours?|[1-3]\s+days?)\s+ago/i.test(ageText)
+      && (!Number.isFinite(hours) || hours <= 72) && (!Number.isFinite(days) || days <= 3);
+    if (!city || !fresh || !path || perCity[city] >= (city === 'Lagos' ? 4 : city === 'Abuja' ? 2 : 1)) return null;
+    const url = new URL(path, 'https://www.jobless.dev').toString();
+    if (new URL(url).hostname !== 'www.jobless.dev') return null;
+    perCity[city] += 1;
+    return { url, city };
+  }).get().filter(Boolean);
+}
+
+export function joblessDetailItem(html, seed, now = Date.now()) {
+  const $ = load(html);
+  const posting = $('script[type="application/ld+json"]').map((_, element) => {
+    try { return JSON.parse($(element).html()); } catch { return null; }
+  }).get().find(value => value?.['@type'] === 'JobPosting');
+  if (!posting || posting.url !== seed.url || posting.jobLocation?.address?.addressCountry !== 'NG'
+    || posting.jobLocation?.address?.addressLocality?.toLowerCase() !== seed.city.toLowerCase()) return null;
+  const published = Date.parse(posting.datePosted);
+  if (!Number.isFinite(published) || published > now + 3600000 || now - published > 3 * 86400000) return null;
+  const role = clean(posting.title, 110);
+  const company = clean(posting.hiringOrganization?.name, 80);
+  const detail = load(String(posting.description || ''));
+  const points = detail('li').slice(0, 4).map((_, element) => clean(detail(element).text(), 170).replace(/[.;,\s]+$/, '')).get().filter(Boolean);
+  const summary = clean(points.length ? `Role details: ${points.join('; ')}.` : detail('p').slice(0, 2).map((_, element) => detail(element).text()).get().join(' '), 700);
+  if (!role || !company || summary.length < 70) return null;
+  return {
+    source: 'jobless', externalId: digest(seed.url), sourceUrl: seed.url, category: 'jobs', city: seed.city,
+    title: `${role} at ${company}`.slice(0, 200), location: revloLocation(seed.city), image: null,
+    description: `${summary}\n\nListed on Jobless. Use Contact to ask Revlo for the application details.`,
+  };
+}
+
 export function propertyCentreItems(html, city, now = Date.now()) {
   if (!CITIES.includes(city)) return [];
   const $ = load(html);

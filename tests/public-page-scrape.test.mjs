@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { facebookEmbedUrl, facebookListingItems, myJobMagItems, propertyCentreItems } from '../src/lib/publicPageScrape.mjs';
+import { facebookEmbedUrl, facebookListingItems, joblessDetailItem, joblessSeeds, myJobMagItems, propertyCentreItems } from '../src/lib/publicPageScrape.mjs';
 
 const now = Date.UTC(2026, 9, 5, 12);
 
@@ -20,6 +20,17 @@ test('Port Harcourt jobs need an explicit city mention, even on the Rivers page'
   const row = summary => `<div class="job-list-li"><h2><a href="/job/role">Sales Manager</a></h2><li class="job-desc">${summary}</li><li id="job-date">03 October<span><a href="/jobs-location/rivers">Rivers</a></span></li></div>`;
   assert.equal(myJobMagItems(row('Travel across Rivers State and manage a field sales team.'), 'Port Harcourt', now).length, 0);
   assert.equal(myJobMagItems(row('Manage field sales across Port Harcourt and surrounding communities.'), 'Port Harcourt', now).length, 1);
+});
+
+test('Jobless collector checks the dated JobPosting and keeps a short useful excerpt', () => {
+  const card = (city, age) => `<a href="/jobs/driver-abc"><h2>Driver</h2><p title="Example Co">Example Co</p><div class="space-y-1.5"><div><span class="line-clamp-1">${city}</span></div><div>Posted ${age}</div></div></a>`;
+  const [seed] = joblessSeeds(card('Lagos', '1 day ago') + card('Abuja', '9 days ago'));
+  assert.equal(seed.city, 'Lagos');
+  const posting = { '@type': 'JobPosting', title: 'Driver', url: seed.url, datePosted: '2026-10-04T10:00:00Z', hiringOrganization: { name: 'Example Co' }, jobLocation: { address: { addressCountry: 'NG', addressLocality: 'Lagos' } }, description: '<p>We need a driver.</p><ul><li>Drive staff to client visits.</li><li>Keep the vehicle maintained.</li><li>Report faults promptly.</li></ul>' };
+  const item = joblessDetailItem(`<script type="application/ld+json">${JSON.stringify(posting)}</script>`, seed, now);
+  assert.equal(item?.title, 'Driver at Example Co');
+  assert.match(item.description, /Drive staff to client visits; Keep the vehicle maintained/);
+  assert.equal(joblessDetailItem(`<script type="application/ld+json">${JSON.stringify({ ...posting, datePosted: '2026-09-20T10:00:00Z' })}</script>`, seed, now), null);
 });
 
 test('property collector requires a fresh rental, real source image and matching city', () => {

@@ -6,7 +6,7 @@ import { expiryFor, makeUid } from '@/lib/util';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 import { pickSupportStock } from '@/lib/supportStock.mjs';
 import { DISCOVERY_POSTER } from '@/lib/discoveryImport.mjs';
-import { facebookEmbedUrl, facebookListingItems, myJobMagItems, propertyCentreItems } from '@/lib/publicPageScrape.mjs';
+import { facebookEmbedUrl, facebookListingItems, joblessDetailItem, joblessSeeds, myJobMagItems, propertyCentreItems } from '@/lib/publicPageScrape.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -17,9 +17,10 @@ const CITIES = [
   { name: 'Port Harcourt', job: 'rivers', property: 'rivers/port-harcourt', cap: 1 },
 ];
 const MAX_NEW = 12;
-const MAX_PER_SOURCE = { myjobmag: 6, nigeriapropertycentre: 6, facebook: 3 };
+const MAX_PER_SOURCE = { myjobmag: 6, jobless: 4, nigeriapropertycentre: 6, facebook: 3 };
 const MAX_SOURCE_CITY = {
   myjobmag: { Lagos: 4, Abuja: 1, 'Port Harcourt': 1 },
+  jobless: { Lagos: 2, Abuja: 1, 'Port Harcourt': 1 },
   nigeriapropertycentre: { Lagos: 4, Abuja: 2, 'Port Harcourt': 1 },
   facebook: { Lagos: 2, Abuja: 1, 'Port Harcourt': 1 },
 };
@@ -41,6 +42,10 @@ async function collect(now) {
     { source: 'myjobmag', city: city.name, url: `https://www.myjobmag.com/jobs-location/${city.job}`, parse: myJobMagItems },
     ...(process.env.REVLO_NPC_ENABLED === '1' ? [{ source: 'nigeriapropertycentre', city: city.name, url: `https://nigeriapropertycentre.com/for-rent/${city.property}`, parse: propertyCentreItems }] : []),
   ]);
+  tasks.push({ source: 'jobless', url: 'https://www.jobless.dev/jobs/nigeria', parse: async html => {
+    const details = await Promise.allSettled(joblessSeeds(html).map(async seed => joblessDetailItem(await fetchPage(seed.url), seed, now)));
+    return details.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
+  } });
   const facebookPages = [...new Set((process.env.REVLO_PUBLIC_FACEBOOK_PAGES || 'https://www.facebook.com/JobbermanNigeria')
     .split(/[\s,]+/).map(facebookEmbedUrl).filter(Boolean))].slice(0, 5);
   tasks.push(...facebookPages.map(url => ({ source: 'facebook', url, parse: facebookListingItems })));
@@ -106,7 +111,7 @@ export async function GET(request) {
 
   const { candidates, failures } = await collect(Date.now());
   if (request.nextUrl.searchParams.get('preview') === '1') {
-    return NextResponse.json({ ok: true, candidates: candidates.length, bySource: Object.fromEntries(['myjobmag', 'nigeriapropertycentre', 'facebook'].map(source => [source, candidates.filter(item => item.source === source).length])), failures, sample: orderCandidates(candidates).slice(0, 8).map(({ source, city, title }) => ({ source, city, title })) });
+    return NextResponse.json({ ok: true, candidates: candidates.length, bySource: Object.fromEntries(Object.keys(MAX_PER_SOURCE).map(source => [source, candidates.filter(item => item.source === source).length])), failures, sample: orderCandidates(candidates).slice(0, 8).map(({ source, city, title }) => ({ source, city, title })) });
   }
   const { data: live, error: liveError } = await supabaseAdmin.from('posts').select('header_url')
     .eq('poster_email', DISCOVERY_POSTER).is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1000);
