@@ -38,6 +38,9 @@ export default function PostCreationPreviews() {
   const [recentPosts, setRecentPosts] = useState([]);
   const [refreshedAt, setRefreshedAt] = useState(null);
   const [now, setNow] = useState(0);
+  const [response, setResponse] = useState('contact');
+  const [showCreation, setShowCreation] = useState(false);
+  const [bookingSlots, setBookingSlots] = useState(null);
 
   useEffect(() => {
     fetch('/api/categories', { cache: 'no-store' }).then((response) => response.json())
@@ -60,14 +63,31 @@ export default function PostCreationPreviews() {
   const [headline, details] = examples[selected] || [`A new ${label.toLowerCase()} post`, 'Add the details people need to act.'];
   const matchingPosts = recentPosts.filter((post) => post.category === selected && (post.post_type === 'wanted') === requestType && !post.deleted_at && new Date(post.expires_at).getTime() > now).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 3);
   const live = matchingPosts[0];
+  useEffect(() => {
+    if (response !== 'booking' || !live?.uid) return;
+    let active = true;
+    fetch(`/api/bookings/slots?uid=${encodeURIComponent(live.uid)}`, { cache: 'no-store' })
+      .then((r) => r.json()).then((body) => { if (active) setBookingSlots(body); })
+      .catch(() => { if (active) setBookingSlots({ slots: [] }); });
+    return () => { active = false; };
+  }, [response, live?.uid]);
   const image = !requestType && live?.header_url;
   const gallery = !requestType && Array.isArray(live?.gallery) ? live.gallery : [];
   const hoursLeft = live ? Math.max(1, Math.ceil((new Date(live.expires_at).getTime() - now) / 3_600_000)) : 0;
   const field = { display: 'block', width: '100%', boxSizing: 'border-box', border: `1px solid ${border}`, borderRadius: 10, background: '#fff', padding: '12px 14px', color: '#46556b', font: 'inherit' };
 
   return <section style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 14, padding: 24 }}>
-    <h2 style={{ margin: '0 0 6px', color: '#172033' }}>Post creation previews</h2>
-    <p style={{ color: muted, margin: '0 0 18px' }}>Review the steps and fields a visitor sees before publishing. This admin preview does not create a post or send a magic link.</p>
+    <h2 style={{ margin: '0 0 6px', color: '#172033' }}>Visitor response forms</h2>
+    <p style={{ color: muted, margin: '0 0 18px' }}>See what someone fills in when responding to a current post. Preview only: no email, booking or application is sent.</p>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+      <button type="button" onClick={() => { setResponse('contact'); setSelected('for_sale'); setRequestType(false); }} style={choice(response === 'contact')}>✉ Contact poster</button>
+      <button type="button" onClick={() => { setResponse('booking'); setSelected('rentals'); setRequestType(false); }} style={choice(response === 'booking')}>📅 Request a viewing</button>
+      <button type="button" onClick={() => { setResponse('job'); setSelected('jobs'); setRequestType(false); }} style={choice(response === 'job')}>📄 Apply for a job</button>
+      <button type="button" onClick={() => { setResponse('follow'); setSelected('jobs'); setRequestType(false); }} style={choice(response === 'follow')}>🔔 Follow poster</button>
+    </div>
+    <ResponseForm response={response} live={live} bookingSlots={bookingSlots} field={field} />
+    <details style={{ margin: '22px 0' }} open={showCreation} onToggle={(event) => setShowCreation(event.currentTarget.open)}><summary style={{ cursor: 'pointer', color: green, fontWeight: 800 }}>Also inspect the listing creation flow</summary></details>
+    {showCreation && <div>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
       <button type="button" onClick={() => setRequestType(false)} style={choice(!requestType)}>Offer something</button>
       <button type="button" onClick={() => { setRequestType(true); if (!wantedExamples[selected]) setSelected('for_sale'); }} style={choice(requestType)}>Post what you need</button>
@@ -144,7 +164,58 @@ export default function PostCreationPreviews() {
         <a href="/revlongbm?tab=posts" style={{ color: green, fontWeight: 700 }}>Browse all posts in admin →</a>
       </div>
     </div>
+    </div>}
   </section>;
+}
+
+function ResponseForm({ response, live, bookingSlots, field }) {
+  const box = { border: `1px solid ${border}`, borderRadius: 14, padding: 24, maxWidth: 700, background: '#fffdf6' };
+  const label = { display: 'block', fontWeight: 650, margin: '14px 0 5px', color: '#26342a' };
+  const button = { display: 'block', width: '100%', marginTop: 20, background: '#24563a', color: '#fff', padding: '14px 18px', textAlign: 'center', borderRadius: 9, fontWeight: 800 };
+  const postTitle = live?.title || 'No live post in this category';
+  const noPost = !live && <p style={{ color: '#8a4b09' }}>There is no current live post to pair with this form. The fields below show the visitor flow; no listing is implied to be live.</p>;
+  return <div style={box}>
+    <div style={{ color: green, fontWeight: 800, fontSize: 13 }}>VISITOR RESPONSE · PREVIEW ONLY</div>
+    <h3 style={{ fontSize: 24, margin: '9px 0 4px', color: '#26342a' }}>{response === 'booking' ? 'Request a viewing time' : response === 'job' ? 'Apply for this job' : response === 'follow' ? 'Follow this poster' : 'Contact Poster'}</h3>
+    <p style={{ color: muted, margin: '0 0 14px' }}>{postTitle}</p>{noPost}
+    {response === 'contact' && <>
+      <p>Email addresses are never shown publicly. We email the visitor a confirmation link before relaying their request to the poster.</p>
+      <label style={label}>Your email address<input type="email" readOnly placeholder="Your email address" style={field} /></label>
+      <div style={{ ...field, background: '#f1f8f1', marginTop: 16 }}>✓ Security check</div>
+      <div style={button}>Verify email to contact</div>
+      <p style={{ color: muted, fontSize: 13 }}>The current public form sends a contact-details request; it does not ask for a separate message.</p>
+    </>}
+    {response === 'follow' && <>
+      <p>Enter your email to follow this poster. You will get an email each time they publish a new post.</p>
+      <p style={{ color: muted }}>The poster’s identity and email remain hidden. Every alert includes an unsubscribe link.</p>
+      <label style={label}>Your email address<input type="email" readOnly placeholder="Your email address" style={field} /></label>
+      <div style={{ ...field, background: '#f1f8f1', marginTop: 16 }}>✓ Security check</div>
+      <div style={button}>Verify email to follow</div>
+    </>}
+    {response === 'booking' && <>
+      <p style={{ color: muted }}>Suggest a day and time (Lagos time). This is a request; the poster must confirm it.</p>
+      {bookingSlots?.slots?.length ? <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{bookingSlots.slots.slice(0, 6).map((slot) => <span key={slot} style={{ ...choice(false), cursor: 'default' }}>{new Date(slot).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>)}</div> : <p style={{ color: '#8a4b09' }}>{bookingSlots ? 'No viewing times are currently available for this post.' : 'Loading current viewing times…'}</p>}
+      <label style={label}>Your name<input readOnly style={field} /></label>
+      <label style={label}>Phone<input type="tel" readOnly placeholder="0803 123 4567" style={field} /></label>
+      <label style={label}>Email (to confirm)<input type="email" readOnly style={field} /></label>
+      <label style={label}>Note (optional)<input readOnly placeholder="e.g. Is parking available?" style={field} /></label>
+      <div style={button}>Request this time</div>
+      <p style={{ color: muted, fontSize: 13 }}>After email confirmation, the poster receives the details and accepts or declines.</p>
+    </>}
+    {response === 'job' && <>
+      <p style={{ color: muted }}>Step 1: enter an email in Contact Poster, pass the security check and open the one-time link. The verified applicant then sees this form:</p>
+      <label style={label}>Full name<input readOnly style={field} /></label>
+      <label style={label}>Date of birth<input type="date" readOnly style={field} /></label>
+      <label style={label}>CV (PDF or DOCX, up to 4 MB)<input type="file" accept=".pdf,.docx" disabled style={field} /></label>
+      <label style={label}>Photo (optional)</label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}><label>Take a photo<input type="file" accept="image/*" capture="user" disabled style={field} /></label><label>Choose an existing photo<input type="file" accept="image/*" disabled style={field} /></label></div>
+      <p style={{ color: muted, fontSize: 13 }}>A clear head-and-shoulders photo is enough. Revlo reduces its size before sending.</p>
+      <label style={label}>Short cover letter<textarea readOnly placeholder="Why are you interested in this role?" style={{ ...field, minHeight: 110 }} /></label>
+      <label style={{ display: 'flex', alignItems: 'start', gap: 9, color: '#26342a' }}><input type="checkbox" disabled /> I agree that Revlo may email my details, CV and optional photo privately to the poster.</label>
+      <p style={{ color: muted, fontSize: 13 }}>The link expires after 30 minutes. CV and photo are private email attachments.</p>
+      <div style={button}>Send application</div>
+    </>}
+  </div>;
 }
 
 function choice(active) {
