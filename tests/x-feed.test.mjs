@@ -36,6 +36,8 @@ test('only real listings for the category and city are kept', async () => {
   assert.equal(isRelevant({ category: 'gadgets', city: 'Lagos', text: 'Clean iPhone 13 for sale in Lagos, DM' }), true);
   assert.equal(isRelevant({ category: 'gadgets', city: 'Lagos', text: 'My iPhone died in Lagos traffic lol' }), false);
   assert.equal(isRelevant({ category: 'rentals', city: 'Port Harcourt', text: '2 bedroom flat to let, Port Harcourt' }), true);
+  assert.equal(isRelevant({ category: 'for_sale', city: 'Abuja', text: 'I watched my friend lose ₦500,000 on his business in Abuja.' }), false);
+  assert.equal(isRelevant({ category: 'for_sale', city: 'Abuja', text: '4-bedroom bungalow for sale in Abuja, asking price ₦115M.' }), true);
 });
 
 test('focus: jobs, rent, items for sale (per city) and politics (national, news outlets only)', async () => {

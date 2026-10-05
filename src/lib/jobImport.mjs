@@ -20,7 +20,7 @@ export function revloLocation(place) {
 export const hash = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 /** The post fields for one normalised job (see fromJooble in partnerFeed.mjs). */
-export function jobToPost(job, origin = 'https://revlo.ng') {
+export function jobToPost(job, origin = 'https://revlo.ng', headerOverride = null) {
   const h = hash(job.id);
   const title = stripPostLinks(job.title.split(' · ')[0]).slice(0, 120);
   // ORIGINAL (2026-10-03): const place = job.location || 'Nigeria';
@@ -37,7 +37,7 @@ export function jobToPost(job, origin = 'https://revlo.ng') {
     description: lines.join('\n\n').slice(0, 5000),
     location: place.slice(0, 200),
     category: 'jobs',
-    header_url: `${origin}/samples/headers/${JOB_HEADERS[h % JOB_HEADERS.length]}.jpg`,
+    header_url: headerOverride || `${origin}/samples/headers/${JOB_HEADERS[h % JOB_HEADERS.length]}.jpg`,
     thumb_url: `${origin}/samples/icons/icon-${JOB_ICONS[(h >> 3) % JOB_ICONS.length]}.jpg`,
     tags: ['jobs', city].filter(t => /^[a-z][a-z ]{1,30}$/.test(t)),
   };

@@ -7,6 +7,7 @@ import { oauth1Header } from '@/lib/socialPost.mjs';
 import { makeUid, expiryFor } from '@/lib/util';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 import { BLOCK_POST_CAP, KEEP_HOURS, getXSearches, getXSettings, isRelevant, matchesSearch, parseSearch, periodStartFor, remainingFor, searchBlocks, searchQuery, xToPost } from '@/lib/xFeed.mjs';
+import { pickSupportStock } from '@/lib/supportStock.mjs';
 
 const SEARCH_URL = 'https://api.x.com/2/tweets/search/recent';
 const X_POSTER = 'support@revlo.ng';
@@ -35,16 +36,24 @@ export async function publishAsPosts(limit = 300) {
   const { data: pending } = await supabaseAdmin.from('revlo_x_posts').select('*').is('post_uid', null)
     .gt('fetched_at', new Date(Date.now() - 24 * 3600000).toISOString()).order('posted_at', { ascending: false }).limit(limit);
   const created = [];
+  const { data: activeSupport, error: imageError } = await supabaseAdmin.from('posts').select('header_url')
+    .eq('poster_email', X_POSTER).is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1000);
+  if (imageError) throw new Error(`Could not check support images: ${imageError.message}`);
+  const usedImages = new Set((activeSupport || []).map(row => row.header_url).filter(Boolean));
   // Posts from admin searches were matched when fetched; older ones use the built-in relevance check.
-  for (const item of (pending || []).filter(p => p.search_id || isRelevant(p))) {
+  for (const item of (pending || []).filter(p => (p.search_id || isRelevant(p)) && (p.category !== 'for_sale' || isRelevant(p)))) {
+    const hasSourcePhoto = [item.media_url, ...(Array.isArray(item.media_urls) ? item.media_urls : [])].some(url => typeof url === 'string' && url.startsWith('https://pbs.twimg.com/'));
+    const stockHeader = hasSourcePhoto ? null : pickSupportStock(item.category === 'politics' ? 'general' : item.category, item.text, usedImages);
+    if (!hasSourcePhoto && !stockHeader) continue;
     const uid = makeUid();
     const { data: claimed } = await supabaseAdmin.from('revlo_x_posts').update({ post_uid: uid }).eq('id', item.id).is('post_uid', null).select('id').maybeSingle();
     if (!claimed) continue;
     const { error } = await supabaseAdmin.from('posts').insert({
-      uid, poster_email: X_POSTER, ...xToPost(item), media_type: 'images',
+      uid, poster_email: X_POSTER, ...xToPost(item, 'https://revlo.ng', stockHeader), media_type: 'images',
       contact_visibility: 'public', followable: true, duration: 'now', expires_at: expiryFor('now'), trust_badge: null, premium_badge: false,
     });
     if (error) { await supabaseAdmin.from('revlo_x_posts').update({ post_uid: null }).eq('id', item.id); console.error('[x-feed] post', error.code || error.message); continue; }
+    if (stockHeader) usedImages.add(stockHeader);
     created.push(uid);
   }
   if (created.length) await notifyIndexNow(created.map(u => `https://revlo.ng/p/${u}`));

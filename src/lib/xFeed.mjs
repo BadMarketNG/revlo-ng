@@ -77,6 +77,7 @@ export function isRelevant(post) {
   if (!pattern || !pattern.test(text)) return false;
   if (NATIONAL.has(post.category)) return true;
   if (!new RegExp(`\\b${String(post.city).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) return false;
+  if (post.category === 'for_sale' && !/\b(for sale|distress sale|urgent sale|asking price|price\s*[:₦]|selling (?:my|this|a|an)\b)\b/i.test(text)) return false;
   // Item categories must also read like a sale.
   if (['gadgets', 'electronics', 'wears', 'vehicles'].includes(post.category) && !SALE_WORDS.test(text)) return false;
   return true;
@@ -144,7 +145,7 @@ const ICONS = ['01', '07', '12', '13', '14'];
 const seedOf = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 export const xPostUrl = post => `https://x.com/${encodeURIComponent(post.author_username)}/status/${encodeURIComponent(post.id)}`;
 
-export function xToPost(post, origin = 'https://revlo.ng') {
+export function xToPost(post, origin = 'https://revlo.ng', headerOverride = null) {
   const category = post.category === 'politics' ? 'general' : post.category;
   const firstLine = String(post.text).split('\n').map(l => l.trim()).find(l => /[\p{L}\p{N}]{3,}/u.test(l)) || post.text;
   const clean = stripPostLinks(firstLine).replace(/\s+/g, ' ').trim();
@@ -161,7 +162,7 @@ export function xToPost(post, origin = 'https://revlo.ng') {
     description: stripPostLinks(String(post.text).slice(0, 5000)),
     location: place,
     category,
-    header_url: photos[0] || `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,
+    header_url: photos[0] || headerOverride || `${origin}/samples/headers/${headers[seed % headers.length]}.jpg`,
     // Posts saved before icon_url existed fall back to the author's saved picture (full size).
     thumb_url: [post.icon_url, post.author_avatar && String(post.author_avatar).replace('_normal.', '_400x400.')].find(u => u && /^https:\/\/pbs\.twimg\.com\//.test(u)) || `${origin}/samples/icons/icon-${ICONS[(seed >> 3) % ICONS.length]}.jpg`,
     gallery: photos.slice(1),

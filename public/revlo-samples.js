@@ -123,7 +123,7 @@
     if (url === '/api/posts' && init.method === 'POST') {
       let body = null;
       try { body = JSON.parse(init.body); } catch {}
-      if (body && (!body.header_url || !body.thumb_url || body.thumb_url === body.header_url)) {
+      if (body && body.post_type !== 'wanted' && (!body.header_url || !body.thumb_url || body.thumb_url === body.header_url)) {
         const box = document.querySelector('.revlo-samples');
         if (box) { box.classList.add('rs-missing'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         const missing = !body.header_url ? 'a header image' : 'an icon';
