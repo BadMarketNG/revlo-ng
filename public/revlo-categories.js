@@ -3,12 +3,10 @@
   let categories = [];
   let selectedCategory = null;
   let selectionGeneration = 0;
-  // NOTE (2026-10-03, owner's request): the bar shows 3 category chips, a different 3 on each page load,
-  // plus a "More" dropdown listing every category (including ones added or removed later in admin).
-  // Categories an administrator pins (up to 5) are always shown first; rotating ones fill up to 3 in total.
-  const ROTATING_SHOWN = 3;
+  // Keep the main marketplace topics in a stable place for first-time visitors.
+  // Other topics remain in More; admin-pinned topics also appear on the bar.
+  const PRIMARY = ['jobs', 'rentals', 'for_sale'];
   const MAX_PINNED = 5;
-  const pageSeed = Math.random();
   const originalFetch = window.fetch.bind(window);
 
   const isPostsRequest = (input, init) => {
@@ -84,22 +82,18 @@
     // hidden attribute, so hide it with an important rule instead.
     original.hidden = true;
     original.classList.add('revlo-original-categories');
-    let managed = original.nextElementSibling;
-    if (!managed?.classList.contains('revlo-managed-categories')) {
+    let managed = [...original.parentElement.children]
+      .find((element) => element.classList.contains('revlo-managed-categories'));
+    if (!managed) {
       managed = document.createElement('nav');
       managed.className = 'revlo-managed-categories';
       managed.setAttribute('aria-label', 'Post categories');
       original.insertAdjacentElement('afterend', managed);
     }
-    // ORIGINAL (2026-10-03): every category was a chip. NOTE: 3 rotating + fixed ones + a "More" dropdown.
     const pinned = categories.filter((category) => category.pinned).slice(0, MAX_PINNED);
-    const pool = categories.filter((category) => !pinned.includes(category));
-    const order = pool.map((category, index) => ({ category, key: Math.sin((index + 1) * 9301 + pageSeed * 49297) })).sort((a, b) => a.key - b.key).map((x) => x.category);
-    let rotating = order.slice(0, Math.max(0, ROTATING_SHOWN - pinned.length));
-    // The selected category is always visible (it takes the last rotating place, or is added).
-    const chosen = pool.find((c) => c.slug === selectedCategory);
-    if (chosen && !rotating.includes(chosen)) rotating = rotating.length ? [...rotating.slice(0, -1), chosen] : [chosen];
-    const visible = [...pinned, ...rotating];
+    const primary = PRIMARY.map(slug => categories.find(category => category.slug === slug)).filter(Boolean);
+    const chosen = categories.find(category => category.slug === selectedCategory);
+    const visible = [...new Set([...primary, ...pinned, ...(chosen ? [chosen] : [])])];
     const signature = `${selectedCategory || 'all'}:${visible.map((c) => c.slug).join(',')}:${categories.map((category) => `${category.slug}:${category.label}`).join('|')}`;
     if (managed.dataset.signature === signature) return;
     managed.dataset.signature = signature;

@@ -6,7 +6,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { constantTimeBearerMatches, requiredSecret } from '@/lib/security';
 import { makeUid, expiryFor } from '@/lib/util';
 import { USER_AGENT, fromJooble } from '@/lib/partnerFeed.mjs';
-import { JOB_POSTER, jobToPost } from '@/lib/jobImport.mjs';
+import { JOB_POSTER, canImportJobForCity, jobToPost, priorityJobCity } from '@/lib/jobImport.mjs';
 import { pickSupportStock } from '@/lib/supportStock.mjs';
 import { notifyIndexNow } from '@/lib/indexNow.mjs';
 
@@ -54,10 +54,15 @@ export async function GET(request) {
     ? await supabaseAdmin.from('revlo_imported_jobs').select('external_id').in('external_id', ids)
     : { data: [] };
   const seen = new Set((known ?? []).map(r => r.external_id));
-  const { data: activeSupport, error: imageError } = await supabaseAdmin.from('posts').select('header_url')
+  const { data: activeSupport, error: imageError } = await supabaseAdmin.from('posts').select('header_url,category,location')
     .eq('poster_email', JOB_POSTER).is('deleted_at', null).gt('expires_at', new Date().toISOString()).limit(1000);
   if (imageError) return NextResponse.json({ error: 'Could not check active images' }, { status: 503 });
   const usedImages = new Set((activeSupport || []).map(row => row.header_url).filter(Boolean));
+  const cityCounts = { Lagos: 0, Abuja: 0, 'Port Harcourt': 0 };
+  for (const post of activeSupport || []) {
+    const city = post.category === 'jobs' && priorityJobCity(post.location);
+    if (city) cityCounts[city] += 1;
+  }
   if (seen.size) await supabaseAdmin.from('revlo_imported_jobs').update({ last_seen_at: new Date().toISOString() }).in('external_id', [...seen]);
 
   let imported = 0;
@@ -67,8 +72,10 @@ export async function GET(request) {
     if (imported >= MAX_NEW_PER_RUN) break;
     if (seen.has(job.id) || done.has(job.id)) continue;
     done.add(job.id);
+    const city = priorityJobCity(job.location);
+    if (!canImportJobForCity(city, cityCounts)) continue;
     const header = pickSupportStock('jobs', job.title, usedImages);
-    if (!header) break;
+    if (!header) continue;
     // Claim the job first so two runs can never publish it twice.
     const { error: claimError } = await supabaseAdmin.from('revlo_imported_jobs')
       .insert({ external_id: job.id, listing_url: job.url, title: job.title, company: job.company, location: job.location });
@@ -95,6 +102,7 @@ export async function GET(request) {
     }
     await supabaseAdmin.from('revlo_imported_jobs').update({ post_uid: uid }).eq('external_id', job.id);
     imported += 1;
+    cityCounts[city] += 1;
     usedImages.add(header);
     newUids.push(uid);
   }

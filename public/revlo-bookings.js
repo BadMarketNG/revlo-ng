@@ -210,7 +210,7 @@
       const strip = el('div', 'rv-bk-gone');
       strip.append('✓ Recently gone:');
       results.slice(0, 3).forEach(x => { const a = el('a'); a.href = `/r/${x.id}`; a.append(x.text, el('small', '', x.label)); strip.appendChild(a); });
-      const cta = [...details.querySelectorAll('button')].find(b => /Post something/.test(b.textContent));
+      const cta = [...details.querySelectorAll('button')].find(b => /Post something|Post a listing/.test(b.textContent));
       (cta?.parentElement || details).insertAdjacentElement('afterend', strip);
     } catch { /* the hero works without results */ }
   }
@@ -318,9 +318,9 @@
   // Hero: call to action and chip.
   function hero() {
     document.querySelectorAll('article .rv-bk-cta').forEach(button => button.remove());
-    const post = [...document.querySelectorAll('button')].find(b => /Post something/.test(b.textContent) && b.offsetParent !== null && !b.closest('article'));
+    const post = [...document.querySelectorAll('button')].find(b => /Post something|Post a listing/.test(b.textContent) && b.offsetParent !== null && !b.closest('article'));
     if (post && !document.querySelector('.rv-bk-cta')) {
-      const cta = el('button', 'rv-bk-cta', '📅 Find a place to view'); cta.type = 'button';
+      const cta = el('button', 'rv-bk-cta', '📅 Browse rentals to view'); cta.type = 'button';
       cta.addEventListener('click', () => {
         const rentals = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Rentals' && b.offsetParent !== null);
         category = 'rentals'; rentals?.click();
@@ -330,9 +330,9 @@
     }
     const heroActions = post?.parentElement;
     const helper = heroActions && [...heroActions.querySelectorAll('span')].find(s => /Takes a minute\. Your email is never shown\./.test(s.textContent));
-    if (helper) helper.textContent = 'Pick a time to request. Confirm by email. The poster replies with a yes or no.';
+    if (helper) helper.textContent = 'Post in minutes. Your email stays off the public listing.';
     // The hero's feature chips are spans with an emoji and a label; add one after "No comments or debates".
-    const pill = [...document.querySelectorAll('#revlo-header-details span.revlo-theme-muted-surface')].find(e => /No comments or debates/.test(e.textContent));
+    const pill = [...document.querySelectorAll('#revlo-header-details span.revlo-theme-muted-surface')].find(e => /No comments or debates|Direct enquiries/.test(e.textContent));
     if (pill && !pill.parentElement.querySelector('.rv-bk-chip')) {
       const copy = pill.cloneNode(false); copy.classList.add('rv-bk-chip');
       const icon = el('span', '', '📅'); icon.setAttribute('aria-hidden', 'true');

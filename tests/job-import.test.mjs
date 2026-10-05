@@ -23,3 +23,18 @@ test('imported jobs use Revlo place names so the location filter finds them', as
   assert.equal(revloLocation('Owerri'), 'Owerri');
   assert.equal(jobToPost({ id: 'x', title: 'Driver', company: 'A Ltd', location: 'Lagos, Lagos State', url: 'https://jooble.org/x' }).location, 'Lagos, Nigeria');
 });
+
+test('new support jobs cannot let Abuja or Port Harcourt overtake Lagos', async () => {
+  const { canImportJobForCity, priorityJobCity } = await import('../src/lib/jobImport.mjs');
+  assert.equal(priorityJobCity('Lagos, Lagos State'), 'Lagos');
+  assert.equal(priorityJobCity('Abuja FCT'), 'Abuja');
+  assert.equal(priorityJobCity('Port Harcourt, Rivers'), 'Port Harcourt');
+  assert.equal(priorityJobCity('Kano, Kano State'), null);
+  const counts = { Lagos: 9, Abuja: 6, 'Port Harcourt': 3 };
+  assert.equal(canImportJobForCity('Lagos', counts), true);
+  assert.equal(canImportJobForCity('Abuja', counts), false);
+  assert.equal(canImportJobForCity('Port Harcourt', counts), false);
+  counts.Lagos += 3;
+  assert.equal(canImportJobForCity('Abuja', counts), true);
+  assert.equal(canImportJobForCity('Port Harcourt', counts), true);
+});

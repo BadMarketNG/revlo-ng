@@ -15,7 +15,7 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const label = String(body.label || '').trim();
   const slug = categorySlug(body.slug || label);
-  if (slug === 'dating') return NextResponse.json({ error: 'This category is unavailable.' }, { status: 400 });
+  if (slug === 'dating' || slug === 'vehicles') return NextResponse.json({ error: 'This category is unavailable.' }, { status: 400 });
   if (!validCategoryLabel(label) || slug.length < 2) {
     return NextResponse.json({ error: 'Use a category name between 2 and 32 characters.' }, { status: 400 });
   }

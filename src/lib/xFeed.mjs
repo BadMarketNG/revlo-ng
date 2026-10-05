@@ -217,8 +217,18 @@ export function searchQuery(search, city) {
 export function searchBlocks(searches, runIndex) {
   const all = searches.flatMap(search => (search.national ? ['Nigeria'] : (search.cities?.length ? search.cities : X_CITIES)).map(city => ({ search, city, key: `${search.id}:${city}` })));
   if (!all.length) return [];
+  // Most runs begin with a useful listing search. Across a full cycle Lagos gets
+  // three turns, Abuja two and Port Harcourt one, without changing the X budget.
+  const categoryCycle = ['jobs', 'rentals', 'for_sale', 'jobs', 'rentals', 'for_sale', 'jobs', 'rentals', 'for_sale', 'general'];
+  const cityCycle = ['Lagos', 'Abuja', 'Lagos', 'Port Harcourt', 'Lagos', 'Abuja'];
+  const category = categoryCycle[runIndex % categoryCycle.length];
+  const city = cityCycle[runIndex % cityCycle.length];
+  const preferred = all.find(block => block.search.category === category && block.city === city)
+    || all.find(block => block.search.category === category)
+    || all.find(block => block.city === city);
   const start = (runIndex * 7) % all.length;
-  return [...all.slice(start), ...all.slice(0, start)];
+  const rotated = [...all.slice(start), ...all.slice(0, start)];
+  return preferred ? [preferred, ...rotated.filter(block => block.key !== preferred.key)] : rotated;
 }
 
 /** A post is published only if its text has one of the search's words and (unless national) names the city. */

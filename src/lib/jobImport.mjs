@@ -17,6 +17,23 @@ export function revloLocation(place) {
   return match || (String(place || '').trim() || 'Nigeria');
 }
 
+export function priorityJobCity(place) {
+  const location = revloLocation(place);
+  return location.startsWith('Lagos,') ? 'Lagos'
+    : location.startsWith('Abuja ') ? 'Abuja'
+      : location.startsWith('Port Harcourt,') ? 'Port Harcourt' : null;
+}
+
+// A city with fewer available listings may fill less of the feed, but it
+// cannot overtake Lagos simply because the source returned more jobs there.
+export function canImportJobForCity(city, counts) {
+  if (city === 'Lagos') return true;
+  const lagos = counts.Lagos || 0;
+  if (city === 'Abuja') return (counts.Abuja || 0) < Math.floor(lagos * 2 / 3);
+  if (city === 'Port Harcourt') return (counts['Port Harcourt'] || 0) < Math.floor(lagos / 3);
+  return false;
+}
+
 export const hash = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 /** The post fields for one normalised job (see fromJooble in partnerFeed.mjs). */

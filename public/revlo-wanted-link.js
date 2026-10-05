@@ -28,12 +28,12 @@
     dialog.showModal(); input.focus();
   }
   function mount() {
-    const button = [...document.querySelectorAll('button')].find((item) => /Post something — it.s free/.test(item.textContent || '') && !item.closest('article'));
+    const button = [...document.querySelectorAll('button')].find((item) => /Post something — it.s free|Post a listing/.test(item.textContent || '') && !item.closest('article'));
     if (button && !button.parentElement?.querySelector('.revlo-wanted-link')) {
       const link = document.createElement('a');
       link.href = '/wanted';
       link.className = 'revlo-wanted-link';
-      link.textContent = 'Post what you need';
+      link.textContent = 'Ask for what you need';
       button.insertAdjacentElement('afterend', link);
     }
     document.querySelectorAll('article[data-post-type="wanted"]:not([data-sample])').forEach((article) => {

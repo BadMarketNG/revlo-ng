@@ -122,6 +122,17 @@ test('admin budget: lowest of period, month and run share', async () => {
   assert.deepEqual(blocks.map(b => b.key), ['a:Lagos', 'a:Abuja', 'b:Nigeria']);
 });
 
+test('X searches favor listings and rotate Lagos, Abuja, Port Harcourt in a 3:2:1 ratio', async () => {
+  const { searchBlocks } = await import('../src/lib/xFeed.mjs');
+  const searches = ['jobs', 'rentals', 'for_sale'].map(category => ({ id: category, category, cities: ['Lagos', 'Abuja', 'Port Harcourt'], national: false }));
+  searches.push({ id: 'general', category: 'general', national: true, cities: ['Nigeria'] });
+  const first = Array.from({ length: 60 }, (_, run) => searchBlocks(searches, run)[0]);
+  const categories = first.reduce((counts, block) => ({ ...counts, [block.search.category]: (counts[block.search.category] || 0) + 1 }), {});
+  assert.deepEqual(categories, { jobs: 18, rentals: 18, for_sale: 18, general: 6 });
+  const cities = first.filter(block => !block.search.national).reduce((counts, block) => ({ ...counts, [block.city]: (counts[block.city] || 0) + 1 }), {});
+  assert.ok(cities.Lagos > cities.Abuja && cities.Abuja > cities['Port Harcourt']);
+});
+
 test('replies to applicants never point at the private job source', async () => {
   const { revealsSource } = await import('../src/lib/sourceGuard.mjs');
   assert.equal(revealsSource('https://ng.jooble.org/desc/123'), true);

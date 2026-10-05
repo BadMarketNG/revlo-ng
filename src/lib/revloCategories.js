@@ -63,7 +63,7 @@ export async function getCategories() {
   }
   // ORIGINAL (2026-10-03): returned the rows without a pinned flag.
   return [...catalogue.values()]
-    .filter((row) => row.slug !== 'dating')
+    .filter((row) => row.slug !== 'dating' && row.slug !== 'vehicles')
     .map((row) => ({ ...row, pinned: pinned.includes(row.slug) }))
     .sort((left, right) => left.position - right.position || left.label.localeCompare(right.label));
 }
