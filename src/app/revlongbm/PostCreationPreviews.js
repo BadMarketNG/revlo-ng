@@ -33,7 +33,7 @@ const wantedExamples = {
 };
 export default function PostCreationPreviews() {
   const [categories, setCategories] = useState(fallbackCategories);
-  const [selected, setSelected] = useState('jobs');
+  const [selected, setSelected] = useState('for_sale');
   const [requestType, setRequestType] = useState(false);
   const [recentPosts, setRecentPosts] = useState([]);
   const [refreshedAt, setRefreshedAt] = useState(null);
@@ -67,8 +67,8 @@ export default function PostCreationPreviews() {
     if (response !== 'booking' || !live?.uid) return;
     let active = true;
     fetch(`/api/bookings/slots?uid=${encodeURIComponent(live.uid)}`, { cache: 'no-store' })
-      .then((r) => r.json()).then((body) => { if (active) setBookingSlots(body); })
-      .catch(() => { if (active) setBookingSlots({ slots: [] }); });
+      .then((r) => r.json()).then((body) => { if (active) setBookingSlots({ ...body, uid: live.uid }); })
+      .catch(() => { if (active) setBookingSlots({ uid: live.uid, slots: [] }); });
     return () => { active = false; };
   }, [response, live?.uid]);
   const image = !requestType && live?.header_url;
@@ -85,7 +85,7 @@ export default function PostCreationPreviews() {
       <button type="button" onClick={() => { setResponse('job'); setSelected('jobs'); setRequestType(false); }} style={choice(response === 'job')}>📄 Apply for a job</button>
       <button type="button" onClick={() => { setResponse('follow'); setSelected('jobs'); setRequestType(false); }} style={choice(response === 'follow')}>🔔 Follow poster</button>
     </div>
-    <ResponseForm response={response} live={live} bookingSlots={bookingSlots} field={field} />
+    <ResponseForm response={response} live={live} bookingSlots={bookingSlots?.uid === live?.uid ? bookingSlots : null} field={field} />
     <details style={{ margin: '22px 0' }} open={showCreation} onToggle={(event) => setShowCreation(event.currentTarget.open)}><summary style={{ cursor: 'pointer', color: green, fontWeight: 800 }}>Also inspect the listing creation flow</summary></details>
     {showCreation && <div>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
