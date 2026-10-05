@@ -41,11 +41,20 @@ test('property collector requires a fresh rental, real source image and matching
   assert.equal(items[0].image, photo);
 });
 
-test('Facebook embed collector takes only fresh, located listings with a real post photo', () => {
+test('Facebook embed collector labels broad and older posts with their source date', () => {
   const post = { message: 'Lagos apartment for rent in Ikeja. Two bedrooms and secure parking, available this week.', createdTime: Math.floor((now - 3600000) / 1000), photoURL: 'https://scontent.xx.fbcdn.net/v/t39.30808-6/example.jpg' };
-  const wrap = posts => `<script>window.__data={"props":{"pageID":"123","pageURL":"https://www.facebook.com/example","pageName":"Example Properties","timelinePosts":${JSON.stringify(posts)}}};</script>`;
-  const items = facebookListingItems(wrap([post, { ...post, message: 'A general company update for everyone in Lagos today.' }, { ...post, createdTime: post.createdTime - 10 * 86400 }]), now);
-  assert.equal(items.length, 1);
+  const wrap = posts => `<script>window.__data={"props":{"pageID":"123","pageURL":"https://www.facebook.com/example","pageName":"Example Properties Nigeria","timelinePosts":${JSON.stringify(posts)}}};</script>`;
+  const items = facebookListingItems(wrap([post,
+    { ...post, message: 'Urgently hiring for several roles. Ask us about openings across Nigeria.', createdTime: post.createdTime - 10 * 86400 },
+    { ...post, message: 'A general company update for everyone in Nigeria today.' },
+    { ...post, createdTime: post.createdTime - 20 * 86400 },
+  ]), now);
+  assert.equal(items.length, 3);
   assert.equal(items[0].category, 'rentals');
+  assert.equal(items[1].category, 'jobs');
+  assert.equal(items[1].city, 'Nigeria');
+  assert.match(items[1].description, /Posted by Example Properties Nigeria on 25 Sept? 2026/);
+  assert.equal(items[2].category, 'general');
+  assert.doesNotMatch(items[1].description, /example\.com/);
   assert.equal(facebookEmbedUrl('http://www.facebook.com/example'), null);
 });

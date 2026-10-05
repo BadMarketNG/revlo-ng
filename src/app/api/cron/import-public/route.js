@@ -16,13 +16,14 @@ const CITIES = [
   { name: 'Abuja', job: 'abuja', property: 'abuja', cap: 3 },
   { name: 'Port Harcourt', job: 'rivers', property: 'rivers/port-harcourt', cap: 1 },
 ];
+const CITY_CAPS = { ...Object.fromEntries(CITIES.map(city => [city.name, city.cap])), Nigeria: 3 };
 const MAX_NEW = 12;
 const MAX_PER_SOURCE = { myjobmag: 6, jobless: 4, nigeriapropertycentre: 6, facebook: 3 };
 const MAX_SOURCE_CITY = {
   myjobmag: { Lagos: 4, Abuja: 1, 'Port Harcourt': 1 },
   jobless: { Lagos: 2, Abuja: 1, 'Port Harcourt': 1 },
   nigeriapropertycentre: { Lagos: 4, Abuja: 2, 'Port Harcourt': 1 },
-  facebook: { Lagos: 2, Abuja: 1, 'Port Harcourt': 1 },
+  facebook: { Lagos: 2, Abuja: 1, 'Port Harcourt': 1, Nigeria: 3 },
 };
 
 async function fetchPage(url) {
@@ -124,12 +125,12 @@ export async function GET(request) {
   const publicImportsToday = (importedToday || []).filter(row => Object.hasOwn(MAX_PER_SOURCE, row.source));
   const usedImages = new Set((live || []).map(row => row.header_url).filter(Boolean));
   const added = [];
-  const byCity = Object.fromEntries(CITIES.map(city => [city.name, 0]));
+  const byCity = Object.fromEntries(Object.keys(CITY_CAPS).map(city => [city, 0]));
   const bySource = Object.fromEntries(Object.keys(MAX_PER_SOURCE).map(source => [source, publicImportsToday.filter(row => row.source === source).length]));
-  const bySourceCity = Object.fromEntries(Object.keys(MAX_PER_SOURCE).map(source => [source, Object.fromEntries(CITIES.map(city => [city.name, 0]))]));
+  const bySourceCity = Object.fromEntries(Object.keys(MAX_PER_SOURCE).map(source => [source, Object.fromEntries(Object.keys(CITY_CAPS).map(city => [city, 0]))]));
   for (const item of orderCandidates(candidates)) {
     if (publicImportsToday.length + added.length >= MAX_NEW) break;
-    if (byCity[item.city] >= CITIES.find(city => city.name === item.city)?.cap) continue;
+    if (!CITY_CAPS[item.city] || byCity[item.city] >= CITY_CAPS[item.city]) continue;
     if (bySource[item.source] >= MAX_PER_SOURCE[item.source]) continue;
     if (bySourceCity[item.source][item.city] >= MAX_SOURCE_CITY[item.source][item.city]) continue;
     const uid = await publish(item, usedImages);

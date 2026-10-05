@@ -145,25 +145,29 @@ export function facebookEmbedProps(html) {
 export function facebookListingItems(html, now = Date.now()) {
   const props = facebookEmbedProps(html);
   if (!props) return [];
+  // Page embeds show only a handful of posts. Keep broad updates as general
+  // posts, and mark their age plainly instead of presenting them as fresh ads.
+  if (!/\b(Nigeria|Naija|Lagos|Abuja|Port Harcourt)\b/i.test(`${props.pageName} ${props.pageURL}`)) return [];
   return props.timelinePosts.map(post => {
     const message = String(post.message || '');
-    const city = CITIES.find(name => new RegExp(`\\b${name}\\b`, 'i').test(message));
-    const category = /\b(hiring|vacancy|vacancies|recruiting|job opening)\b/i.test(message) ? 'jobs'
+    const city = CITIES.find(name => new RegExp(`\\b${name}\\b`, 'i').test(message)) || 'Nigeria';
+    const category = /\b(hiring|vacancy|vacancies|recruiting|job opening|job opportunities|roles to fill|roles you|apply now)\b/i.test(message) ? 'jobs'
       : /\b(to let|for rent|short.?let|room available|apartment for rent)\b/i.test(message) ? 'rentals'
-        : /\b(for sale|selling)\b/i.test(message) ? 'for_sale' : null;
+        : /\b(for sale|selling)\b/i.test(message) ? 'for_sale' : 'general';
     const published = Number(post.createdTime) * 1000;
     const title = clean(message.split(/\n+/)[0], 150);
     const body = clean(message, 1300);
     const image = post.photoURL;
-    if (!city || !category || !title || body.length < 50 || !image || !/^https:\/\/scontent[^/]*\.fbcdn\.net\//i.test(image) || !Number.isFinite(published) || published > now + 3600000 || now - published > 2 * 86400000) return null;
-    if (category === 'rentals' && !HOME_TYPES.test(body)) return null;
-    if (category === 'jobs' && (message.match(/https?:\/\//g) || []).length > 2) return null;
+    if (!title || body.length < 35 || !image || !/^https:\/\/scontent[^/]*\.fbcdn\.net\//i.test(image) || !Number.isFinite(published) || published > now + 3600000 || now - published > 14 * 86400000) return null;
+    // A vague rental mention is an update, not a specific available home.
+    const actualCategory = category === 'rentals' && !HOME_TYPES.test(body) ? 'general' : category;
     const sourceUrl = props.pageURL?.split('?')[0];
     if (!sourceUrl || !/^https:\/\/www\.facebook\.com\/[\w.\/-]+$/.test(sourceUrl)) return null;
+    const date = new Date(published).toLocaleDateString('en-NG', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
     return {
       source: 'facebook', externalId: digest(`${props.pageID}:${published}:${message}`), sourceUrl,
-      category, city, title, location: revloLocation(city), image,
-      description: `${body}\n\nFrom a public post by ${clean(props.pageName, 80)}. Use Contact to ask Revlo for the original post and current details.`.slice(0, 5000),
+      category: actualCategory, city, title, location: revloLocation(city), image,
+      description: `${body}\n\nPosted by ${clean(props.pageName, 80)} on ${date}. This may be a general update or a roundup; check availability through Contact before relying on it.`.slice(0, 5000),
     };
   }).filter(Boolean);
 }
