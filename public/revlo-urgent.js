@@ -9,7 +9,18 @@
   //   (2026-10-02: widened from jobs only at the owner's request.)
   // 24-hour posts already exist (the "24h · Today" duration, stored as "now"); they count as a normal post.
 
-  const PROMPTS = ['Need staff today?', 'Room free this weekend?', 'Selling before you travel?', 'Promotion ends tonight?'];
+  let PROMPTS = window.__revloHomepageCopy?.urgentPrompts || ['Need staff today?', 'Room free this weekend?', 'Selling before you travel?', 'Promotion ends tonight?'];
+  let promptIndex = 0;
+  window.addEventListener('revlo:homepage-copy', event => {
+    if (Array.isArray(event.detail?.urgentPrompts) && event.detail.urgentPrompts.length) {
+      PROMPTS = event.detail.urgentPrompts;
+      promptIndex = 0;
+      const prompt = document.querySelector('.rv-ur-prompt');
+      if (prompt) prompt.textContent = PROMPTS[0];
+    }
+    const button = document.querySelector('.rv-ur-btn');
+    if (button && event.detail?.urgentButton) button.textContent = event.detail.urgentButton;
+  });
   const G = '#1b5e20';
   let urgent = new Map(); // uid -> { category, expiresAt }
   let dayOnly = false;
@@ -56,10 +67,9 @@
     const prompt = line.querySelector('.rv-ur-prompt');
     prompt.textContent = PROMPTS[0];
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      let index = 0;
       setInterval(() => {
-        index = (index + 1) % PROMPTS.length;
-        prompt.textContent = PROMPTS[index];
+        promptIndex = (promptIndex + 1) % PROMPTS.length;
+        prompt.textContent = PROMPTS[promptIndex];
       }, 4200);
     }
     // The form opens on the 24h duration by default; this simply opens it.

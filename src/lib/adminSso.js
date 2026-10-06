@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-const DESTINATIONS = ['stats', 'reports', 'posts', 'emails', 'bm', 'features', 'email-blocks', 'ip-blocks'];
+const DESTINATIONS = ['stats', 'reports', 'posts', 'emails', 'bm', 'features', 'homepage-copy', 'email-blocks', 'ip-blocks'];
 
 function sharedSecret() {
   const secret = process.env.REVLO_ADMIN_SSO_SECRET || '';
