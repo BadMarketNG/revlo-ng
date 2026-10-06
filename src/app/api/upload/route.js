@@ -44,11 +44,16 @@ export async function POST(request) {
   if (file.size > maxBytes) {
     return NextResponse.json({ error: isVideo ? 'video too large (max 25MB)' : 'image too large (max 1.5MB)' }, { status: 413 });
   }
+  // The composer already sends these fields for every upload. Requiring the
+  // emailed publishing token prevents Revlo's storage bucket from becoming a
+  // free anonymous file host.
+  const posterEmail = String(form.get('poster_email') || '').trim().toLowerCase();
+  const claim = verifyToken(String(form.get('publish_token') || ''));
+  if (!claim || claim.action !== 'publish' || claim.email !== posterEmail) {
+    return NextResponse.json({ error: 'Open your publish link to upload media.' }, { status: 401 });
+  }
+  if (await findActiveBlock({ email: posterEmail, ip: sourceIp })) return blockedResponse();
   if (isVideo) {
-    const posterEmail = String(form.get('poster_email') || '').trim().toLowerCase();
-    const claim = verifyToken(String(form.get('publish_token') || ''));
-    if (!claim || claim.action !== 'publish' || claim.email !== posterEmail) return NextResponse.json({ error: 'Open your publish link to upload video.' }, { status: 401 });
-    if (await findActiveBlock({ email: posterEmail, ip: sourceIp })) return blockedResponse();
     const status = await getPublisherStatus(posterEmail);
     if (!status.videoEligible) return NextResponse.json({ error: `Video unlocks with the Silver badge at ${status.settings.silver_posts} posts.` }, { status: 403 });
   }

@@ -44,6 +44,14 @@ const FIRST_DAY_MS = 24 * 60 * 60 * 1000;
 
 // GET /api/posts?duration=now&category=jobs  -> list non-expired posts for a tab
 export async function GET(request) {
+  const sourceIp = requestIp(request);
+  const readLimited = await requireRateLimit({
+    action: 'public-feed-read:5m',
+    key: sourceIp,
+    limit: 240,
+    windowSeconds: 300,
+  });
+  if (readLimited) return readLimited;
   const { searchParams } = new URL(request.url);
   const duration = searchParams.get('duration') || 'now';
   const category = searchParams.get('category');

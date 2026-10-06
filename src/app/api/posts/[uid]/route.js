@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { postWithoutLinks } from '@/lib/postLinks.mjs';
+import { requestIp } from '@/lib/revloBlocklist';
+import { requireRateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +16,13 @@ const PUBLIC_COLS =
 // GET /api/posts/[uid] -> fetch one post. Feed views are recorded only after
 // the post's scroll-progress rail is completed (see /api/posts/[uid]/view).
 export async function GET(request, { params }) {
+  const readLimited = await requireRateLimit({
+    action: 'public-post-read:5m',
+    key: requestIp(request),
+    limit: 180,
+    windowSeconds: 300,
+  });
+  if (readLimited) return readLimited;
   const { uid } = await params;
 
   const { data, error } = await supabaseAdmin
