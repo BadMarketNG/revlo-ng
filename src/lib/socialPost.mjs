@@ -4,6 +4,7 @@
 //   X:        X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET (OAuth 1.0a, app with write access)
 // Posts only counts and Revlo links; partner sources are never named.
 import crypto from 'crypto';
+import { hashtagSuffix } from '@/lib/socialSettings.mjs';
 
 // "Fri 2 Oct" in Lagos time. Each day's post is dated, so X never sees two identical posts.
 export function lagosDay(now = Date.now()) {
@@ -11,11 +12,16 @@ export function lagosDay(now = Date.now()) {
   return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]} ${d.getUTCDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`;
 }
 
-const LABELS = [['jobs', 'job', 'jobs'], ['rentals', 'room or rental', 'rooms and rentals'], ['for_sale', 'item for sale', 'items for sale'], ['promotions', 'promotion', 'promotions'], ['general', 'other post', 'other posts']];
+const LABELS = { jobs: ['job', 'jobs'], rentals: ['room or rental', 'rooms and rentals'], for_sale: ['item for sale', 'items for sale'], promotions: ['promotion', 'promotions'], general: ['other post', 'other posts'] };
+const categoryWords = key => String(key || '').replace(/_/g, ' ').trim();
+const categoryLine = (key, count) => {
+  const [one, many] = LABELS[key] || [categoryWords(key), `${categoryWords(key)} posts`];
+  return `${count} ${count === 1 ? one : many}`;
+};
 
 /** The daily message. `counts` is { jobs: 12, rentals: 5, … } for posts created in the last 24 hours. */
-export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now(), results = [] } = {}) {
-  const lines = LABELS.filter(([key]) => counts[key] > 0).map(([key, one, many]) => `• ${counts[key]} ${counts[key] === 1 ? one : many}`);
+export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now(), results = [], hashtags = [] } = {}) {
+  const lines = Object.entries(counts).filter(([, count]) => count > 0).map(([key, count]) => `• ${categoryLine(key, count)}`);
   if (!lines.length) return null;
   const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
   return [
@@ -27,18 +33,22 @@ export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, no
     ...(results.length ? ['', 'Gone already:', ...results.slice(0, 3).map(r => `✓ ${r}`)] : []),
     '',
     'Free to post, no sign-up. Posts expire, so look today 👇',
+    ...(hashtagSuffix(hashtags) ? [hashtagSuffix(hashtags)] : []),
     url,
   ].join('\n');
 }
 
 /** A shorter version for X (280 characters; a link counts as 23). */
-export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.now() } = {}) {
-  const parts = LABELS.filter(([key]) => counts[key] > 0).map(([key, one, many]) => `${counts[key]} ${counts[key] === 1 ? one : many}`);
+export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.now(), hashtags = [] } = {}) {
+  const parts = Object.entries(counts).filter(([, count]) => count > 0).map(([key, count]) => categoryLine(key, count));
   if (!parts.length) return null;
   const lead = counts.jobs ? 'Looking for work?' : counts.rentals ? 'Looking for a place?' : counts.for_sale ? 'Looking for a deal?' : 'See what is new in Nigeria.';
+  const tags = hashtagSuffix(hashtags);
   let text = `${lead} New on Revlo, ${lagosDay(now)}: ${parts.join(', ')}. Browse while they are live:`;
-  if (text.length > 280 - 24) text = `${text.slice(0, 280 - 26)}…`;
-  return `${text} ${url}`;
+  const suffix = ` ${url}${tags ? `\n${tags}` : ''}`;
+  const maxLead = Math.max(40, 280 - suffix.length);
+  if (text.length > maxLead) text = `${text.slice(0, maxLead - 1)}…`;
+  return `${text}${suffix}`;
 }
 
 // These are existing, licensed real stock photos, shown as illustrations of

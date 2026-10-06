@@ -5,6 +5,7 @@ import Image from 'next/image';
 import ScamReports from './ScamReports';
 // NOTE (2026-10-03): X feed admin tab (additive).
 import XFeedAdmin from './XFeedAdmin';
+import SocialPublishingAdmin from './SocialPublishingAdmin';
 // NOTE (2026-10-03): support enquiries tab (additive).
 import SupportEnquiries from './SupportEnquiries';
 import PostCreationPreviews from './PostCreationPreviews';
@@ -47,7 +48,7 @@ export default function AdminPage() {
     // ORIGINAL (commented out 2026-10-03): if (['stats', 'reports', 'scam', 'posts', 'emails', 'bm', 'features', 'categories', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     // NOTE: adds the 'x-feed' and 'enquiries' tabs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (['stats', 'reports', 'scam', 'enquiries', 'posts', 'create-previews', 'emails', 'bm', 'features', 'categories', 'x-feed', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'scam', 'enquiries', 'posts', 'create-previews', 'emails', 'bm', 'features', 'categories', 'social-publishing', 'x-feed', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -117,7 +118,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['enquiries', 'Enquiries'], ['posts', 'All Posts'], ['create-previews', 'Response form previews'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['x-feed', 'X feed'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['enquiries', 'Enquiries'], ['posts', 'All Posts'], ['create-previews', 'Response form previews'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['social-publishing', 'Social publishing'], ['x-feed', 'X feed'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -142,6 +143,7 @@ export default function AdminPage() {
       {tab === 'reports' && <Reports />}
       {tab === 'scam' && <ScamReports />}
       {tab === 'x-feed' && <XFeedAdmin />}
+      {tab === 'social-publishing' && <SocialPublishingAdmin />}
       {tab === 'enquiries' && <SupportEnquiries />}
       {tab === 'posts' && <AllPosts />}
       {tab === 'create-previews' && <PostCreationPreviews />}
