@@ -6,9 +6,14 @@ export const DEFAULT_SOCIAL_SETTINGS = Object.freeze({
   categories: ['jobs', 'rentals', 'for_sale', 'promotions', 'general'],
   intervalHours: 24,
   hashtags: [],
+  feedDescription: '',
   lastXAt: null,
   lastFacebookAt: null,
 });
+
+export function normalizeFeedDescription(input) {
+  return String(input || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+}
 
 export function normalizeHashtags(input) {
   const values = Array.isArray(input) ? input : String(input || '').split(/[\s,]+/);
@@ -26,6 +31,7 @@ export function normalizeSocialSettings(row = {}) {
     categories: Array.isArray(row.categories) ? [...new Set(row.categories.map(String).filter(Boolean))] : [...DEFAULT_SOCIAL_SETTINGS.categories],
     intervalHours: SOCIAL_INTERVALS.includes(hours) ? hours : DEFAULT_SOCIAL_SETTINGS.intervalHours,
     hashtags: normalizeHashtags(row.hashtags),
+    feedDescription: normalizeFeedDescription(row.feed_description ?? row.feedDescription),
     lastXAt: row.last_x_at ?? row.lastXAt ?? null,
     lastFacebookAt: row.last_facebook_at ?? row.lastFacebookAt ?? null,
   };

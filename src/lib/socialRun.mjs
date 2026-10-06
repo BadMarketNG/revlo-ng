@@ -45,8 +45,8 @@ export async function runSocialPublishing({ force = false, now = new Date() } = 
   const resultsText = (shared || []).map(result => `${headline(result.outcome, Number(result.hours))}: ${result.label}`);
   const card = socialCardForCounts(counts, now.getTime());
   const link = 'https://revlo.ng/app.html?utm_source=social&utm_medium=scheduled';
-  const long = buildDigest(counts, { url: link, bookable: bookable || 0, results: resultsText, now: now.getTime(), hashtags: settings.hashtags });
-  const short = buildShortDigest(counts, { url: `https://revlo.ng/today/${card.slug}`, now: now.getTime(), hashtags: settings.hashtags });
+  const long = buildDigest(counts, { url: link, bookable: bookable || 0, results: resultsText, now: now.getTime(), hashtags: settings.hashtags, feedDescription: settings.feedDescription });
+  const short = buildShortDigest(counts, { url: `https://revlo.ng/today/${card.slug}`, now: now.getTime(), hashtags: settings.hashtags, feedDescription: settings.feedDescription });
   const outcomes = {};
   if (due.facebook) outcomes.facebook = await postToFacebook(long, link).catch(error_ => ({ ok: false, error: error_?.name || 'Error' }));
   if (due.x) outcomes.x = await postToX(short).catch(error_ => ({ ok: false, error: error_?.name || 'Error' }));

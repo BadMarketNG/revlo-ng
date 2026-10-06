@@ -30,6 +30,13 @@ test('daily digests', async () => {
   assert.equal(lagosDay(Date.parse('2026-10-02T23:30:00Z')), 'Sat 3 Oct'); // already Saturday in Lagos
 });
 
+test('uses an editable feed description and keeps X within its limit', () => {
+  const long = buildDigest({ jobs: 2 }, { feedDescription: 'Jobs worth seeing today.' });
+  const short = buildShortDigest({ jobs: 2 }, { feedDescription: 'A'.repeat(240), hashtags: ['RevloNG'] });
+  assert.match(long, /^Jobs worth seeing today\./);
+  assert.ok(short.length <= 280);
+});
+
 test('daily social cards rotate real stock photos and keep a stable dated URL', () => {
   const first = socialCardForCounts({ jobs: 8, rentals: 2 }, Date.UTC(2026, 9, 5));
   const next = socialCardForCounts({ jobs: 8, rentals: 2 }, Date.UTC(2026, 9, 6));

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getCategories } from '@/lib/revloCategories';
-import { getSocialSettings, normalizeHashtags, SOCIAL_INTERVALS } from '@/lib/socialSettings.mjs';
+import { getSocialSettings, normalizeFeedDescription, normalizeHashtags, SOCIAL_INTERVALS } from '@/lib/socialSettings.mjs';
 import { runSocialPublishing, socialPlatformConfiguration } from '@/lib/socialRun.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +31,7 @@ export async function PUT(request) {
     categories,
     interval_hours: intervalHours,
     hashtags: normalizeHashtags(body.hashtags),
+    feed_description: normalizeFeedDescription(body.feedDescription),
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabaseAdmin.from('admin_log').insert({ action: 'social_publishing_settings', target_uid: 'social-publishing', detail: row });

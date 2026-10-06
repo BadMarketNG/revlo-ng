@@ -4,7 +4,7 @@
 //   X:        X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET (OAuth 1.0a, app with write access)
 // Posts only counts and Revlo links; partner sources are never named.
 import crypto from 'crypto';
-import { hashtagSuffix } from '@/lib/socialSettings.mjs';
+import { hashtagSuffix } from './socialSettings.mjs';
 
 // "Fri 2 Oct" in Lagos time. Each day's post is dated, so X never sees two identical posts.
 export function lagosDay(now = Date.now()) {
@@ -20,11 +20,12 @@ const categoryLine = (key, count) => {
 };
 
 /** The daily message. `counts` is { jobs: 12, rentals: 5, … } for posts created in the last 24 hours. */
-export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now(), results = [], hashtags = [] } = {}) {
+export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, now = Date.now(), results = [], hashtags = [], feedDescription = '' } = {}) {
   const lines = Object.entries(counts).filter(([, count]) => count > 0).map(([key, count]) => `• ${categoryLine(key, count)}`);
   if (!lines.length) return null;
   const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
   return [
+    ...(feedDescription ? [feedDescription, ''] : []),
     `Today on Revlo (${lagosDay(now)}): ${total} new post${total === 1 ? '' : 's'} across Nigeria`,
     '',
     ...lines,
@@ -39,10 +40,10 @@ export function buildDigest(counts, { url = 'https://revlo.ng', bookable = 0, no
 }
 
 /** A shorter version for X (280 characters; a link counts as 23). */
-export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.now(), hashtags = [] } = {}) {
+export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.now(), hashtags = [], feedDescription = '' } = {}) {
   const parts = Object.entries(counts).filter(([, count]) => count > 0).map(([key, count]) => categoryLine(key, count));
   if (!parts.length) return null;
-  const lead = counts.jobs ? 'Looking for work?' : counts.rentals ? 'Looking for a place?' : counts.for_sale ? 'Looking for a deal?' : 'See what is new in Nigeria.';
+  const lead = feedDescription || (counts.jobs ? 'Looking for work?' : counts.rentals ? 'Looking for a place?' : counts.for_sale ? 'Looking for a deal?' : 'See what is new in Nigeria.');
   const tags = hashtagSuffix(hashtags);
   let text = `${lead} New on Revlo, ${lagosDay(now)}: ${parts.join(', ')}. Browse while they are live:`;
   const suffix = ` ${url}${tags ? `\n${tags}` : ''}`;
