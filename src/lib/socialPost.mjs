@@ -11,6 +11,10 @@ export function lagosDay(now = Date.now()) {
   const d = new Date(now + 3600000);
   return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]} ${d.getUTCDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`;
 }
+export function lagosTime(now = Date.now()) {
+  const d = new Date(now + 3600000);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} WAT`;
+}
 
 const LABELS = { jobs: ['job', 'jobs'], rentals: ['room or rental', 'rooms and rentals'], for_sale: ['item for sale', 'items for sale'], promotions: ['promotion', 'promotions'], general: ['other post', 'other posts'] };
 const categoryWords = key => String(key || '').replace(/_/g, ' ').trim();
@@ -45,7 +49,7 @@ export function buildShortDigest(counts, { url = 'https://revlo.ng', now = Date.
   if (!parts.length) return null;
   const lead = feedDescription || (counts.jobs ? 'Looking for work?' : counts.rentals ? 'Looking for a place?' : counts.for_sale ? 'Looking for a deal?' : 'See what is new in Nigeria.');
   const tags = hashtagSuffix(hashtags);
-  let text = `${lead} New on Revlo, ${lagosDay(now)}: ${parts.join(', ')}. Browse while they are live:`;
+  let text = `${lead} New on Revlo, ${lagosDay(now)} at ${lagosTime(now)}: ${parts.join(', ')}. Browse while they are live:`;
   const suffix = ` ${url}${tags ? `\n${tags}` : ''}`;
   const maxLead = Math.max(40, 280 - suffix.length);
   if (text.length > maxLead) text = `${text.slice(0, maxLead - 1)}…`;
@@ -97,7 +101,12 @@ export async function postToFacebook(message, link) {
     signal: AbortSignal.timeout(15000),
   });
   const body = await response.json().catch(() => ({}));
-  return response.ok ? { ok: true, id: body.id } : { ok: false, status: response.status, error: body.error?.message?.slice(0, 200) };
+  if (response.ok) return { ok: true, id: body.id };
+  const detail = String(body.error?.message || '').slice(0, 200);
+  const error = /cannot call api for app|access token|permission/i.test(detail)
+    ? 'Facebook connection needs renewing in Meta. Reconnect the Page with the correct app and pages_manage_posts permission.'
+    : detail || 'Facebook rejected the post.';
+  return { ok: false, status: response.status, error, detail };
 }
 
 export async function postToX(text) {
@@ -108,5 +117,7 @@ export async function postToX(text) {
   const authorization = oauth1Header({ method: 'POST', url, consumerKey: X_API_KEY, consumerSecret: X_API_SECRET, token: X_ACCESS_TOKEN, tokenSecret: X_ACCESS_SECRET });
   const response = await fetch(url, { method: 'POST', headers: { Authorization: authorization, 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal: AbortSignal.timeout(15000) });
   const body = await response.json().catch(() => ({}));
-  return response.ok ? { ok: true, id: body.data?.id } : { ok: false, status: response.status, error: String(body.detail || body.title || '').slice(0, 200) };
+  if (response.ok) return { ok: true, id: body.data?.id };
+  const detail = String(body.detail || body.title || '').slice(0, 200);
+  return { ok: false, status: response.status, error: /duplicate content/i.test(detail) ? 'X rejected duplicate text. Wait for the next timed version before retrying.' : detail, detail };
 }

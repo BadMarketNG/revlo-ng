@@ -49,7 +49,7 @@ export default function AdminPage() {
     // ORIGINAL (commented out 2026-10-03): if (['stats', 'reports', 'scam', 'posts', 'emails', 'bm', 'features', 'categories', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     // NOTE: adds the 'x-feed' and 'enquiries' tabs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (['stats', 'reports', 'scam', 'enquiries', 'posts', 'create-previews', 'emails', 'bm', 'features', 'categories', 'homepage-copy', 'social-publishing', 'automation', 'x-feed', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
+    if (['stats', 'reports', 'scam', 'enquiries', 'posts', 'create-previews', 'emails', 'bm', 'features', 'categories', 'homepage-copy', 'social-publishing', 'automation', 'backlinks', 'x-feed', 'email-blocks', 'ip-blocks'].includes(requested)) setTab(requested);
     fetch('/api/admin/session')
       .then((r) => r.json())
       .then((d) => setAuthed(!!d.admin))
@@ -119,7 +119,7 @@ export default function AdminPage() {
         </div>
       </div>
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0' }}>
-        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['enquiries', 'Enquiries'], ['posts', 'All Posts'], ['create-previews', 'Response form previews'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['homepage-copy', 'Homepage copy'], ['social-publishing', 'Social publishing'], ['automation', 'Automation Studio'], ['x-feed', 'X feed'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
+        {[['stats', 'Stats'], ['reports', 'Reports'], ['scam', 'Scam reports'], ['enquiries', 'Enquiries'], ['posts', 'All Posts'], ['create-previews', 'Response form previews'], ['emails', 'Emails'], ['bm', 'BadMarket'], ['features', 'Badges & Promos'], ['users', 'Users & Email'], ['collusion', 'Collusion'], ['marketing', 'Email Marketing'], ['moderation', 'Moderation'], ['email-log', 'Email log'], ['categories', 'Categories'], ['homepage-copy', 'Homepage copy'], ['social-publishing', 'Social publishing'], ['automation', 'Automation Studio'], ['backlinks', 'Backlink partners'], ['x-feed', 'X feed'], ['email-blocks', 'Email Blocks'], ['ip-blocks', 'IP Blocks']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -159,6 +159,7 @@ export default function AdminPage() {
       {tab === 'categories' && <Categories />}
       {tab === 'homepage-copy' && <HomepageCopyAdmin />}
       {tab === 'automation' && <AutomationStudioLink />}
+      {tab === 'backlinks' && <BacklinkPartnersLink />}
       {tab === 'email-blocks' && <BlockList blockType="email" />}
       {tab === 'ip-blocks' && <BlockList blockType="ip" />}
       <p style={{ marginTop: 40, fontSize: 12, color: MUTED, borderTop: `1px solid ${BORDER}`, paddingTop: 16 }}>
@@ -173,6 +174,14 @@ function AutomationStudioLink() {
     <h2 style={{ marginTop: 0 }}>Revlo Automation Studio</h2>
     <p style={{ color: MUTED, maxWidth: 760, lineHeight: 1.6 }}>Upload and review scripts, test them in an isolated sandbox, run them once or on a controlled schedule, inspect results, pause them, and verify cleanup after deletion. The secure runner is shared with BadMarket so its audit trail and sandbox controls stay in one place.</p>
     <a href="https://badmarket.ng/admin/automation?target=revlo" style={{ ...btn(GREEN), display: 'inline-block', width: 'auto', textDecoration: 'none' }}>Open secure Automation Studio ↗</a>
+  </section>;
+}
+
+function BacklinkPartnersLink() {
+  return <section style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 24 }}>
+    <h2 style={{ marginTop: 0 }}>Revlo Backlink Partners</h2>
+    <p style={{ color: MUTED, maxWidth: 760, lineHeight: 1.6 }}>Add, edit, verify, pause or delete Revlo partner links. The shared manager checks that the partner page really links back to Revlo before the link appears publicly.</p>
+    <a href="https://badmarket.ng/admin/backlinks" style={{ ...btn(GREEN), display: 'inline-block', width: 'auto', textDecoration: 'none' }}>Open Backlink Partners ↗</a>
   </section>;
 }
 

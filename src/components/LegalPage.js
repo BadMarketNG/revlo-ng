@@ -24,6 +24,7 @@ export function SiteFooter() {
       <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: '10px 22px', alignItems: 'center', justifyContent: 'space-between' }}>
         <nav aria-label="Legal" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 18px' }}>
           <a href="/app.html" style={{ color: MUTE, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>Home</a>
+          <a href="/partners" style={{ color: MUTE, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>Verified partners</a>
           {PAGES.map(([key, label, href]) => (
             <a key={key} href={href} style={{ color: MUTE, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>{label}</a>
           ))}

@@ -46,6 +46,13 @@ test('daily social cards rotate real stock photos and keep a stable dated URL', 
   assert.equal(socialCardFromSlug('2026-10-05-jobs-9'), null);
 });
 
+test('X copy changes with the posting time so a later run is not a duplicate', () => {
+  const morning = buildShortDigest({ jobs: 2 }, { now: Date.UTC(2026, 9, 6, 8, 0) });
+  const afternoon = buildShortDigest({ jobs: 2 }, { now: Date.UTC(2026, 9, 6, 14, 0) });
+  assert.notEqual(morning, afternoon);
+  assert.match(morning, /09:00 WAT/);
+});
+
 test('daily digest lists shared results', async () => {
   const { buildDigest } = await import('../src/lib/socialPost.mjs');
   const text = buildDigest({ rentals: 2 }, { results: ['Let in 3 hours: 2-bedroom flat · Yaba'] });

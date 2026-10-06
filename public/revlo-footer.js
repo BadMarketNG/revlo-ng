@@ -1,7 +1,7 @@
 (() => {
   // Site footer for the app shell. Lives outside #root so React re-renders never remove it.
   if (document.querySelector('.revlo-site-footer')) return;
-  const links = [['Home', '/app.html'], ['Rules', '/rules'], ['Privacy', '/privacy'], ['Terms of Use', '/terms']];
+  const links = [['Home', '/app.html'], ['Verified partners', '/partners'], ['Rules', '/rules'], ['Privacy', '/privacy'], ['Terms of Use', '/terms']];
   const footer = document.createElement('footer');
   footer.className = 'revlo-site-footer';
   footer.innerHTML = `<style>
